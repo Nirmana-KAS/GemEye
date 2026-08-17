@@ -1,0 +1,61 @@
+# Flutter / Dart
+app/.dart_tool/
+app/.packages
+app/build/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+
+# Android
+app/android/.gradle/
+app/android/local.properties
+app/android/app/debug/
+app/android/app/profile/
+app/android/app/release/
+
+# iOS
+app/ios/Pods/
+app/ios/.symlinks/
+app/ios/Flutter/
+
+# IDE
+app/.idea/
+*.iml
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Docker / Backend
+backend/*.tar
+
+# Dataset images
+dataset/**/*.jpg
+dataset/**/*.jpeg
+dataset/**/*.png
+
+# ML model files
+backend/models/*.tflite
+backend/models/*.pkl
+model/saved_models/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Editor settings
+.vscode/settings.json
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Firebase / Google services
+app/android/app/google-services.json
+app/ios/Runner/GoogleService-Info.plist
+
+# AWS
+.aws/
