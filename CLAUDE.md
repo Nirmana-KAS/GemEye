@@ -286,6 +286,25 @@ GemEye/
 
 ---
 
+## MANDATORY RULES FOR EVERY TASK
+
+### Rule 1 — Always update PROJECT_STATUS.md
+After completing ANY task (creating files, fixing bugs, adding features, editing code), you MUST append a new EDIT entry to PROJECT_STATUS.md with:
+- Sequential EDIT number (EDIT-002, EDIT-003, etc.)
+- Current date and time
+- Topic (short title)
+- Summary (1-2 sentences)
+- What was done (bullet list)
+- Files changed (marked with + new, ~ modified, - deleted)
+- Connected edits (reference previous related EDITs)
+- Reason (why this edit was needed)
+Never skip this. Never forget this. Do it as the LAST step of every task.
+
+### Rule 2 — Always run flutter analyze after code changes
+After modifying ANY Dart file, always run "flutter analyze" from the app/ directory and confirm zero issues before reporting completion. If issues are found, fix them before reporting.
+
+---
+
 ## WHEN IN DOUBT
 
 - Check this file first

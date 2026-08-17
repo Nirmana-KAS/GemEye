@@ -51,3 +51,61 @@
   - `~` app/pubspec.yaml (replaced)
 - **Connected edits:** None (first edit)
 - **Reason:** Project initialisation — Phase A
+
+---
+
+### EDIT-002 | 17 August 2026 | IST
+- **Topic:** Bug Fixes — theme.dart, widget_test.dart, splash_screen.dart
+- **Summary:** Fixed 3 code issues found by flutter analyze: CardTheme type error, widget test reference, and const constructor lint.
+- **What was done:**
+  - Changed CardTheme( to CardThemeData( in theme.dart line 76
+  - Replaced widget_test.dart to reference GemEyeApp instead of MyApp
+  - Added const to version Text widget in splash_screen.dart line 78
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/config/theme.dart (CardTheme → CardThemeData)
+  - `~` app/test/widget_test.dart (replaced entirely)
+  - `~` app/lib/screens/splash_screen.dart (added const)
+  - `~` CLAUDE.md (added mandatory rules)
+- **Connected edits:** EDIT-001 (fixes issues from initial setup)
+- **Reason:** Fix errors detected by flutter analyze to ensure clean project state
+
+---
+
+### EDIT-003 | 17 August 2026 | IST
+- **Topic:** Splash Screen Enhancement — Custom Gem Animation + Layout Fix
+- **Summary:** Replaced placeholder Lottie hexagon with a custom-painted 3D rotating sapphire gem animation. Moved version text to bottom of screen.
+- **What was done:**
+  - Created gem_animation.dart with AnimatedGem widget using CustomPainter
+  - Drew brilliant-cut sapphire with 8 facets in Royal Blue shades
+  - Added 3D rotation effect using Matrix4 perspective transform
+  - Added subtle scale pulse animation
+  - Updated splash_screen.dart to use AnimatedGem instead of Lottie
+  - Moved version text to bottom center of screen
+  - Removed Lottie dependency from splash screen
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `+` app/lib/widgets/gem_animation.dart (new custom animation widget)
+  - `~` app/lib/screens/splash_screen.dart (replaced Lottie with AnimatedGem, moved version)
+- **Connected edits:** EDIT-001, EDIT-002 (splash screen improvements)
+- **Reason:** Placeholder hexagon looked unprofessional; custom sapphire animation matches the app's purpose and brand
+
+---
+
+### EDIT-004 | 17 August 2026 | IST
+- **Topic:** Splash Screen — Real Lottie Diamond Animation + Colour Fix + Layout Fix
+- **Summary:** Replaced ugly custom painted gem with real Lottie diamond animation from LottieFiles. Changed diamond colours from white/grey to Royal Blue shades. Removed black background. Fixed all alignment — everything centered. Version at bottom.
+- **What was done:**
+  - Replaced sapphire_rotate.json with real Diamond.json Lottie animation
+  - Changed all white/grey fills to Royal Blue shades (#1B3A8C, #3B5FD9, #0D1F5A)
+  - Removed black background layer from Lottie file
+  - Rewrote splash_screen.dart with proper centered layout
+  - Deleted gem_animation.dart custom painter
+  - Animation size: 160x160 for better visibility
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/assets/animations/sapphire_rotate.json (replaced with real Lottie, colours changed)
+  - `~` app/lib/screens/splash_screen.dart (rewritten with proper layout)
+  - `-` app/lib/widgets/gem_animation.dart (deleted)
+- **Connected edits:** EDIT-003 (replaces both custom painter and placeholder)
+- **Reason:** Professional animated diamond in Royal Blue with perfect centering

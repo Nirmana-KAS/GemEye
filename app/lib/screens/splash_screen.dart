@@ -24,66 +24,88 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 120,
-              height: 120,
-              child: Lottie.asset(
-                'assets/animations/sapphire_rotate.json',
-                repeat: true,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: GemEyeColors.primarySurface,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: GemEyeColors.primary.withValues(alpha: 0.2),
-                        width: 2,
-                      ),
+      body: SafeArea(
+        child: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: Column(
+            children: [
+              const Spacer(flex: 3),
+              Center(
+                child: SizedBox(
+                  width: 160,
+                  height: 160,
+                  child: Lottie.asset(
+                    'assets/animations/sapphire_rotate.json',
+                    repeat: true,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: 120,
+                        height: 120,
+                        decoration: BoxDecoration(
+                          color: GemEyeColors.primarySurface,
+                          borderRadius: BorderRadius.circular(60),
+                          border: Border.all(
+                            color: GemEyeColors.primary.withValues(alpha: 0.3),
+                            width: 2,
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.diamond_rounded,
+                          size: 56,
+                          color: GemEyeColors.primary,
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              const Center(
+                child: Text(
+                  AppConstants.appName,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: GemEyeFonts.heading,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: GemEyeColors.primary,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Center(
+                child: Text(
+                  AppConstants.appTagline,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontFamily: GemEyeFonts.body,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: GemEyeColors.textMuted,
+                  ),
+                ),
+              ),
+              const Spacer(flex: 4),
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.only(bottom: 24),
+                  child: Text(
+                    'v${AppConstants.appVersion} · ${AppConstants.appYear}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: GemEyeFonts.body,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w400,
+                      color: GemEyeColors.textMuted,
                     ),
-                    child: const Icon(
-                      Icons.diamond_rounded,
-                      size: 48,
-                      color: GemEyeColors.primary,
-                    ),
-                  );
-                },
+                  ),
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              AppConstants.appName,
-              style: TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                color: GemEyeColors.primary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              AppConstants.appTagline,
-              style: TextStyle(
-                fontFamily: GemEyeFonts.body,
-                fontSize: 12,
-                color: GemEyeColors.textMuted,
-              ),
-            ),
-            const SizedBox(height: 60),
-            Text(
-              'v${AppConstants.appVersion} · ${AppConstants.appYear}',
-              style: const TextStyle(
-                fontFamily: GemEyeFonts.body,
-                fontSize: 10,
-                color: GemEyeColors.textMuted,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

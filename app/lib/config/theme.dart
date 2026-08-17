@@ -73,7 +73,7 @@ class GemEyeTheme {
           ),
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: GemEyeColors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(
