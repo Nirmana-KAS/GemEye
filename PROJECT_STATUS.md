@@ -109,3 +109,51 @@
   - `-` app/lib/widgets/gem_animation.dart (deleted)
 - **Connected edits:** EDIT-003 (replaces both custom painter and placeholder)
 - **Reason:** Professional animated diamond in Royal Blue with perfect centering
+
+---
+
+### EDIT-005 | 18 August 2026 | IST
+- **Topic:** Phase B Start — Navigation Routes + Agreement Screen + Privacy Screen
+- **Summary:** Built the navigation helper, privacy policy display screen, and the mandatory user agreement acceptance screen with checkbox and scrollable policy text.
+- **What was done:**
+  - Created routes.dart with push, pushReplacement, pop navigation helpers
+  - Created privacy_screen.dart — read-only scrollable privacy policy loaded from assets
+  - Created agreement_screen.dart — summary box with 4 key points, scrollable full policy, checkbox acceptance, disabled/enabled button
+  - Updated splash_screen.dart to navigate to AgreementScreen after 3 seconds
+  - Agreement blocks app usage until user accepts
+  - All text uses approved fonts (Poppins headings, Inter body)
+  - All colours from GemEyeColors class
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `+` app/lib/config/routes.dart
+  - `+` app/lib/screens/agreement_screen.dart
+  - `+` app/lib/screens/privacy_screen.dart
+  - `~` app/lib/screens/splash_screen.dart (added navigation to agreement)
+- **Connected edits:** EDIT-004 (splash screen now navigates forward)
+- **Reason:** Phase B Step 1 — mandatory privacy acceptance before app usage
+
+---
+
+### EDIT-006 | 18 August 2026 | IST
+- **Topic:** Phase B — Login + Register Screens + Firebase Auth + Auth Service
+- **Summary:** Built login screen with Google Sign-In and email/password authentication, register screen with individual and company account types, Firebase initialization, and auth service wrapper. Full auth flow working: splash → agreement → login → register → home.
+- **What was done:**
+  - Updated main.dart with Firebase.initializeApp
+  - Created auth_service.dart with Google Sign-In, email login, email register, sign out, password reset, getFirstName
+  - Created login_screen.dart with Google button, email/password fields, password visibility toggle, forgot password, loading state, error handling
+  - Created register_screen.dart with account type toggle (individual/company), common fields (name, email, password, phone, country, role), company-only fields (company name, business reg, industry, address) with AnimatedSize, form validation, loading state
+  - Created placeholder home_screen.dart with welcome message and sign out button
+  - Updated agreement_screen.dart to navigate to LoginScreen
+  - Updated splash_screen.dart with auth state check (logged in → home, not logged in → agreement)
+  - All error handling with user-friendly SnackBar messages
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/main.dart (added Firebase init)
+  - `+` app/lib/services/auth_service.dart
+  - `+` app/lib/screens/login_screen.dart
+  - `+` app/lib/screens/register_screen.dart
+  - `+` app/lib/screens/home_screen.dart (placeholder)
+  - `~` app/lib/screens/agreement_screen.dart (navigate to login)
+  - `~` app/lib/screens/splash_screen.dart (auth state check)
+- **Connected edits:** EDIT-005 (agreement screen now connects to login flow)
+- **Reason:** Phase B Step 2 — complete authentication flow with Firebase

@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
+import '../config/routes.dart';
+import '../services/auth_service.dart';
+import 'agreement_screen.dart';
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -16,7 +20,13 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     Timer(const Duration(seconds: 3), () {
-      // TODO: Navigate to agreement/login/home based on auth state
+      if (!mounted) return;
+      final authService = AuthService();
+      if (authService.isLoggedIn) {
+        AppRoutes.pushReplacement(context, const HomeScreen());
+      } else {
+        AppRoutes.pushReplacement(context, const AgreementScreen());
+      }
     });
   }
 
