@@ -6,7 +6,7 @@ import '../config/constants.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
 import 'agreement_screen.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -23,7 +23,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (!mounted) return;
       final authService = AuthService();
       if (authService.isLoggedIn) {
-        AppRoutes.pushReplacement(context, const HomeScreen());
+        AppRoutes.pushReplacement(context, const MainShell());
       } else {
         AppRoutes.pushReplacement(context, const AgreementScreen());
       }

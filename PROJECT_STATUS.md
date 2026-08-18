@@ -157,3 +157,63 @@
   - `~` app/lib/screens/splash_screen.dart (auth state check)
 - **Connected edits:** EDIT-005 (agreement screen now connects to login flow)
 - **Reason:** Phase B Step 2 — complete authentication flow with Firebase
+
+---
+
+### EDIT-007 | 18 August 2026 | IST
+- **Topic:** Fix Privacy Policy Markdown Rendering + Google Logo
+- **Summary:** Added flutter_markdown package to render privacy policy properly with formatted headings and paragraphs. Replaced generic Google icon with custom-painted 4-colour Google "G" logo on login screen.
+- **What was done:**
+  - Added flutter_markdown dependency to pubspec.yaml
+  - Updated agreement_screen.dart to use MarkdownBody with styled headings and body text
+  - Updated privacy_screen.dart to use MarkdownBody with same styles
+  - Created GoogleLogoPainter in login_screen.dart with official Google colours (blue, red, yellow, green)
+  - Replaced generic G icon with custom painted Google logo
+  - Ran flutter pub get and flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/pubspec.yaml (added flutter_markdown)
+  - `~` app/lib/screens/agreement_screen.dart (MarkdownBody)
+  - `~` app/lib/screens/privacy_screen.dart (MarkdownBody)
+  - `~` app/lib/screens/login_screen.dart (Google logo painter)
+- **Connected edits:** EDIT-005, EDIT-006 (fixes visual issues from those screens)
+- **Reason:** Raw markdown symbols looked unprofessional; generic Google icon not recognizable
+
+---
+
+### EDIT-008 | 18 August 2026 | IST
+- **Topic:** Phase B3 — Google Logo Fix + Onboarding + Home Dashboard + Bottom Nav + Side Drawer
+- **Summary:** Fixed Google button logo, built 4-slide onboarding screen, complete home dashboard with greeting and stats, bottom navigation with 4 tabs, right side drawer with 11 menu items, and main shell with IndexedStack page switching.
+- **What was done:**
+  - Fixed Google logo on login screen with clean styled "G" text
+  - Created onboarding_screen.dart with 4 slides, dot indicators, Next/Get Started buttons
+  - Created bottom_nav.dart with 4 tabs (Home, Grade, History, Guide) with active animations
+  - Created side_drawer.dart with profile header, 11 menu items, logout, app version
+  - Created main_shell.dart with IndexedStack for tab switching, endDrawer for side menu
+  - Rewrote home_screen.dart with greeting (timezone-based), calibration banner, quick grade button with gradient, 3 stat cards, recent grades empty state
+  - Updated splash, login, register, onboarding to navigate to MainShell
+  - Placeholder screens for Grade, History, Guide tabs
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/screens/login_screen.dart (Google logo fix)
+  - `+` app/lib/screens/onboarding_screen.dart
+  - `+` app/lib/screens/main_shell.dart
+  - `+` app/lib/widgets/bottom_nav.dart
+  - `+` app/lib/widgets/side_drawer.dart
+  - `~` app/lib/screens/home_screen.dart (complete rewrite)
+  - `~` app/lib/screens/splash_screen.dart (navigate to MainShell)
+  - `~` app/lib/screens/register_screen.dart (navigate to MainShell)
+- **Connected edits:** EDIT-006, EDIT-007 (completes the auth flow with proper destination screens)
+- **Reason:** Phase B Step 3 — core app navigation and home dashboard
+
+---
+
+### EDIT-009 | 18 August 2026 | IST
+- **Topic:** Fix Google Logo — Use Real PNG Image
+- **Summary:** Replaced styled text "G" with actual Google logo PNG image that was already saved in assets.
+- **What was done:**
+  - Changed Google button icon to Image.asset('assets/images/google_logo.png')
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/screens/login_screen.dart (Google logo image)
+- **Connected edits:** EDIT-007, EDIT-008 (finally fixes the Google logo correctly)
+- **Reason:** Previous attempts used custom paint and styled text — should have used the PNG from the start

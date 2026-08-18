@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../config/theme.dart';
 
 class PrivacyScreen extends StatelessWidget {
@@ -52,13 +53,16 @@ class PrivacyScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    snapshot.data ?? '',
-                    style: const TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: GemEyeColors.textSecondary,
+                  MarkdownBody(
+                    data: snapshot.data ?? '',
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Color(0xFF6B7089), height: 1.6),
+                      h1: const TextStyle(fontFamily: 'Poppins', fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
+                      h2: const TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
+                      h3: const TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
+                      strong: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
+                      listBullet: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Color(0xFF6B7089)),
+                      horizontalRuleDecoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFE5E7F0), width: 1))),
                     ),
                   ),
                 ],

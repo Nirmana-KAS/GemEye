@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -106,7 +106,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             backgroundColor: GemEyeColors.success,
           ),
         );
-        AppRoutes.pushReplacement(context, const HomeScreen());
+        AppRoutes.pushReplacement(context, const MainShell());
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {

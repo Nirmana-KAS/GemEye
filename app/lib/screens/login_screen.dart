@@ -4,7 +4,7 @@ import '../config/theme.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
-import 'home_screen.dart';
+import 'main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final result = await _authService.signInWithGoogle();
       if (result != null && mounted) {
-        AppRoutes.pushReplacement(context, const HomeScreen());
+        AppRoutes.pushReplacement(context, const MainShell());
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -66,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _authService.signInWithEmail(email, password);
       if (mounted) {
-        AppRoutes.pushReplacement(context, const HomeScreen());
+        AppRoutes.pushReplacement(context, const MainShell());
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -191,8 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.g_mobiledata_rounded,
-                                size: 24, color: Colors.red.shade600),
+                            Image.asset('assets/images/google_logo.png', width: 22, height: 22),
                             const SizedBox(width: 8),
                             const Text(
                               'Continue with Google',
