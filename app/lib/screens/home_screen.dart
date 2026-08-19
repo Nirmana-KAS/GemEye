@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../config/routes.dart';
 import '../services/auth_service.dart';
+import 'calibration_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -81,41 +83,44 @@ class HomeScreen extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F0),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                        color: GemEyeColors.warning.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: const BoxDecoration(
-                          color: GemEyeColors.warning,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      const Expanded(
-                        child: Text(
-                          'Not calibrated yet. Calibrate before grading.',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.body,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF92400E),
+                GestureDetector(
+                  onTap: () => AppRoutes.push(context, const CalibrationScreen()),
+                  child: Container(
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF8F0),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                          color: GemEyeColors.warning.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: GemEyeColors.warning,
+                            shape: BoxShape.circle,
                           ),
                         ),
-                      ),
-                      const Icon(Icons.arrow_forward_ios_rounded,
-                          size: 14, color: Color(0xFF92400E)),
-                    ],
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Not calibrated yet. Calibrate before grading.',
+                            style: TextStyle(
+                              fontFamily: GemEyeFonts.body,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF92400E),
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded,
+                            size: 14, color: Color(0xFF92400E)),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),

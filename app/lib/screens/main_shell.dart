@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../config/routes.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/side_drawer.dart';
 import 'home_screen.dart';
+import 'capture_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -13,6 +15,14 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+
+  void _onNavTap(int index) {
+    if (index == 1) {
+      AppRoutes.push(context, const CaptureScreen());
+    } else {
+      setState(() => _currentIndex = index);
+    }
+  }
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -32,11 +42,7 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: GemEyeBottomNav(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: _onNavTap,
       ),
     );
   }

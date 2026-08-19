@@ -217,3 +217,26 @@
   - `~` app/lib/screens/login_screen.dart (Google logo image)
 - **Connected edits:** EDIT-007, EDIT-008 (finally fixes the Google logo correctly)
 - **Reason:** Previous attempts used custom paint and styled text — should have used the PNG from the start
+
+---
+
+### EDIT-010 | 18 August 2026 | IST
+- **Topic:** Phase C — Calibration Wizard + Capture + Processing + Grade Result Screens
+- **Summary:** Built the complete grading flow: 3-step calibration wizard with CCC card preview, capture screen with camera and gallery options plus image cropping, animated processing screen with 7-step pipeline progress, and professional grade result screen showing grade badge, colour values, Grad-CAM placeholder, and action buttons.
+- **What was done:**
+  - Created calibration_screen.dart — 3-step wizard (Place CCC, Mount Phone, Capture) with progress bar, CCC patch preview, viewfinder simulation, success dialog
+  - Created capture_screen.dart — camera capture with image_picker, gallery import, image_cropper for crop before grading, checklist, loading state
+  - Created processing_screen.dart — Lottie sapphire animation, 7-step progress with checkmarks and spinner, simulated timing, auto-navigate to result
+  - Created result_screen.dart — stone image display, gradient grade badge (Grade 3 Vivid Royal Blue), confidence interval, HIGH/MED/LOW indicator, colour values grid (CIELAB + HSB + ΔE₀₀), Grad-CAM heatmap placeholder, Save & Grade Next and Export Certificate buttons
+  - Updated main_shell.dart — Grade tab navigates to CaptureScreen instead of placeholder
+  - Updated home_screen.dart — calibration banner navigates to CalibrationScreen
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `+` app/lib/screens/calibration_screen.dart
+  - `+` app/lib/screens/capture_screen.dart
+  - `+` app/lib/screens/processing_screen.dart
+  - `+` app/lib/screens/result_screen.dart
+  - `~` app/lib/screens/main_shell.dart (Grade tab navigation)
+  - `~` app/lib/screens/home_screen.dart (calibration banner tap)
+- **Connected edits:** EDIT-008 (connects home dashboard to grading flow)
+- **Reason:** Phase C — complete grading flow from capture to result
