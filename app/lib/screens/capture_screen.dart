@@ -104,11 +104,12 @@ class _CaptureScreenState extends State<CaptureScreen> {
       setState(() => _isCapturing = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Crop error: ${e.toString()}'),
-            backgroundColor: GemEyeColors.error,
+          const SnackBar(
+            content: Text('Crop unavailable — using original image'),
+            backgroundColor: Color(0xFFF59E0B),
           ),
         );
+        AppRoutes.push(context, ProcessingScreen(imagePath: imagePath));
       }
     }
   }

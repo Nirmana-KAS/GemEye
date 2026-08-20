@@ -240,3 +240,21 @@
   - `~` app/lib/screens/home_screen.dart (calibration banner tap)
 - **Connected edits:** EDIT-008 (connects home dashboard to grading flow)
 - **Reason:** Phase C — complete grading flow from capture to result
+
+---
+
+### EDIT-011 | 20 August 2026 | IST
+- **Topic:** Fix App Crash After Camera/Gallery — image_cropper Android Configuration
+- **Summary:** Fixed crash caused by missing UCropActivity declaration in AndroidManifest.xml. Added required camera and storage permissions. Added crop failure fallback to use original image.
+- **What was done:**
+  - Added UCropActivity declaration to AndroidManifest.xml
+  - Added CAMERA, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, READ_MEDIA_IMAGES permissions
+  - Verified styles.xml has AppCompat/MaterialComponents theme — changed NormalTheme parent to Theme.MaterialComponents.Light.NoActionBar
+  - Updated capture_screen.dart with crop fallback — if crop fails, original image is sent to processing
+  - Ran flutter clean + flutter pub get + flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/android/app/src/main/AndroidManifest.xml (added UCropActivity + permissions)
+  - `~` app/android/app/src/main/res/values/styles.xml (changed NormalTheme parent to MaterialComponents)
+  - `~` app/lib/screens/capture_screen.dart (crop fallback)
+- **Connected edits:** EDIT-010 (fixes crash from Phase C capture screen)
+- **Reason:** image_cropper requires UCropActivity registered in AndroidManifest — was missing from auto-generated config
