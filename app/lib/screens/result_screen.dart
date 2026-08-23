@@ -408,13 +408,58 @@ class _ResultScreenState extends State<ResultScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          _buildValueRow('L*', _result.labL.toStringAsFixed(1), 'a*', _result.labA.toStringAsFixed(1)),
+          _buildValueRow('Lightness', _result.labL.toStringAsFixed(1), 'Green-Red', _result.labA.toStringAsFixed(1)),
           const SizedBox(height: 8),
-          _buildValueRow('b*', _result.labB.toStringAsFixed(1), 'C*', _result.labC.toStringAsFixed(1)),
+          _buildValueRow('Blue-Yellow', _result.labB.toStringAsFixed(1), 'Chroma', _result.labC.toStringAsFixed(1)),
           const SizedBox(height: 8),
-          _buildValueRow('Hue', '${_result.hue.toStringAsFixed(0)}°', 'Sat', '${_result.saturation.toStringAsFixed(0)}%'),
+          _buildValueRow('Hue', '${_result.hue.toStringAsFixed(0)}°', 'Saturation', '${_result.saturation.toStringAsFixed(0)}%'),
           const SizedBox(height: 8),
-          _buildValueRow('Brt', '${_result.brightness.toStringAsFixed(0)}%', 'ΔE₀₀', _result.deltaE.toStringAsFixed(1)),
+          _buildValueRow('Brightness', '${_result.brightness.toStringAsFixed(0)}%', 'Delta E', _result.deltaE.toStringAsFixed(1)),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: GemEyeColors.primarySurface,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Hex Value',
+                  style: TextStyle(
+                    fontFamily: GemEyeFonts.body,
+                    fontSize: 12,
+                    color: GemEyeColors.textSecondary,
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Color(int.parse(_result.gradeColourHex.replaceFirst('#', '0xFF'))),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: GemEyeColors.border),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _result.gradeColourHex,
+                      style: const TextStyle(
+                        fontFamily: GemEyeFonts.mono,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: GemEyeColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -460,13 +505,29 @@ class _ResultScreenState extends State<ResultScreen> {
               ),
             ),
             child: const Center(
-              child: Text(
-                'Heatmap will appear here',
-                style: TextStyle(
-                  fontFamily: GemEyeFonts.body,
-                  fontSize: 11,
-                  color: Colors.white70,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Heatmap generated after model deployment',
+                    style: TextStyle(
+                      fontFamily: GemEyeFonts.body,
+                      fontSize: 11,
+                      color: Colors.white70,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Connect to cloud backend to enable',
+                    style: TextStyle(
+                      fontFamily: GemEyeFonts.body,
+                      fontSize: 9,
+                      color: Colors.white54,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           ),

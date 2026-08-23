@@ -82,11 +82,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
         uiSettings: [
           AndroidUiSettings(
             toolbarTitle: 'Crop Stone Image',
-            toolbarColor: GemEyeColors.primary,
+            toolbarColor: const Color(0xFF1B3A8C),
             toolbarWidgetColor: Colors.white,
-            activeControlsWidgetColor: GemEyeColors.primary,
-            initAspectRatio: CropAspectRatioPreset.square,
+            activeControlsWidgetColor: const Color(0xFF1B3A8C),
+            showCropGrid: true,
             lockAspectRatio: false,
+            hideBottomControls: true,
+            initAspectRatio: CropAspectRatioPreset.square,
           ),
           IOSUiSettings(
             title: 'Crop Stone Image',

@@ -28,6 +28,7 @@ dependencies:
   path_provider: ^2.1.4
   path: ^1.9.0
   share_plus: ^10.0.2
+  flutter_native_splash: ^2.4.4
   url_launcher: ^6.3.0
   intl: ^0.19.0
   uuid: ^4.4.2
@@ -37,6 +38,25 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/images/logo.png"
+
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/images/logo.png"
+  image_dark: "assets/images/logo.png"
+  color_dark: "#FFFFFF"
+  android_12:
+    color: "#FFFFFF"
+    image: "assets/images/logo.png"
+    color_dark: "#FFFFFF"
+    image_dark: "assets/images/logo.png"
 
 flutter:
   uses-material-design: true

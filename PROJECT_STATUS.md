@@ -309,3 +309,117 @@
   - `~` app/lib/screens/processing_screen.dart (creates GradeResult, passes to ResultScreen)
 - **Connected edits:** EDIT-010, EDIT-012, EDIT-013 (connects grading flow to data model, storage, and certificate generation)
 - **Reason:** Phase C Steps 25-26 — complete certificate PDF generation, sharing, and grade persistence flow
+
+---
+
+### EDIT-015 | 23 August 2026 | IST
+- **Topic:** Certificate PDF Complete Rebuild
+- **Summary:** Rebuilt certificate PDF with professional layout matching approved design — navy header bar with diamond logo, side-by-side stone image and grade card, full-word table headers, stone details with AI attention map, QR verification code, classification standard, and compact footer.
+- **What was done:**
+  - Complete rewrite of CertificateService with 6-section professional layout
+  - Section 1: Navy header bar with diamond icon, centred title, certificate number
+  - Section 2: Side-by-side stone image and navy grade card with grade number, name, trade name, uncertainty badge, confidence badge
+  - Section 3: Colour values table with full-word headers (Lightness, Green-Red, Blue-Yellow, Chroma, Hue, Saturation, Brightness, Delta E) — Courier font for values
+  - Section 4: Stone details (ID, date, session) alongside AI Attention Map (Grad-CAM image or placeholder)
+  - Section 5: QR code verification (pw.BarcodeWidget with JSON data) alongside GEMCLOUD classification standard paragraph and disclaimer
+  - Section 6: Light grey footer bar with version, certificate number, generation date
+  - All text uses built-in PDF fonts only (Helvetica, Helvetica-Bold, Helvetica-Oblique, Courier, Courier-Bold) — no custom TTF loading
+  - Zero-margin page with manual padding per section for precise control
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart (complete rewrite)
+- **Connected edits:** EDIT-013, EDIT-014 (replaces previous certificate PDF layout)
+- **Reason:** Previous certificate had poor alignment, broken symbols, wasted space — rebuilt to match professional design specification
+
+---
+
+### EDIT-016 | 23 August 2026 | IST
+- **Topic:** GemEye Logo Integration — App Icon + Native Splash + Certificate Logo
+- **Summary:** Replaced Flutter default app icon with GemEye logo on Royal Blue background, replaced native splash Flutter logo with branded Royal Blue splash, embedded logo image in certificate PDF header replacing diamond symbol.
+- **What was done:**
+  - Added flutter_launcher_icons (dev) and flutter_native_splash (runtime) packages
+  - Configured flutter_launcher_icons with logo.png and adaptive icon on #1B3A8C background
+  - Configured flutter_native_splash with logo.png on #1B3A8C background for normal and Android 12+
+  - Generated app icons for Android and iOS via `dart run flutter_launcher_icons`
+  - Generated native splash screens via `dart run flutter_native_splash:create`
+  - Updated main.dart with FlutterNativeSplash.preserve() and FlutterNativeSplash.remove()
+  - Updated certificate_service.dart to load logo.png from assets and display it in the PDF header bar to the left of "GemEye" text, replacing the diamond symbol
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/pubspec.yaml (added flutter_native_splash dependency, flutter_launcher_icons dev dependency, launcher icons and splash config)
+  - `~` app/lib/main.dart (added FlutterNativeSplash preserve/remove)
+  - `~` app/lib/services/certificate_service.dart (load logo from assets, embed in PDF header)
+- **Connected edits:** EDIT-015 (certificate header now uses logo image instead of diamond symbol)
+- **Reason:** Replace default Flutter branding with GemEye logo across app icon, cold-start splash, and certificate PDF
+
+---
+
+### EDIT-017 | 23 August 2026 | IST
+- **Topic:** Certificate PDF Complete Rewrite + UI Fixes
+- **Summary:** Rebuilt certificate PDF fixing broken layout (split stone image, wrapped text, broken em-dash, QR overlap, blank space). Fixed result screen labels to full words with hex colour value. Fixed crop toolbar. Updated heatmap placeholder text.
+- **What was done:**
+  - Complete rewrite of certificate_service.dart generateCertificatePdf method with 7 tightly-stacked children in pw.Column
+  - Fixed stone image: single pw.Image widget with fixed 160x160 container instead of split pieces
+  - Fixed em-dash: replaced with ASCII hyphen in "Vivid - Royal Blue" to avoid broken character in Helvetica
+  - Fixed VERIFICATION section: used fixed-width pw.Container(width: 180) so text never wraps
+  - Fixed blank space: only one pw.Spacer() before footer, everything else stacks tightly
+  - Fixed QR code: proper pw.BarcodeWidget with JSON data, no overlap with classification text
+  - Added 9th column "Hex" to colour values table showing grade hex colour
+  - Used intl DateFormat for all date formatting instead of manual string building
+  - Result screen: changed labels from symbols (L*, a*, b*, C*, Sat, Brt, ΔE₀₀) to full words (Lightness, Green-Red, Blue-Yellow, Chroma, Saturation, Brightness, Delta E)
+  - Result screen: added Hex Value row with coloured circle (24x24) + hex string from gradeColourHex
+  - Result screen: changed heatmap placeholder to "Heatmap generated after model deployment" with subtitle "Connect to cloud backend to enable"
+  - Capture screen: added showCropGrid and hideBottomControls: false to AndroidUiSettings
+  - Android: created UCropTheme style with GemEye brand colours in styles.xml
+  - Android: updated AndroidManifest.xml UCropActivity to use UCropTheme
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart (complete rewrite)
+  - `~` app/lib/screens/result_screen.dart (full words + hex value + heatmap text)
+  - `~` app/lib/screens/capture_screen.dart (crop toolbar settings)
+  - `~` app/android/app/src/main/res/values/styles.xml (added UCropTheme)
+  - `~` app/android/app/src/main/AndroidManifest.xml (UCropActivity theme reference)
+- **Connected edits:** EDIT-015, EDIT-016 (fixes all certificate PDF issues from previous builds)
+- **Reason:** Certificate PDF had 5 visual bugs (split image, wrapped text, broken character, QR overlap, blank space). Result screen used cryptic symbol labels. Crop toolbar needed theme fix.
+
+---
+
+### EDIT-018 | 23 August 2026 | IST
+- **Topic:** Certificate PDF Error Fix + Crop Screen Cleanup
+- **Summary:** Fixed certificate PDF generation crash caused by invalid pw.FontStyle.italic with named font, letterSpacing usage, pw.Spacer inside Column, and non-const pw.BorderRadius.circular. Hid confusing icon-only crop toolbar.
+- **What was done:**
+  - Complete safe rewrite of certificate_service.dart removing all crash-causing constructs:
+    - Removed pw.FontStyle.italic (used with pw.Font.helveticaBold which conflicts)
+    - Removed all letterSpacing usage (not reliably supported in pdf TextStyle)
+    - Replaced pw.Spacer() with pw.SizedBox(height: 20) to avoid flex-parent requirement in Column
+    - Replaced pw.BorderRadius.circular() with const pw.BorderRadius.all(pw.Radius.circular())
+    - Removed intl/DateFormat dependency, using manual date formatting instead
+    - Added try-catch around logo loading with debugPrint fallback
+  - Refactored into clean static helper methods: _buildHeader, _buildGradeSection, _buildColourTable, _buildDetailsSection, _buildVerificationSection, _buildFooter, _sectionHeader, _detailRow
+  - Used PdfColors.grey300 instead of PdfColor.fromHex for label colours where possible
+  - Added error logging to certificate_screen.dart catch block with debugPrint for error and stack trace
+  - Changed capture_screen.dart hideBottomControls to true — removes confusing icon-only UCrop toolbar, user crops via drag frame + checkmark
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart (complete safe rewrite)
+  - `~` app/lib/screens/certificate_screen.dart (added error logging)
+  - `~` app/lib/screens/capture_screen.dart (hideBottomControls: true)
+- **Connected edits:** EDIT-015, EDIT-016, EDIT-017 (fixes PDF generation crash from previous builds)
+- **Reason:** Certificate showed "Failed to generate PDF" due to incompatible pdf widget constructs. Crop screen had confusing icon-only toolbar.
+
+---
+
+### EDIT-019 | 23 August 2026 | IST
+- **Topic:** Logo Background Fix
+- **Summary:** Changed app icon and native splash background from Royal Blue (#1B3A8C) to white (#FFFFFF) so the blue logo is visible instead of invisible blue-on-blue.
+- **What was done:**
+  - Changed adaptive_icon_background in flutter_launcher_icons config from #1B3A8C to #FFFFFF
+  - Changed all color/color_dark values in flutter_native_splash config from #1B3A8C to #FFFFFF (normal, dark, and android_12 sections)
+  - Ran flutter clean + flutter pub get
+  - Ran dart run flutter_launcher_icons — regenerated all Android and iOS app icons
+  - Ran dart run flutter_native_splash:create — regenerated all native splash screens
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/pubspec.yaml (changed background colours to #FFFFFF in launcher_icons and native_splash configs)
+- **Connected edits:** EDIT-016 (fixes invisible logo from original blue background choice)
+- **Reason:** Blue logo on blue background was invisible — white background makes the logo clearly visible on app icon and cold-start splash
