@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 import '../config/theme.dart';
-import 'result_screen.dart';
 import '../config/routes.dart';
+import '../models/grade_result.dart';
+import '../services/storage_service.dart';
+import 'result_screen.dart';
 
 class ProcessingScreen extends StatefulWidget {
   final String imagePath;
@@ -39,15 +41,44 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
           if (i == _steps.length - 1) {
             Timer(const Duration(milliseconds: 500), () {
               if (mounted) {
-                AppRoutes.pushReplacement(
-                  context,
-                  ResultScreen(imagePath: widget.imagePath),
-                );
+                _navigateToResult();
               }
             });
           }
         }
       });
+    }
+  }
+
+  Future<void> _navigateToResult() async {
+    final stoneId = await StorageService.getNextStoneId();
+
+    final result = GradeResult(
+      stoneId: stoneId,
+      gradeNumber: 3,
+      gradeName: 'Vivid',
+      tradeName: 'Royal Blue',
+      confidence: 92.4,
+      uncertaintyRange: 0.2,
+      labL: 42.3,
+      labA: 8.9,
+      labB: -27.0,
+      labC: 28.4,
+      hue: 228,
+      saturation: 88,
+      brightness: 62,
+      deltaE: 1.2,
+      capturedImagePath: widget.imagePath,
+    );
+
+    if (mounted) {
+      AppRoutes.pushReplacement(
+        context,
+        ResultScreen(
+          imagePath: widget.imagePath,
+          gradeResult: result,
+        ),
+      );
     }
   }
 

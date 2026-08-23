@@ -1,10 +1,198 @@
 import 'dart:io';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import '../config/theme.dart';
+import '../config/routes.dart';
+import '../models/grade_result.dart';
+import '../services/storage_service.dart';
+import '../services/certificate_service.dart';
+import 'certificate_screen.dart';
 
-class ResultScreen extends StatelessWidget {
+class ResultScreen extends StatefulWidget {
   final String imagePath;
-  const ResultScreen({super.key, required this.imagePath});
+  final GradeResult? gradeResult;
+
+  const ResultScreen({
+    super.key,
+    required this.imagePath,
+    this.gradeResult,
+  });
+
+  @override
+  State<ResultScreen> createState() => _ResultScreenState();
+}
+
+class _ResultScreenState extends State<ResultScreen> {
+  final GlobalKey _repaintKey = GlobalKey();
+  late GradeResult _result;
+  bool _isSaving = false;
+  bool _isExporting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _result = widget.gradeResult ?? _createMockResult();
+  }
+
+  GradeResult _createMockResult() {
+    return GradeResult(
+      stoneId: 'GE-STONE-00000',
+      gradeNumber: 3,
+      gradeName: 'Vivid',
+      tradeName: 'Royal Blue',
+      confidence: 92.4,
+      uncertaintyRange: 0.2,
+      labL: 42.3,
+      labA: 8.9,
+      labB: -27.0,
+      labC: 28.4,
+      hue: 228,
+      saturation: 88,
+      brightness: 62,
+      deltaE: 1.2,
+      capturedImagePath: widget.imagePath,
+    );
+  }
+
+  Future<void> _saveAndGradeNext() async {
+    setState(() => _isSaving = true);
+    try {
+      if (_result.stoneId == 'GE-STONE-00000') {
+        final stoneId = await StorageService.getNextStoneId();
+        _result = GradeResult(
+          id: _result.id,
+          stoneId: stoneId,
+          gradeNumber: _result.gradeNumber,
+          gradeName: _result.gradeName,
+          tradeName: _result.tradeName,
+          confidence: _result.confidence,
+          uncertaintyRange: _result.uncertaintyRange,
+          labL: _result.labL,
+          labA: _result.labA,
+          labB: _result.labB,
+          labC: _result.labC,
+          hue: _result.hue,
+          saturation: _result.saturation,
+          brightness: _result.brightness,
+          deltaE: _result.deltaE,
+          capturedImagePath: _result.capturedImagePath,
+          gradcamImagePath: _result.gradcamImagePath,
+          certificateNumber: _result.certificateNumber,
+          capturedAt: _result.capturedAt,
+          sessionId: _result.sessionId,
+        );
+      }
+      await StorageService.saveGradeResult(_result);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Stone saved — ${_result.stoneId}')),
+        );
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to save result')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _exportCertificate() async {
+    setState(() => _isExporting = true);
+    try {
+      if (_result.stoneId == 'GE-STONE-00000') {
+        final stoneId = await StorageService.getNextStoneId();
+        _result = GradeResult(
+          id: _result.id,
+          stoneId: stoneId,
+          gradeNumber: _result.gradeNumber,
+          gradeName: _result.gradeName,
+          tradeName: _result.tradeName,
+          confidence: _result.confidence,
+          uncertaintyRange: _result.uncertaintyRange,
+          labL: _result.labL,
+          labA: _result.labA,
+          labB: _result.labB,
+          labC: _result.labC,
+          hue: _result.hue,
+          saturation: _result.saturation,
+          brightness: _result.brightness,
+          deltaE: _result.deltaE,
+          capturedImagePath: _result.capturedImagePath,
+          gradcamImagePath: _result.gradcamImagePath,
+          certificateNumber: _result.certificateNumber,
+          capturedAt: _result.capturedAt,
+          sessionId: _result.sessionId,
+        );
+      }
+
+      if (_result.certificateNumber == null) {
+        final certNumber = await CertificateService.generateCertificateNumber();
+        _result.certificateNumber = certNumber;
+      }
+
+      await StorageService.saveGradeResult(_result);
+
+      Uint8List stoneImageBytes;
+      try {
+        stoneImageBytes = await File(widget.imagePath).readAsBytes();
+      } catch (_) {
+        stoneImageBytes = Uint8List(0);
+      }
+
+      if (mounted) {
+        AppRoutes.push(
+          context,
+          CertificateScreen(
+            result: _result,
+            stoneImageBytes: stoneImageBytes,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to generate certificate')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
+    }
+  }
+
+  Future<void> _shareResult() async {
+    try {
+      final boundary = _repaintKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (byteData == null) return;
+
+      final pngBytes = byteData.buffer.asUint8List();
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/gemeye_result.png');
+      await file.writeAsBytes(pngBytes);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'GemEye Grade ${_result.gradeNumber} — ${_result.gradeName} (${_result.tradeName})',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to share result')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,9 +209,7 @@ class ResultScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.share_rounded),
-            onPressed: () {
-              // TODO: Share result
-            },
+            onPressed: _shareResult,
           ),
         ],
       ),
@@ -32,218 +218,56 @@ class ResultScreen extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
-              // Stone image
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.file(
-                  File(imagePath),
-                  width: double.infinity,
-                  height: 200,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: double.infinity,
-                      height: 200,
-                      decoration: BoxDecoration(
-                        color: GemEyeColors.primarySurface,
+              RepaintBoundary(
+                key: _repaintKey,
+                child: Container(
+                  color: Colors.white,
+                  child: Column(
+                    children: [
+                      ClipRRect(
                         borderRadius: BorderRadius.circular(14),
+                        child: Image.file(
+                          File(widget.imagePath),
+                          width: double.infinity,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: double.infinity,
+                              height: 200,
+                              decoration: BoxDecoration(
+                                color: GemEyeColors.primarySurface,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              child: const Icon(Icons.diamond_rounded, size: 48, color: GemEyeColors.textMuted),
+                            );
+                          },
+                        ),
                       ),
-                      child: const Icon(Icons.diamond_rounded, size: 48, color: GemEyeColors.textMuted),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Grade badge
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF091A72), Color(0xFF1B3A8C)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                      const SizedBox(height: 16),
+                      _buildGradeBadge(),
+                      const SizedBox(height: 16),
+                      _buildColourValues(),
+                      const SizedBox(height: 16),
+                      _buildGradCam(),
+                    ],
                   ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'GEMCLOUD GRADE',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white70,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Grade 3',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.heading,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Vivid — Royal Blue',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.heading,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        '± 0.2 grades',
-                        style: TextStyle(
-                          fontFamily: GemEyeFonts.mono,
-                          fontSize: 13,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: GemEyeColors.success,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'HIGH CONFIDENCE',
-                        style: TextStyle(
-                          fontFamily: GemEyeFonts.body,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Colour values
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: GemEyeColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'COLOUR VALUES',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: GemEyeColors.textMuted,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _buildValueRow('L*', '42.3', 'a*', '8.9'),
-                    const SizedBox(height: 8),
-                    _buildValueRow('b*', '-27.0', 'C*', '28.4'),
-                    const SizedBox(height: 8),
-                    _buildValueRow('Hue', '228°', 'Sat', '88%'),
-                    const SizedBox(height: 8),
-                    _buildValueRow('Brt', '62%', 'ΔE₀₀', '1.2'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Grad-CAM placeholder
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: GemEyeColors.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'GRAD-CAM HEATMAP',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: GemEyeColors.textMuted,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      height: 120,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(10),
-                        gradient: const RadialGradient(
-                          center: Alignment(-0.1, 0.0),
-                          colors: [
-                            Color(0x99EF4444),
-                            Color(0x66F59E0B),
-                            Color(0x3310B981),
-                            Color(0x331B3A8C),
-                          ],
-                          stops: [0.0, 0.3, 0.6, 1.0],
-                        ),
-                      ),
-                      child: const Center(
-                        child: Text(
-                          'Heatmap will appear here',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.body,
-                            fontSize: 11,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Red = high influence on prediction · Blue = low influence',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 10,
-                        color: GemEyeColors.textMuted,
-                      ),
-                    ),
-                  ],
                 ),
               ),
               const SizedBox(height: 20),
-              // Action buttons
               Row(
                 children: [
                   Expanded(
                     child: SizedBox(
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).popUntil((route) => route.isFirst);
-                        },
-                        child: const Text('Save & Grade Next'),
+                        onPressed: _isSaving ? null : _saveAndGradeNext,
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 20, height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Save & Grade Next'),
                       ),
                     ),
                   ),
@@ -252,10 +276,13 @@ class ResultScreen extends StatelessWidget {
                     child: SizedBox(
                       height: 48,
                       child: OutlinedButton(
-                        onPressed: () {
-                          // TODO: Export certificate
-                        },
-                        child: const Text('Export Certificate'),
+                        onPressed: _isExporting ? null : _exportCertificate,
+                        child: _isExporting
+                            ? const SizedBox(
+                                width: 20, height: 20,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: GemEyeColors.primary),
+                              )
+                            : const Text('Export Certificate'),
                       ),
                     ),
                   ),
@@ -265,6 +292,194 @@ class ResultScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGradeBadge() {
+    final confidenceColor = _result.confidenceLevel == 'HIGH'
+        ? GemEyeColors.success
+        : _result.confidenceLevel == 'MEDIUM'
+            ? GemEyeColors.warning
+            : GemEyeColors.error;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF091A72), Color(0xFF1B3A8C)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            'GEMCLOUD GRADE',
+            style: TextStyle(
+              fontFamily: GemEyeFonts.body,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: Colors.white70,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Grade ${_result.gradeNumber}',
+            style: const TextStyle(
+              fontFamily: GemEyeFonts.heading,
+              fontSize: 36,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${_result.gradeName} — ${_result.tradeName}',
+            style: const TextStyle(
+              fontFamily: GemEyeFonts.heading,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '± ${_result.uncertaintyRange} grades',
+              style: const TextStyle(
+                fontFamily: GemEyeFonts.mono,
+                fontSize: 13,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+            decoration: BoxDecoration(
+              color: confidenceColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              '${_result.confidenceLevel} CONFIDENCE',
+              style: const TextStyle(
+                fontFamily: GemEyeFonts.body,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildColourValues() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: GemEyeColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'COLOUR VALUES',
+            style: TextStyle(
+              fontFamily: GemEyeFonts.body,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: GemEyeColors.textMuted,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildValueRow('L*', _result.labL.toStringAsFixed(1), 'a*', _result.labA.toStringAsFixed(1)),
+          const SizedBox(height: 8),
+          _buildValueRow('b*', _result.labB.toStringAsFixed(1), 'C*', _result.labC.toStringAsFixed(1)),
+          const SizedBox(height: 8),
+          _buildValueRow('Hue', '${_result.hue.toStringAsFixed(0)}°', 'Sat', '${_result.saturation.toStringAsFixed(0)}%'),
+          const SizedBox(height: 8),
+          _buildValueRow('Brt', '${_result.brightness.toStringAsFixed(0)}%', 'ΔE₀₀', _result.deltaE.toStringAsFixed(1)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGradCam() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: GemEyeColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'GRAD-CAM HEATMAP',
+            style: TextStyle(
+              fontFamily: GemEyeFonts.body,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: GemEyeColors.textMuted,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            height: 120,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: const RadialGradient(
+                center: Alignment(-0.1, 0.0),
+                colors: [
+                  Color(0x99EF4444),
+                  Color(0x66F59E0B),
+                  Color(0x3310B981),
+                  Color(0x331B3A8C),
+                ],
+                stops: [0.0, 0.3, 0.6, 1.0],
+              ),
+            ),
+            child: const Center(
+              child: Text(
+                'Heatmap will appear here',
+                style: TextStyle(
+                  fontFamily: GemEyeFonts.body,
+                  fontSize: 11,
+                  color: Colors.white70,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Red = high influence on prediction · Blue = low influence',
+            style: TextStyle(
+              fontFamily: GemEyeFonts.body,
+              fontSize: 10,
+              color: GemEyeColors.textMuted,
+            ),
+          ),
+        ],
       ),
     );
   }

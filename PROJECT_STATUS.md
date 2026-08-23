@@ -258,3 +258,54 @@
   - `~` app/lib/screens/capture_screen.dart (crop fallback)
 - **Connected edits:** EDIT-010 (fixes crash from Phase C capture screen)
 - **Reason:** image_cropper requires UCropActivity registered in AndroidManifest — was missing from auto-generated config
+
+---
+
+### EDIT-012 | 23 August 2026 | IST
+- **Topic:** GradeResult Data Model
+- **Summary:** Created GradeResult model with full JSON serialization, confidence levels, and grade colour mapping.
+- **What was done:**
+  - Created GradeResult class with 20 fields (id, stoneId, gradeNumber, gradeName, tradeName, confidence, uncertaintyRange, CIELAB values, HSB values, deltaE, image paths, certificateNumber, timestamps)
+  - Auto-generated UUID for id and session ID
+  - Added toJson/fromJson serialization
+  - Added confidenceLevel getter (HIGH/MEDIUM/LOW based on confidence %)
+  - Added gradeColourHex getter for 7-grade colour mapping
+  - Added uuid package dependency to pubspec.yaml
+- **Files changed:**
+  - `+` app/lib/models/grade_result.dart
+  - `~` app/pubspec.yaml (added uuid: ^4.4.2)
+- **Connected edits:** EDIT-010 (model for the grading flow)
+- **Reason:** Phase C Steps 25-26 — data model needed for grade storage, certificate generation, and history
+
+---
+
+### EDIT-013 | 23 August 2026 | IST
+- **Topic:** Storage & Certificate Services
+- **Summary:** Created StorageService for local grade history persistence and CertificateService for A4 PDF certificate generation with professional layout.
+- **What was done:**
+  - Created StorageService with SharedPreferences-backed JSON storage: save, get, delete, clear, getById, getNextStoneId (auto-increment GE-STONE-NNNNN), getGradeCount, getTodayCount
+  - Created CertificateService with generateCertificateNumber (GE-YYYYMM-NNNNN format) and generateCertificatePdf
+  - PDF layout: header row (GemEye + title + cert number), Royal Blue divider, centred stone image, dark navy grade card with grade number/name/trade name/uncertainty/confidence badge, colour data table (L* a* b* C* Hue Sat Brt ΔE₀₀), optional Grad-CAM image, stone details section, GEMCLOUD standard line, disclaimer, footer
+- **Files changed:**
+  - `+` app/lib/services/storage_service.dart
+  - `+` app/lib/services/certificate_service.dart
+- **Connected edits:** EDIT-012 (services use GradeResult model)
+- **Reason:** Phase C Steps 25-26 — local storage for grade history and PDF certificate generation
+
+---
+
+### EDIT-014 | 23 August 2026 | IST
+- **Topic:** Certificate Screen + Result Screen Update
+- **Summary:** Created certificate preview screen with save/share/print actions, updated result screen with full save and export functionality, updated processing screen to create GradeResult objects.
+- **What was done:**
+  - Created certificate_screen.dart with PdfPreview widget, bottom action bar (Save to Documents, Share via system sheet, Print via system dialog)
+  - Rewrote result_screen.dart: accepts optional GradeResult parameter, RepaintBoundary for screenshot sharing, Save & Grade Next button (saves to StorageService, shows SnackBar, pops to home), Export Certificate button (generates cert number if needed, saves result, navigates to CertificateScreen with stone image bytes), Share via AppBar (captures screenshot, shares via share_plus)
+  - Updated processing_screen.dart: creates GradeResult with auto-generated stoneId after processing simulation, passes it to ResultScreen
+  - All error handling with user-friendly SnackBar messages
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `+` app/lib/screens/certificate_screen.dart
+  - `~` app/lib/screens/result_screen.dart (complete rewrite with save/export/share)
+  - `~` app/lib/screens/processing_screen.dart (creates GradeResult, passes to ResultScreen)
+- **Connected edits:** EDIT-010, EDIT-012, EDIT-013 (connects grading flow to data model, storage, and certificate generation)
+- **Reason:** Phase C Steps 25-26 — complete certificate PDF generation, sharing, and grade persistence flow
