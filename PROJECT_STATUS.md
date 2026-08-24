@@ -500,3 +500,120 @@
   - `~` app/lib/screens/capture_screen.dart (compact layout, pinned buttons, removed icon, shrunk guide)
 - **Connected edits:** EDIT-022 (refines capture screen crop guide layout)
 - **Reason:** Previous layout with large icon and guide required scrolling to reach buttons on smaller screens — compacted everything and pinned buttons at bottom for consistent accessibility
+
+---
+
+### EDIT-024 | 24 August 2026 | IST
+- **Topic:** Capture Screen Layout Fix + SnackBar Theme
+- **Summary:** Removed blank space on capture screen by putting all content and buttons in single scrollable column with no Expanded/Spacer. Changed certificate save SnackBar background from green to Royal Blue app theme colour.
+- **What was done:**
+  - Removed Expanded widget wrapping the card/checklist content area
+  - Removed separate bottom-pinned buttons Padding section
+  - Put card, checklist, and buttons all inside one SingleChildScrollView Column — content flows naturally top to bottom with no blank space
+  - Added SizedBox(height: 20) gap between checklist and buttons
+  - Changed certificate save SnackBar backgroundColor from Color(0xFF059669) (green) to Color(0xFF1B3A8C) (Royal Blue)
+- **Files changed:**
+  - `~` app/lib/screens/capture_screen.dart (layout restructure, no blank space)
+  - `~` app/lib/screens/certificate_screen.dart (SnackBar colour to #1B3A8C)
+- **Connected edits:** EDIT-023 (refines capture screen layout from previous edit)
+- **Reason:** Expanded + SingleChildScrollView left blank white space between checklist and buttons when content didn't fill the expanded area. Green SnackBar was inconsistent with Royal Blue app theme.
+
+---
+
+### EDIT-025 | 24 August 2026 | IST
+- **Topic:** Capture Screen Full-Height Card + SnackBar Theme
+- **Summary:** Expanded capture instruction card to fill all available space between app bar and buttons using Expanded widget. Moved checklist inside card. Centred content vertically. Zero blank space. Certificate save SnackBar already Royal Blue from EDIT-024.
+- **What was done:**
+  - Wrapped card Container in Expanded so it fills all space between app bar and buttons
+  - Set card Column to mainAxisAlignment: MainAxisAlignment.center for vertical centering
+  - Moved checklist items inside the card (previously separate below card)
+  - Increased zoom guide frame from 120x120 to 140x140, target circle from 75x75 to 85x85
+  - Increased corner marks from 14x14 to 16x16, diamond icon from 20 to 22
+  - Changed card background from GemEyeColors.primarySurface to Color(0xFFF5F7FA) with no border
+  - Simplified _buildCheckItem helper to single-parameter version (always checked)
+  - Gallery button height matched to Take Photo at 52px, font size to 16px
+  - Buttons remain outside Expanded, pinned at bottom with 12px top padding
+  - Verified certificate_screen.dart SnackBar already uses Color(0xFF1B3A8C) from EDIT-024
+- **Files changed:**
+  - `~` app/lib/screens/capture_screen.dart (full-height card layout)
+- **Connected edits:** EDIT-024 (replaces flat ScrollView layout with full-height card)
+- **Reason:** Previous flat SingleChildScrollView layout left the card at natural height with blank white space below — expanding the card to fill all available space eliminates the gap entirely.
+
+---
+
+### EDIT-026 | 24 August 2026 | IST
+- **Topic:** Splash Logo Fix + Crop Edit Guide
+- **Summary:** Removed Android 12 splash image to prevent squircle cropping of round logo. Added crop guide bottom sheet showing icon labels (Scale, Rotate, Aspect Ratio) before UCrop opens so users understand each control.
+- **What was done:**
+  - Removed image, image_dark, and icon_background_color from android_12 section in flutter_native_splash config — Android 12+ now shows plain white splash (no cropped logo), then Lottie diamond animation plays
+  - Regenerated native splash screens via dart run flutter_native_splash:create
+  - Added _showCropGuide bottom sheet method to capture screen — shows Scale, Rotate, Aspect Ratio icons with text labels and "Got it, Open Editor" button before opening UCrop
+  - Added _guideItem helper widget for icon+label columns using GemEyeColors and GemEyeFonts
+  - Updated _captureImage and _pickFromGallery to show crop guide before opening cropper instead of calling _cropAndProceed directly
+  - Added statusBarLight to AndroidUiSettings (replaced deprecated statusBarColor)
+  - Used GemEyeColors constants instead of hardcoded hex values in crop error SnackBar and UCrop settings
+  - Created strings.xml with UCrop string resource overrides for aspect ratio labels
+  - Ran flutter analyze — 0 errors, 0 warnings (15 pre-existing info-level lints in certificate_service.dart)
+- **Files changed:**
+  - `~` app/pubspec.yaml (removed android_12 splash image/image_dark/icon_background_color)
+  - `~` app/lib/screens/capture_screen.dart (added crop guide bottom sheet, wired into capture/gallery flows)
+  - `+` app/android/app/src/main/res/values/strings.xml (UCrop string resources)
+- **Connected edits:** EDIT-020 (splash logo fix), EDIT-018 (crop toolbar)
+- **Reason:** Android 12+ squircle cropping made circular logo look zoomed and clipped. UCrop bottom toolbar showed icon-only controls without text labels — users couldn't identify Scale/Rotate/Aspect Ratio functions.
+
+---
+
+### EDIT-027 | 24 August 2026 | IST
+- **Topic:** UCrop Theme + Layout Override + Remove Guide Sheet
+- **Summary:** Removed Image Edit Controls bottom sheet. Created custom UCrop theme with app colours (white background, Royal Blue active). Overrode UCrop layout to force all tab text labels visible (Scale, Rotate, Crop).
+- **What was done:**
+  - Deleted _showCropGuide method and _guideItem helper from capture_screen.dart
+  - Restored direct _cropAndProceed calls in _captureImage and _pickFromGallery (no bottom sheet intermediary)
+  - Updated AndroidUiSettings with statusBarColor, backgroundColor, and hardcoded hex colours per spec
+  - Removed initAspectRatio and statusBarLight, added statusBarColor and backgroundColor
+  - Expanded UCropTheme in styles.xml with full colour attributes: ucrop_color_toolbar_widget, ucrop_color_statusbar, ucrop_color_widget_active, ucrop_color_widget_inactive, ucrop_color_widget_background (white), ucrop_color_widget_rotate_mid_line, ucrop_color_crop_background
+  - Created ucrop_controls_wrapper.xml layout override with three LinearLayout tabs (Scale, Rotate, Crop) each containing ImageView + TextView with android:visibility="visible" to force text labels
+  - AndroidManifest.xml UCropActivity already had @style/UCropTheme — no change needed
+  - Ran flutter analyze — 0 errors, 0 warnings (16 pre-existing info-level lints)
+- **Files changed:**
+  - `~` app/lib/screens/capture_screen.dart (removed _showCropGuide/_guideItem, restored direct crop calls, updated AndroidUiSettings)
+  - `~` app/android/app/src/main/res/values/styles.xml (expanded UCropTheme with full colour attributes)
+  - `+` app/android/app/src/main/res/layout/ucrop_controls_wrapper.xml (custom layout with visible text labels)
+- **Connected edits:** EDIT-026 (removes bottom sheet added there), EDIT-020 (UCrop theme)
+- **Reason:** Bottom sheet was unnecessary UX friction. UCrop bottom bar had dark/black background not matching app theme. Tab icons showed without text labels — users couldn't identify Scale/Rotate/Crop functions.
+
+---
+
+### EDIT-028 | 24 August 2026 | IST
+- **Topic:** Fix UCrop Build Failure — Remove Unsupported Style Attributes
+- **Summary:** Reverted UCropTheme to basic AppCompat attributes only. Removed custom layout override. The ucrop_color_* style attributes and ucrop_ic_* drawables are not exposed by image_cropper v8.0.2's bundled UCrop library, causing Android resource linking failure.
+- **What was done:**
+  - Reverted UCropTheme in styles.xml to 3 basic attributes: colorPrimary, colorPrimaryDark, colorAccent — these are standard AppCompat attributes that UCrop inherits
+  - Deleted ucrop_controls_wrapper.xml layout override — the UCrop resource IDs (@drawable/ucrop_ic_scale etc.) are not accessible from the app module in this package version
+  - Ran flutter clean + flutter pub get
+  - Ran flutter analyze — 0 errors, 0 warnings (16 pre-existing info-level lints)
+- **Files changed:**
+  - `~` app/android/app/src/main/res/values/styles.xml (reverted UCropTheme to basic attrs)
+  - `-` app/android/app/src/main/res/layout/ucrop_controls_wrapper.xml (deleted)
+- **Connected edits:** EDIT-027 (fixes build failure from that edit's UCrop style attributes)
+- **Reason:** image_cropper v8.0.2 bundles UCrop as an AAR that does not expose ucrop_color_* attrs or ucrop_ic_* drawables to the app module — referencing them causes Android resource linking failure at build time.
+
+---
+
+### EDIT-029 | 24 August 2026 | IST
+- **Topic:** Revert UCrop Style Changes
+- **Summary:** Reverted all UCrop theme and layout overrides that caused build failures. UCrop bottom toolbar uses default styling. The ucrop_color_* attributes are not accessible in image_cropper v8.1.0.
+- **What was done:**
+  - Reverted styles.xml to original two styles only (LaunchTheme + NormalTheme) — removed UCropTheme entirely
+  - Reverted AndroidManifest.xml UCropActivity theme from @style/UCropTheme to @style/Theme.AppCompat.Light.NoActionBar
+  - Removed statusBarColor and backgroundColor from AndroidUiSettings in capture_screen.dart — eliminates deprecation warning
+  - Deleted layout/ directory (was already empty after EDIT-028)
+  - Ran flutter clean + flutter pub get
+  - Ran flutter analyze — 0 errors, 0 warnings (15 pre-existing info-level lints)
+- **Files changed:**
+  - `~` app/android/app/src/main/res/values/styles.xml (reverted to original LaunchTheme + NormalTheme only)
+  - `~` app/android/app/src/main/AndroidManifest.xml (reverted UCropActivity theme)
+  - `~` app/lib/screens/capture_screen.dart (removed statusBarColor, backgroundColor from AndroidUiSettings)
+  - `-` app/android/app/src/main/res/layout/ (deleted empty directory)
+- **Connected edits:** EDIT-027, EDIT-028 (completes full revert of UCrop customisation attempts)
+- **Reason:** UCrop theme attributes (ucrop_color_*) and drawable resources (ucrop_ic_*) are not exposed by image_cropper v8.1.0's bundled UCrop AAR — all customisation attempts caused build failures. Default styling is the only working option with this package version.

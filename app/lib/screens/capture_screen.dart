@@ -85,10 +85,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
             toolbarColor: const Color(0xFF1B3A8C),
             toolbarWidgetColor: Colors.white,
             activeControlsWidgetColor: const Color(0xFF1B3A8C),
+            hideBottomControls: false,
             showCropGrid: true,
             lockAspectRatio: false,
-            hideBottomControls: false,
-            initAspectRatio: CropAspectRatioPreset.square,
           ),
           IOSUiSettings(
             title: 'Crop Stone Image',
@@ -108,7 +107,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Crop unavailable — using original image'),
-            backgroundColor: Color(0xFFF59E0B),
+            backgroundColor: GemEyeColors.warning,
           ),
         );
         AppRoutes.push(context, ProcessingScreen(imagePath: imagePath));
@@ -131,173 +130,154 @@ class _CaptureScreenState extends State<CaptureScreen> {
         child: Column(
           children: [
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 12),
-                    // Instructions area
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: GemEyeColors.primarySurface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: GemEyeColors.border),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F7FA),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Capture Your Sapphire',
+                        style: TextStyle(
+                          fontFamily: GemEyeFonts.heading,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: GemEyeColors.textPrimary,
+                        ),
                       ),
-                      child: Column(
-                        children: [
-                          const Text(
-                            'Capture Your Sapphire',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.heading,
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: GemEyeColors.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Place stone face-up on white tray. Take photo with macro lens. Crop after capture.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.body,
-                              fontSize: 12,
-                              color: GemEyeColors.textSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          // Crop guide visual
-                          Container(
-                            width: 120,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: GemEyeColors.primary,
-                                width: 2,
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Place stone face-up on white tray. Take photo\nwith macro lens. Crop after capture.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: GemEyeFonts.body,
+                          fontSize: 12,
+                          color: GemEyeColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: 140,
+                        height: 140,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: GemEyeColors.primary, width: 2),
+                          borderRadius: BorderRadius.circular(8),
+                          color: Colors.white,
+                        ),
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Positioned(
+                              top: 6,
+                              left: 6,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    top: BorderSide(color: GemEyeColors.primary, width: 2),
+                                    left: BorderSide(color: GemEyeColors.primary, width: 2),
+                                  ),
+                                ),
                               ),
-                              borderRadius: BorderRadius.circular(8),
-                              color: const Color(0xFFF5F7FA),
                             ),
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Corner crop marks
-                                Positioned(
-                                  top: 6,
-                                  left: 6,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        top: BorderSide(color: GemEyeColors.primary, width: 2),
-                                        left: BorderSide(color: GemEyeColors.primary, width: 2),
-                                      ),
-                                    ),
+                            Positioned(
+                              top: 6,
+                              right: 6,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    top: BorderSide(color: GemEyeColors.primary, width: 2),
+                                    right: BorderSide(color: GemEyeColors.primary, width: 2),
                                   ),
                                 ),
-                                Positioned(
-                                  top: 6,
-                                  right: 6,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        top: BorderSide(color: GemEyeColors.primary, width: 2),
-                                        right: BorderSide(color: GemEyeColors.primary, width: 2),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 6,
-                                  left: 6,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(color: GemEyeColors.primary, width: 2),
-                                        left: BorderSide(color: GemEyeColors.primary, width: 2),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 6,
-                                  right: 6,
-                                  child: Container(
-                                    width: 14,
-                                    height: 14,
-                                    decoration: const BoxDecoration(
-                                      border: Border(
-                                        bottom: BorderSide(color: GemEyeColors.primary, width: 2),
-                                        right: BorderSide(color: GemEyeColors.primary, width: 2),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                // Centre target circle
-                                Container(
-                                  width: 75,
-                                  height: 75,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: GemEyeColors.success,
-                                      width: 2,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    Icons.diamond_outlined,
-                                    size: 20,
-                                    color: GemEyeColors.primary.withValues(alpha: 0.4),
-                                  ),
-                                ),
-                              ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Zoom until stone fills the circle',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.heading,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: GemEyeColors.primary,
+                            Positioned(
+                              bottom: 6,
+                              left: 6,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: GemEyeColors.primary, width: 2),
+                                    left: BorderSide(color: GemEyeColors.primary, width: 2),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Stone should be ~70% of the frame for best results',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.body,
-                              fontSize: 10,
-                              color: GemEyeColors.textSecondary,
+                            Positioned(
+                              bottom: 6,
+                              right: 6,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: const BoxDecoration(
+                                  border: Border(
+                                    bottom: BorderSide(color: GemEyeColors.primary, width: 2),
+                                    right: BorderSide(color: GemEyeColors.primary, width: 2),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                            Container(
+                              width: 85,
+                              height: 85,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: GemEyeColors.success, width: 2),
+                              ),
+                              child: Center(
+                                child: Icon(
+                                  Icons.diamond_outlined,
+                                  size: 22,
+                                  color: GemEyeColors.primary.withValues(alpha: 0.3),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    // Checklist
-                    _buildCheckItem(Icons.check_circle_rounded, 'Macro lens attached', true),
-                    const SizedBox(height: 4),
-                    _buildCheckItem(Icons.check_circle_rounded, 'CPL filter on', true),
-                    const SizedBox(height: 4),
-                    _buildCheckItem(Icons.check_circle_rounded, 'Stone on white tray', true),
-                    const SizedBox(height: 4),
-                    _buildCheckItem(Icons.check_circle_rounded, 'Even lighting', true),
-                  ],
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Zoom until stone fills the circle',
+                        style: TextStyle(
+                          fontFamily: GemEyeFonts.heading,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: GemEyeColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Stone should be ~70% of the frame for best results',
+                        style: TextStyle(
+                          fontFamily: GemEyeFonts.body,
+                          fontSize: 10,
+                          color: GemEyeColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildCheckItem('Macro lens attached'),
+                      _buildCheckItem('CPL filter on'),
+                      _buildCheckItem('Stone on white tray'),
+                      _buildCheckItem('Even lighting'),
+                    ],
+                  ),
                 ),
               ),
             ),
-            // Buttons pinned at bottom
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
               child: _isCapturing
                   ? const Center(child: CircularProgressIndicator(color: GemEyeColors.primary))
                   : Column(
@@ -321,7 +301,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                         const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
-                          height: 44,
+                          height: 52,
                           child: OutlinedButton.icon(
                             onPressed: _pickFromGallery,
                             icon: const Icon(Icons.photo_library_rounded, size: 20),
@@ -329,7 +309,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                               'Choose from Gallery',
                               style: TextStyle(
                                 fontFamily: GemEyeFonts.heading,
-                                fontSize: 14,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -344,24 +324,23 @@ class _CaptureScreenState extends State<CaptureScreen> {
     );
   }
 
-  Widget _buildCheckItem(IconData icon, String text, bool checked) {
-    return Row(
-      children: [
-        Icon(
-          checked ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-          size: 20,
-          color: checked ? GemEyeColors.success : GemEyeColors.textMuted,
-        ),
-        const SizedBox(width: 10),
-        Text(
-          text,
-          style: TextStyle(
-            fontFamily: GemEyeFonts.body,
-            fontSize: 13,
-            color: checked ? GemEyeColors.textPrimary : GemEyeColors.textMuted,
+  Widget _buildCheckItem(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_rounded, color: GemEyeColors.success, size: 22),
+          const SizedBox(width: 10),
+          Text(
+            text,
+            style: const TextStyle(
+              fontFamily: GemEyeFonts.body,
+              fontSize: 14,
+              color: GemEyeColors.textPrimary,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">GemEye</string>
+    <string name="ucrop_menu_crop">Crop</string>
+    <string name="ucrop_label_original">Original</string>
+    <string name="ucrop_label_square">Square</string>
+    <string name="ucrop_label_3_2">3:2</string>
+    <string name="ucrop_label_4_3">4:3</string>
+    <string name="ucrop_label_16_9">16:9</string>
+</resources>

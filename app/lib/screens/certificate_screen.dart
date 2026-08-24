@@ -81,7 +81,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Certificate saved to Downloads/GemEye Certificates/'),
-            backgroundColor: Color(0xFF059669),
+            backgroundColor: Color(0xFF1B3A8C),
             duration: Duration(seconds: 3),
           ),
         );
