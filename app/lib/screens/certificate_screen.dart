@@ -61,13 +61,29 @@ class _CertificateScreenState extends State<CertificateScreen> {
   Future<void> _savePdf() async {
     if (_pdfBytes == null) return;
     try {
-      final dir = await getApplicationDocumentsDirectory();
       final certNum = widget.result.certificateNumber ?? 'certificate';
-      final file = File('${dir.path}/$certNum.pdf');
+      Directory saveDir;
+
+      if (Platform.isAndroid) {
+        saveDir = Directory('/storage/emulated/0/Download/GemEye Certificates');
+      } else {
+        final appDir = await getApplicationDocumentsDirectory();
+        saveDir = Directory('${appDir.path}/GemEye Certificates');
+      }
+
+      if (!await saveDir.exists()) {
+        await saveDir.create(recursive: true);
+      }
+
+      final file = File('${saveDir.path}/$certNum.pdf');
       await file.writeAsBytes(_pdfBytes!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Certificate saved to ${file.path}')),
+          const SnackBar(
+            content: Text('Certificate saved to Downloads/GemEye Certificates/'),
+            backgroundColor: Color(0xFF059669),
+            duration: Duration(seconds: 3),
+          ),
         );
       }
     } catch (e) {

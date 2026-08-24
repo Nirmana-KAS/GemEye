@@ -423,3 +423,80 @@
   - `~` app/pubspec.yaml (changed background colours to #FFFFFF in launcher_icons and native_splash configs)
 - **Connected edits:** EDIT-016 (fixes invisible logo from original blue background choice)
 - **Reason:** Blue logo on blue background was invisible — white background makes the logo clearly visible on app icon and cold-start splash
+
+---
+
+### EDIT-020 | 23 August 2026 | IST
+- **Topic:** Three Bug Fixes — Certificate + Crop + Splash
+- **Summary:** Fixed certificate PDF crash (color+decoration conflict in footer Container), restored crop toolbar controls (crop/rotate/scale icons), fixed splash logo cropping on Android 12 by adding icon_background_color.
+- **What was done:**
+  - Fixed _buildFooter in certificate_service.dart: moved `color: PdfColor.fromHex('#F5F7FA')` inside the BoxDecoration — Container cannot have both `color:` and `decoration:` simultaneously, which caused "Cannot provide both a color and a decoration" crash
+  - Changed hideBottomControls from true to false in capture_screen.dart AndroidUiSettings — restores crop, rotate, and scale toolbar icons in UCrop
+  - Added `icon_background_color: "#FFFFFF"` to flutter_native_splash android_12 config in pubspec.yaml — tells Android 12+ to use white background behind the icon instead of adaptive-icon squircle cropping
+  - Ran flutter analyze — confirmed 0 issues
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart (moved color into BoxDecoration in _buildFooter)
+  - `~` app/lib/screens/capture_screen.dart (hideBottomControls: false)
+  - `~` app/pubspec.yaml (added icon_background_color for android_12 splash)
+- **Connected edits:** EDIT-018 (certificate crash fix), EDIT-011 (crop toolbar), EDIT-019 (splash logo)
+- **Reason:** Three targeted fixes for certificate PDF generation crash, missing crop toolbar controls, and Android 12 splash logo squircle cropping
+
+---
+
+### EDIT-021 | 24 August 2026 | IST
+- **Topic:** Certificate PDF v3 — Balanced Professional Layout
+- **Summary:** Complete rewrite of certificate PDF with balanced left-right content (equal flex columns), print-safe 36pt margins, increased section heights to fill A4 page, larger QR code, added Grade Colour row to stone details, added QR info box to verification section, zero blank space.
+- **What was done:**
+  - Complete rewrite of certificate PDF layout (v3) for balanced professional appearance
+  - Implemented equal-flex left-right columns for balanced content distribution
+  - Set print-safe 36pt margins on all sides
+  - Increased section heights to fully utilise A4 page area with zero blank space
+  - Enlarged QR code for better scannability
+  - Added Grade Colour row to stone details section
+  - Added QR info box to verification section explaining scan purpose
+  - Ensured all content fills the page proportionally without wasted space
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart (complete rewrite v3)
+- **Connected edits:** EDIT-018 (certificate system), EDIT-020 (certificate crash fix)
+- **Reason:** Previous certificate layout had unbalanced content distribution, small QR code, missing grade colour information, and unused blank space — rewritten for a polished, print-ready professional certificate
+
+---
+
+### EDIT-022 | 24 August 2026 | IST
+- **Topic:** Certificate Save Location + Capture Crop Guide
+- **Summary:** Changed certificate PDF save location from hidden app storage to Downloads/GemEye Certificates/ folder so users can find certificates in their file manager. Added visual crop guide overlay in capture screen showing recommended stone framing size with target circle and zoom instructions.
+- **What was done:**
+  - Updated _savePdf in certificate_screen.dart to save to /storage/emulated/0/Download/GemEye Certificates/ on Android (with fallback to app documents on other platforms)
+  - Creates GemEye Certificates subfolder automatically if it doesn't exist
+  - Updated SnackBar to show green success message with user-friendly save path
+  - Added crop guide visual to capture screen instruction card: 160x160 frame with corner crop marks, green target circle (90x90), diamond icon, zoom arrows, and instructional text
+  - Converted capture screen body from Column with Spacers to SingleChildScrollView to accommodate taller content
+  - Fixed withOpacity deprecation warning (replaced with withValues)
+- **Files changed:**
+  - `~` app/lib/screens/certificate_screen.dart (save to Downloads folder)
+  - `~` app/lib/screens/capture_screen.dart (crop guide visual + scrollable layout)
+- **Connected edits:** EDIT-014 (certificate screen), EDIT-010 (capture screen)
+- **Reason:** Certificate PDFs saved to hidden app directory were inaccessible to users. Capture screen lacked visual guidance on how to frame the stone for optimal grading.
+
+---
+
+### EDIT-023 | 24 August 2026 | IST
+- **Topic:** Certificate Save Verified + Capture Screen Compact Layout
+- **Summary:** Verified certificate auto-creates GemEye Certificates folder in Downloads (no change needed). Rebuilt capture screen layout: removed top diamond icon, shrunk crop guide to 120x120 with 75x75 target circle, removed zoom arrows, reduced all spacing and text sizes, pinned buttons at bottom outside scroll area.
+- **What was done:**
+  - Verified certificate_screen.dart _savePdf already has correct folder auto-creation logic and SnackBar — no changes needed
+  - Removed 80x80 white circle with diamond icon from top of capture instruction card
+  - Shrunk crop guide frame from 160x160 to 120x120
+  - Shrunk target circle from 90x90 to 75x75, diamond icon from 28 to 20
+  - Shrunk corner crop marks from 18x18 to 14x14
+  - Removed arrow_forward and arrow_back zoom indicator icons
+  - Reduced card padding from EdgeInsets.all(24) to symmetric(horizontal: 20, vertical: 12)
+  - Shortened description text to single concise line
+  - Reduced description font size from 13 to 12
+  - Reduced checklist spacing from SizedBox(height: 8) to SizedBox(height: 4)
+  - Restructured body layout: Expanded + SingleChildScrollView for card/checklist, buttons pinned at bottom in separate Padding widget
+  - Reduced Take Photo button height from 56 to 52, Gallery button from 48 to 44, spacing between them from 12 to 8
+- **Files changed:**
+  - `~` app/lib/screens/capture_screen.dart (compact layout, pinned buttons, removed icon, shrunk guide)
+- **Connected edits:** EDIT-022 (refines capture screen crop guide layout)
+- **Reason:** Previous layout with large icon and guide required scrolling to reach buttons on smaller screens — compacted everything and pinned buttons at bottom for consistent accessibility

@@ -87,7 +87,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
             activeControlsWidgetColor: const Color(0xFF1B3A8C),
             showCropGrid: true,
             lockAspectRatio: false,
-            hideBottomControls: true,
+            hideBottomControls: false,
             initAspectRatio: CropAspectRatioPreset.square,
           ),
           IOSUiSettings(
@@ -128,110 +128,217 @@ class _CaptureScreenState extends State<CaptureScreen> {
         ),
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
-              // Instructions area
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: GemEyeColors.primarySurface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: GemEyeColors.border),
-                ),
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
+                    const SizedBox(height: 12),
+                    // Instructions area
                     Container(
-                      width: 80,
-                      height: 80,
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(40),
+                        color: GemEyeColors.primarySurface,
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: GemEyeColors.border),
                       ),
-                      child: const Icon(Icons.diamond_rounded, size: 40, color: GemEyeColors.primary),
-                    ),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Capture Your Sapphire',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.heading,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: GemEyeColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Place the stone face-up on the white gem tray. Take a photo with the macro lens attached. You can crop the image after capture.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 13,
-                        color: GemEyeColors.textSecondary,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              // Checklist
-              _buildCheckItem(Icons.check_circle_rounded, 'Macro lens attached', true),
-              const SizedBox(height: 8),
-              _buildCheckItem(Icons.check_circle_rounded, 'CPL filter on', true),
-              const SizedBox(height: 8),
-              _buildCheckItem(Icons.check_circle_rounded, 'Stone on white tray', true),
-              const SizedBox(height: 8),
-              _buildCheckItem(Icons.check_circle_rounded, 'Even lighting', true),
-              const Spacer(flex: 3),
-              // Capture buttons
-              if (_isCapturing)
-                const Center(child: CircularProgressIndicator(color: GemEyeColors.primary))
-              else
-                Column(
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton.icon(
-                        onPressed: _captureImage,
-                        icon: const Icon(Icons.camera_alt_rounded, size: 22),
-                        label: const Text(
-                          'Take Photo',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.heading,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Capture Your Sapphire',
+                            style: TextStyle(
+                              fontFamily: GemEyeFonts.heading,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: GemEyeColors.textPrimary,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Place stone face-up on white tray. Take photo with macro lens. Crop after capture.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: GemEyeFonts.body,
+                              fontSize: 12,
+                              color: GemEyeColors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          // Crop guide visual
+                          Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: GemEyeColors.primary,
+                                width: 2,
+                              ),
+                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFFF5F7FA),
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Corner crop marks
+                                Positioned(
+                                  top: 6,
+                                  left: 6,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(color: GemEyeColors.primary, width: 2),
+                                        left: BorderSide(color: GemEyeColors.primary, width: 2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 6,
+                                  right: 6,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        top: BorderSide(color: GemEyeColors.primary, width: 2),
+                                        right: BorderSide(color: GemEyeColors.primary, width: 2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 6,
+                                  left: 6,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(color: GemEyeColors.primary, width: 2),
+                                        left: BorderSide(color: GemEyeColors.primary, width: 2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 6,
+                                  right: 6,
+                                  child: Container(
+                                    width: 14,
+                                    height: 14,
+                                    decoration: const BoxDecoration(
+                                      border: Border(
+                                        bottom: BorderSide(color: GemEyeColors.primary, width: 2),
+                                        right: BorderSide(color: GemEyeColors.primary, width: 2),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Centre target circle
+                                Container(
+                                  width: 75,
+                                  height: 75,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: GemEyeColors.success,
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.diamond_outlined,
+                                    size: 20,
+                                    color: GemEyeColors.primary.withValues(alpha: 0.4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Zoom until stone fills the circle',
+                            style: TextStyle(
+                              fontFamily: GemEyeFonts.heading,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: GemEyeColors.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'Stone should be ~70% of the frame for best results',
+                            style: TextStyle(
+                              fontFamily: GemEyeFonts.body,
+                              fontSize: 10,
+                              color: GemEyeColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 48,
-                      child: OutlinedButton.icon(
-                        onPressed: _pickFromGallery,
-                        icon: const Icon(Icons.photo_library_rounded, size: 20),
-                        label: const Text(
-                          'Choose from Gallery',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.heading,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
+                    // Checklist
+                    _buildCheckItem(Icons.check_circle_rounded, 'Macro lens attached', true),
+                    const SizedBox(height: 4),
+                    _buildCheckItem(Icons.check_circle_rounded, 'CPL filter on', true),
+                    const SizedBox(height: 4),
+                    _buildCheckItem(Icons.check_circle_rounded, 'Stone on white tray', true),
+                    const SizedBox(height: 4),
+                    _buildCheckItem(Icons.check_circle_rounded, 'Even lighting', true),
                   ],
                 ),
-              const SizedBox(height: 24),
-            ],
-          ),
+              ),
+            ),
+            // Buttons pinned at bottom
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              child: _isCapturing
+                  ? const Center(child: CircularProgressIndicator(color: GemEyeColors.primary))
+                  : Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _captureImage,
+                            icon: const Icon(Icons.camera_alt_rounded, size: 22),
+                            label: const Text(
+                              'Take Photo',
+                              style: TextStyle(
+                                fontFamily: GemEyeFonts.heading,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: OutlinedButton.icon(
+                            onPressed: _pickFromGallery,
+                            icon: const Icon(Icons.photo_library_rounded, size: 20),
+                            label: const Text(
+                              'Choose from Gallery',
+                              style: TextStyle(
+                                fontFamily: GemEyeFonts.heading,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
     );
