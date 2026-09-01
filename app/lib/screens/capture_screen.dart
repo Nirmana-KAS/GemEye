@@ -267,10 +267,18 @@ class _CaptureScreenState extends State<CaptureScreen> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      _buildCheckItem('Macro lens attached'),
-                      _buildCheckItem('CPL filter on'),
-                      _buildCheckItem('Stone on white tray'),
-                      _buildCheckItem('Even lighting'),
+                      Center(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildCheckItem('Macro lens attached'),
+                            _buildCheckItem('CPL filter on'),
+                            _buildCheckItem('Stone on white tray'),
+                            _buildCheckItem('Even lighting'),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
                 ),

@@ -630,3 +630,16 @@
   - `~` app/lib/screens/capture_screen.dart (added mainAxisSize.min to _buildCheckItem Row for horizontal centering)
 - **Connected edits:** EDIT-008 (Processing screen creation), EDIT-026 (Capture screen crop UX)
 - **Reason:** Processing screen content was flush to the top with empty space below despite Center wrapper — Column defaulted to max height. Capture screen checklist items were left-aligned spanning full width instead of centered within the card.
+
+---
+
+### EDIT-031 | 01 September 2026 | IST
+- **Topic:** Fix Checklist Alignment on Capture Screen
+- **Summary:** Wrapped checklist items in Center + Column(crossAxisAlignment: start) so items are left-aligned as a group but the group is centered horizontally in the card.
+- **What was done:**
+  - Wrapped all four `_buildCheckItem` calls in a `Center` widget containing a `Column` with `crossAxisAlignment: CrossAxisAlignment.start` and `mainAxisSize: MainAxisSize.min`
+  - This keeps all checklist text left-aligned with each other (consistent start position) while centering the group as a whole within the card
+- **Files changed:**
+  - `~` app/lib/screens/capture_screen.dart (checklist group alignment)
+- **Connected edits:** EDIT-030 (previous capture screen centering fix)
+- **Reason:** Each checklist item was individually centered by the parent Column's default crossAxisAlignment, causing each line to start at a different horizontal position depending on text length. Grouping them fixes the alignment.
