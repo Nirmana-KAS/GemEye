@@ -617,3 +617,16 @@
   - `-` app/android/app/src/main/res/layout/ (deleted empty directory)
 - **Connected edits:** EDIT-027, EDIT-028 (completes full revert of UCrop customisation attempts)
 - **Reason:** UCrop theme attributes (ucrop_color_*) and drawable resources (ucrop_ic_*) are not exposed by image_cropper v8.1.0's bundled UCrop AAR — all customisation attempts caused build failures. Default styling is the only working option with this package version.
+---
+
+### EDIT-030 | 01 September 2026 | IST
+- **Topic:** Center Content on Processing + Capture Screens
+- **Summary:** Vertically centered all content on the processing screen (Lottie animation + steps list). Centered checklist items horizontally within the capture instruction card to eliminate bottom empty space.
+- **What was done:**
+  - Processing screen: Added `mainAxisSize: MainAxisSize.min` to the main Column so the `Center` widget can properly shrink-wrap and vertically center all content (Lottie animation, title, 7-step list, remaining time)
+  - Capture screen: Added `mainAxisSize: MainAxisSize.min` to the checklist Row widgets so they shrink-wrap instead of expanding to full width, allowing the parent Column's center cross-axis alignment to horizontally center them within the card
+- **Files changed:**
+  - `~` app/lib/screens/processing_screen.dart (added mainAxisSize.min to Column for vertical centering)
+  - `~` app/lib/screens/capture_screen.dart (added mainAxisSize.min to _buildCheckItem Row for horizontal centering)
+- **Connected edits:** EDIT-008 (Processing screen creation), EDIT-026 (Capture screen crop UX)
+- **Reason:** Processing screen content was flush to the top with empty space below despite Center wrapper — Column defaulted to max height. Capture screen checklist items were left-aligned spanning full width instead of centered within the card.

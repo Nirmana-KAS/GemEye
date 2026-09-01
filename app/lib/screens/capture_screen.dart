@@ -328,6 +328,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const Icon(Icons.check_circle_rounded, color: GemEyeColors.success, size: 22),
           const SizedBox(width: 10),

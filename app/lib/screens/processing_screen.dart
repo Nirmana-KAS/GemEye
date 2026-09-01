@@ -91,7 +91,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
                   width: 100,
