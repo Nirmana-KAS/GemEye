@@ -687,3 +687,32 @@
   - `~` app/lib/screens/processing_screen.dart (step list horizontal centering)
 - **Connected edits:** EDIT-033 (vertical centering), EDIT-031 (same pattern used on capture screen checklist)
 - **Reason:** Step list rows stretched full width by default, making the group appear left-aligned. Wrapping in Center with min-sized rows centres the block as a unit.
+
+---
+
+### EDIT-035 | 02 September 2026 | IST
+- **Topic:** Phase D — History, Filters, Batch Actions, Comparison
+- **Summary:** Implemented grading history screen with search, grade filter chips, filter bottom sheet (date/confidence/certificate/sort), swipe-to-delete, batch selection mode with export/share/delete actions, and stone comparison screen with delta-E calculation and value comparison table.
+- **What was done:**
+  - Created history_screen.dart with full grading history list, search by stone ID, grade filter chips (All + G1–G7 with colour circles)
+  - Added filter bottom sheet with date range pickers, confidence filter (All/High/Medium/Low), certificate status (All/Exported/Not exported), sort options (6 choices)
+  - Filter icon in AppBar shows badge count when filters are active
+  - Each history item shows grade colour swatch, grade + trade name, stone ID + confidence + time ago, and "Exported" badge if certificate exists
+  - Swipe-to-delete with red background and confirmation dialog
+  - Long-press enters batch selection mode with checkboxes, select all/deselect, and cancel
+  - Batch action bar with Export All (generates certificates + PDFs), Share (stone images), and Delete (with confirmation)
+  - Certificate reuse: export checks for existing certificateNumber before generating new one
+  - Created comparison_screen.dart with two stone selection cards, stone picker bottom sheet
+  - Comparison body: side-by-side images with grade badges, delta-E card with colour-coded severity, grades apart text
+  - Value comparison table (Lightness, Green-Red, Blue-Yellow, Chroma, Hue, Saturation, Brightness) with colour-coded diff column
+  - Swap A↔B and Compare Another buttons
+  - Connected history_screen to 3rd bottom navigation tab (replaced placeholder)
+  - Connected comparison_screen to side drawer "Stone Comparison" menu item
+  - Ran flutter analyze — zero errors, zero warnings (21 pre-existing info-level hints only)
+- **Files changed:**
+  - `+` app/lib/screens/history_screen.dart (new — full history with search, filters, batch actions)
+  - `+` app/lib/screens/comparison_screen.dart (new — stone comparison with delta-E)
+  - `~` app/lib/screens/main_shell.dart (replaced History placeholder with HistoryScreen)
+  - `~` app/lib/widgets/side_drawer.dart (Stone Comparison navigates to ComparisonScreen)
+- **Connected edits:** EDIT-019 (result screen), EDIT-020 (certificate service), EDIT-016 (storage service)
+- **Reason:** Phase D implementation — grading history is the 3rd bottom nav tab, comparison is accessible from the side drawer. Both screens are core features for reviewing and comparing graded stones.

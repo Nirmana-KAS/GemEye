@@ -5,6 +5,7 @@ import '../widgets/bottom_nav.dart';
 import '../widgets/side_drawer.dart';
 import 'home_screen.dart';
 import 'capture_screen.dart';
+import 'history_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -27,7 +28,7 @@ class _MainShellState extends State<MainShell> {
   final List<Widget> _screens = [
     const HomeScreen(),
     const _PlaceholderScreen(title: 'Grade', icon: Icons.camera_alt_rounded),
-    const _PlaceholderScreen(title: 'History', icon: Icons.history_rounded),
+    const HistoryScreen(),
     const _PlaceholderScreen(title: 'Guide', icon: Icons.palette_rounded),
   ];
 

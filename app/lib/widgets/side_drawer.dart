@@ -4,6 +4,7 @@ import '../config/constants.dart';
 import '../services/auth_service.dart';
 import '../config/routes.dart';
 import '../screens/login_screen.dart';
+import '../screens/comparison_screen.dart';
 
 class GemEyeSideDrawer extends StatelessWidget {
   const GemEyeSideDrawer({super.key});
@@ -80,7 +81,10 @@ class GemEyeSideDrawer extends StatelessWidget {
                   _buildMenuItem(context, Icons.palette_rounded,
                       'Colour Grade Guide', () => Navigator.pop(context)),
                   _buildMenuItem(context, Icons.compare_rounded,
-                      'Stone Comparison', () => Navigator.pop(context)),
+                      'Stone Comparison', () {
+                    Navigator.pop(context);
+                    AppRoutes.push(context, const ComparisonScreen());
+                  }),
                   _buildMenuItem(context, Icons.settings_rounded, 'Settings',
                       () => Navigator.pop(context)),
                   const Divider(height: 1),
