@@ -657,3 +657,33 @@
   - (none — already implemented in EDIT-030)
 - **Connected edits:** EDIT-008 (Processing screen creation), EDIT-030 (Center content on processing & capture screens)
 - **Reason:** Requested centering fix was already applied in EDIT-030. No further changes required.
+
+---
+
+### EDIT-033 | 02 September 2026 | IST
+- **Topic:** Fix Processing Screen Centering
+- **Summary:** Used SizedBox.expand + MainAxisAlignment.center to force vertical centering of Lottie animation and step list on processing screen.
+- **What was done:**
+  - Replaced `Center` wrapper with `SizedBox.expand` to force the Column to fill the full available screen height
+  - Replaced `mainAxisSize: MainAxisSize.min` with `mainAxisAlignment: MainAxisAlignment.center` so content is pushed to the vertical centre
+  - Adjusted spacing: title gap 32→24, remaining time gap 24→16
+  - Ran flutter analyze — zero errors (15 pre-existing info warnings in certificate_service.dart)
+- **Files changed:**
+  - `~` app/lib/screens/processing_screen.dart (SizedBox.expand + MainAxisAlignment.center)
+- **Connected edits:** EDIT-008 (Processing screen creation), EDIT-030, EDIT-032 (previous centering attempts)
+- **Reason:** Previous Center + mainAxisSize.min approach did not visually center the content — it remained pushed toward the top. SizedBox.expand forces the Column to take full height, allowing MainAxisAlignment.center to work correctly.
+
+---
+
+### EDIT-034 | 02 September 2026 | IST
+- **Topic:** Center Step List Group Horizontally on Processing Screen
+- **Summary:** Wrapped the 7 analysing steps in a Center + Column(crossAxisAlignment: start) group so the entire step list block is horizontally centered on screen while keeping text left-aligned within the group.
+- **What was done:**
+  - Wrapped all 7 step `Row` widgets inside a `Center` > `Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min)` structure
+  - Added `mainAxisSize: MainAxisSize.min` to each step `Row` so rows shrink to content width instead of stretching full width
+  - This centres the step list block as a whole while keeping all step labels left-aligned with each other
+  - Ran flutter analyze — zero errors (15 pre-existing info warnings in certificate_service.dart)
+- **Files changed:**
+  - `~` app/lib/screens/processing_screen.dart (step list horizontal centering)
+- **Connected edits:** EDIT-033 (vertical centering), EDIT-031 (same pattern used on capture screen checklist)
+- **Reason:** Step list rows stretched full width by default, making the group appear left-aligned. Wrapping in Center with min-sized rows centres the block as a unit.

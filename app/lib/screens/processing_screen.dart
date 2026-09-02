@@ -87,11 +87,11 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
+        child: SizedBox.expand(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 32),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
                   width: 100,
@@ -109,7 +109,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                     },
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 const Text(
                   'Analysing Stone...',
                   style: TextStyle(
@@ -120,56 +120,63 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                ...List.generate(_steps.length, (index) {
-                  final isCompleted = index < _currentStep;
-                  final isActive = index == _currentStep;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: isCompleted
-                                ? GemEyeColors.success
-                                : isActive
-                                    ? GemEyeColors.primary
-                                    : GemEyeColors.border,
-                            borderRadius: BorderRadius.circular(11),
-                          ),
-                          child: Center(
-                            child: isCompleted
-                                ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
-                                : isActive
-                                    ? const SizedBox(
-                                        width: 12,
-                                        height: 12,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                    : null,
-                          ),
+                Center(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: List.generate(_steps.length, (index) {
+                      final isCompleted = index < _currentStep;
+                      final isActive = index == _currentStep;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 22,
+                              height: 22,
+                              decoration: BoxDecoration(
+                                color: isCompleted
+                                    ? GemEyeColors.success
+                                    : isActive
+                                        ? GemEyeColors.primary
+                                        : GemEyeColors.border,
+                                borderRadius: BorderRadius.circular(11),
+                              ),
+                              child: Center(
+                                child: isCompleted
+                                    ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+                                    : isActive
+                                        ? const SizedBox(
+                                            width: 12,
+                                            height: 12,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.white,
+                                            ),
+                                          )
+                                        : null,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              _steps[index],
+                              style: TextStyle(
+                                fontFamily: GemEyeFonts.body,
+                                fontSize: 13,
+                                fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                                color: isCompleted || isActive
+                                    ? GemEyeColors.textPrimary
+                                    : GemEyeColors.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _steps[index],
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.body,
-                            fontSize: 13,
-                            fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-                            color: isCompleted || isActive
-                                ? GemEyeColors.textPrimary
-                                : GemEyeColors.textMuted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 24),
+                      );
+                    }),
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   '~${((_steps.length - _currentStep) * 0.4).toStringAsFixed(1)}s remaining',
                   style: const TextStyle(
