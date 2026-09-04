@@ -32,18 +32,69 @@ class _MainShellState extends State<MainShell> {
     const _PlaceholderScreen(title: 'Guide', icon: Icons.palette_rounded),
   ];
 
+  void _handleBackButton(bool didPop, dynamic result) {
+    if (didPop) return;
+
+    if (_currentIndex != 0) {
+      setState(() => _currentIndex = 0);
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Exit GemEye?',
+          style: TextStyle(
+            fontFamily: GemEyeFonts.heading,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to exit?',
+          style: TextStyle(
+            fontFamily: GemEyeFonts.body,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.of(context).pop();
+            },
+            child: const Text(
+              'Exit',
+              style: TextStyle(color: GemEyeColors.error),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      endDrawer: const GemEyeSideDrawer(),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: GemEyeBottomNav(
-        currentIndex: _currentIndex,
-        onTap: _onNavTap,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: _handleBackButton,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        endDrawer: GemEyeSideDrawer(
+          onTabSwitch: (index) => setState(() => _currentIndex = index),
+        ),
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _screens,
+        ),
+        bottomNavigationBar: GemEyeBottomNav(
+          currentIndex: _currentIndex,
+          onTap: _onNavTap,
+        ),
       ),
     );
   }

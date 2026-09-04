@@ -716,3 +716,45 @@
   - `~` app/lib/widgets/side_drawer.dart (Stone Comparison navigates to ComparisonScreen)
 - **Connected edits:** EDIT-019 (result screen), EDIT-020 (certificate service), EDIT-016 (storage service)
 - **Reason:** Phase D implementation — grading history is the 3rd bottom nav tab, comparison is accessible from the side drawer. Both screens are core features for reviewing and comparing graded stones.
+
+---
+
+### EDIT-036 | 04 September 2026 | IST
+- **Topic:** Fix Drawer Navigation for All Menu Items
+- **Summary:** Connected all 10 side drawer menu items to their correct screens. Added onTabSwitch callback so drawer can switch bottom nav tabs. Created inline placeholder screens for Settings, Privacy Policy, About, and Feedback. Added logout confirmation dialog with Firebase sign out.
+- **What was done:**
+  - Added `onTabSwitch` callback parameter to `GemEyeSideDrawer` widget
+  - Updated `MainShell` to pass tab-switching callback to the drawer
+  - Home → closes drawer and switches to tab 0
+  - Grade a Stone → closes drawer and pushes CaptureScreen
+  - Grading History → closes drawer and switches to tab 2
+  - Colour Grade Guide → closes drawer and switches to tab 3
+  - Stone Comparison → closes drawer and pushes ComparisonScreen (already working)
+  - Settings → closes drawer and pushes placeholder Settings screen
+  - Feedback → closes drawer and shows "Coming Soon" bottom sheet
+  - Privacy Policy → closes drawer and pushes inline Privacy Policy screen
+  - About → closes drawer and pushes inline About screen (no student number per CLAUDE.md rules)
+  - Logout → closes drawer, shows confirmation AlertDialog, signs out via AuthService, navigates to LoginScreen
+  - All placeholder screens use GemEyeColors and GemEyeFonts (no hardcoded values)
+  - Ran flutter analyze — zero errors, zero warnings
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart (added onTabSwitch callback, wired all 10 menu items)
+  - `~` app/lib/screens/main_shell.dart (passes onTabSwitch callback to drawer)
+- **Connected edits:** EDIT-035 (drawer previously had Stone Comparison wired), EDIT-008 (auth flow)
+- **Reason:** Most drawer menu items only closed the drawer without navigating anywhere. All 10 items now correctly navigate to their intended destinations.
+
+---
+
+### EDIT-037 | 04 September 2026 | IST
+- **Topic:** Fix Back Button Navigation
+- **Summary:** Added PopScope to MainShell so the Android back button returns to the Home tab before exiting the app. Shows an exit confirmation dialog when pressing back on the Home tab.
+- **What was done:**
+  - Wrapped MainShell Scaffold with PopScope (canPop: false)
+  - Back button on non-Home tabs (History, Guide) switches to Home tab instead of exiting
+  - Back button on Home tab shows "Exit GemEye?" confirmation dialog styled with GemEye fonts and colours
+  - Drawer tab items (Home, History, Guide) already use onTabSwitch correctly — no changes needed there
+  - Drawer-pushed screens (Settings, About, Privacy Policy, Stone Comparison) use Navigator.push, so their AppBar back arrow works as expected via Navigator.pop
+- **Files changed:**
+  - `~` app/lib/screens/main_shell.dart (added PopScope wrapper and exit confirmation dialog)
+- **Connected edits:** EDIT-036 (drawer navigation), EDIT-003 (main shell creation)
+- **Reason:** Pressing the Android back button on non-Home tabs or after drawer navigation was exiting the app entirely instead of returning to the Home tab first.
