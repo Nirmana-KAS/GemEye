@@ -6,6 +6,10 @@ import '../config/routes.dart';
 import '../screens/login_screen.dart';
 import '../screens/comparison_screen.dart';
 import '../screens/capture_screen.dart';
+import '../screens/settings_screen.dart';
+import '../screens/about_screen.dart';
+import '../screens/privacy_screen.dart';
+import '../screens/feedback_sheet.dart';
 
 class GemEyeSideDrawer extends StatelessWidget {
   final void Function(int index)? onTabSwitch;
@@ -102,35 +106,7 @@ class GemEyeSideDrawer extends StatelessWidget {
                   _buildMenuItem(
                       context, Icons.settings_rounded, 'Settings', () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => Scaffold(
-                          backgroundColor: Colors.white,
-                          appBar: AppBar(
-                            title: const Text(
-                              'Settings',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.heading,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            backgroundColor: GemEyeColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          body: const Center(
-                            child: Text(
-                              'Coming Soon',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.body,
-                                fontSize: 18,
-                                color: GemEyeColors.textSecondary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
+                    AppRoutes.push(context, const SettingsScreen());
                   }),
                   const Divider(height: 1),
                   _buildMenuItem(
@@ -138,209 +114,21 @@ class GemEyeSideDrawer extends StatelessWidget {
                     Navigator.pop(context);
                     showModalBottomSheet(
                       context: context,
-                      builder: (ctx) => const Padding(
-                        padding: EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'Send Feedback',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.heading,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: GemEyeColors.textPrimary,
-                              ),
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Coming Soon',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.body,
-                                fontSize: 14,
-                                color: GemEyeColors.textSecondary,
-                              ),
-                            ),
-                            SizedBox(height: 16),
-                          ],
-                        ),
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                       ),
+                      builder: (ctx) => const FeedbackSheet(),
                     );
                   }),
                   _buildMenuItem(
                       context, Icons.lock_rounded, 'Privacy Policy', () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => Scaffold(
-                          backgroundColor: Colors.white,
-                          appBar: AppBar(
-                            title: const Text(
-                              'Privacy Policy',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.heading,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            backgroundColor: GemEyeColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          body: const SingleChildScrollView(
-                            padding: EdgeInsets.all(20),
-                            child: Text(
-                              'GemEye Privacy Policy\n\n'
-                              'Last updated: September 2026\n\n'
-                              'GemEye collects and processes gemstone images solely for colour grading purposes. '
-                              'Images are processed on-device or via secure cloud endpoints. '
-                              'No personal data is shared with third parties.\n\n'
-                              'Data collected:\n'
-                              '- User account information (name, email)\n'
-                              '- Gemstone images for grading\n'
-                              '- Grading history and certificates\n\n'
-                              'Data storage:\n'
-                              '- Account data stored securely via Firebase Authentication\n'
-                              '- Grading history stored locally on device\n'
-                              '- Images processed and discarded after grading\n\n'
-                              'Contact: shehannirmana.orava@gmail.com',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.body,
-                                fontSize: 14,
-                                height: 1.6,
-                                color: GemEyeColors.textPrimary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
+                    AppRoutes.push(context, const PrivacyScreen());
                   }),
                   _buildMenuItem(context, Icons.info_rounded, 'About', () {
                     Navigator.pop(context);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => Scaffold(
-                          backgroundColor: Colors.white,
-                          appBar: AppBar(
-                            title: const Text(
-                              'About',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.heading,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            backgroundColor: GemEyeColors.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          body: SingleChildScrollView(
-                            padding: const EdgeInsets.all(24),
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 20),
-                                Image.asset('assets/images/logo.png',
-                                    width: 80, height: 80),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'GemEye',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.heading,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w700,
-                                    color: GemEyeColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                const Text(
-                                  'v${AppConstants.appVersion} · ${AppConstants.appYear}',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 14,
-                                    color: GemEyeColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Automated Blue Sapphire Colour Grading',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 14,
-                                    color: GemEyeColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                const Divider(),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Developer',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.heading,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: GemEyeColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Nirmana K.A.S.',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 14,
-                                    color: GemEyeColors.textPrimary,
-                                  ),
-                                ),
-                                const Text(
-                                  'BSc (Hons) Computer Science',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 12,
-                                    color: GemEyeColors.textSecondary,
-                                  ),
-                                ),
-                                const Text(
-                                  'NSBM Green University, Sri Lanka',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 12,
-                                    color: GemEyeColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 24),
-                                const Divider(),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'Powered by',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.heading,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: GemEyeColors.textPrimary,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'EfficientNet-B0 + Random Forest Ensemble',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 12,
-                                    color: GemEyeColors.textSecondary,
-                                  ),
-                                ),
-                                const Text(
-                                  'GEMCLOUD 7-Grade Colour Intensity Standard',
-                                  style: TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 12,
-                                    color: GemEyeColors.textSecondary,
-                                  ),
-                                ),
-                                const SizedBox(height: 40),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
+                    AppRoutes.push(context, const AboutScreen());
                   }),
                   const Divider(height: 1),
                   _buildMenuItem(

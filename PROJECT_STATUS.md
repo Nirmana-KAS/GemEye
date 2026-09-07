@@ -758,3 +758,29 @@
   - `~` app/lib/screens/main_shell.dart (added PopScope wrapper and exit confirmation dialog)
 - **Connected edits:** EDIT-036 (drawer navigation), EDIT-003 (main shell creation)
 - **Reason:** Pressing the Android back button on non-Home tabs or after drawer navigation was exiting the app entirely instead of returning to the Home tab first.
+
+---
+
+### EDIT-038 | 07 September 2026 | IST
+- **Topic:** Phase E — Settings, About, Privacy, Feedback, Colour Guide
+- **Summary:** Created full Settings screen with 14 items (profile, calibration, preferences, security, data management). Created About screen with 5 sections (app info, developer, academic, industry, footer). Replaced Privacy Policy screen with structured 6-section layout. Created Feedback bottom sheet with 5-star rating and comment. Created Colour Grade Guide screen with gradient strip and 7 expandable grade cards loading from colour_grades.json. Updated drawer navigation to use new screen files. Replaced Guide tab placeholder in MainShell with GuideScreen.
+- **What was done:**
+  - Created Settings screen with profile edit bottom sheet, calibration section, confidence threshold slider, export format dropdown, certificate prefix editor, auto-save toggle, change password/email dialogs, export data, clear history, delete account
+  - Created About screen with app info, developer section with social links (url_launcher), 3 academic supervisor placeholders, 3 industry partner placeholders, footer
+  - Rewrote Privacy Policy screen with 6 titled sections (Introduction, Data Collected, How Data Is Used, Data Storage, Data Deletion, Contact) replacing markdown-based implementation
+  - Created Feedback bottom sheet with 5-star rating (amber), comment TextField, submit to SharedPreferences
+  - Created Colour Grade Guide screen with full gradient strip (G1-G7), 7 ExpansionTile cards loading from colour_grades.json, info chips for Hue/Sat/Brt/L*/b*, source attribution
+  - Updated colour_grades.json with new format (colourStart, colourEnd, tradeName, hueRange, satRange, brtRange, labL, labB)
+  - Updated side drawer to import and navigate to new screen files instead of inline placeholders
+  - Replaced Guide tab placeholder in MainShell with GuideScreen widget
+- **Files changed:**
+  - `+` app/lib/screens/settings_screen.dart (new — 14 settings items in 6 sections)
+  - `+` app/lib/screens/about_screen.dart (new — 5 sections with social links)
+  - `+` app/lib/screens/feedback_sheet.dart (new — star rating + comment bottom sheet)
+  - `+` app/lib/screens/guide_screen.dart (new — gradient strip + 7 expandable grade cards)
+  - `~` app/lib/screens/privacy_screen.dart (replaced markdown approach with 6 structured sections)
+  - `~` app/assets/data/colour_grades.json (updated format with new fields)
+  - `~` app/lib/widgets/side_drawer.dart (updated Settings, About, Privacy, Feedback to use new screens)
+  - `~` app/lib/screens/main_shell.dart (replaced Guide placeholder with GuideScreen)
+- **Connected edits:** EDIT-036 (drawer navigation), EDIT-001 (colour_grades.json creation), EDIT-003 (main shell)
+- **Reason:** Phase E implementation — completing the remaining screens (Settings, About, Privacy, Feedback, Colour Guide) to replace all inline placeholders with fully functional dedicated screen files.
