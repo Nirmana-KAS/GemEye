@@ -784,3 +784,24 @@
   - `~` app/lib/screens/main_shell.dart (replaced Guide placeholder with GuideScreen)
 - **Connected edits:** EDIT-036 (drawer navigation), EDIT-001 (colour_grades.json creation), EDIT-003 (main shell)
 - **Reason:** Phase E implementation — completing the remaining screens (Settings, About, Privacy, Feedback, Colour Guide) to replace all inline placeholders with fully functional dedicated screen files.
+
+---
+
+### EDIT-039 | 07 September 2026 | IST
+- **Topic:** Profile Screen
+- **Summary:** Created dedicated Profile screen with user photo, editable fields (name, phone, company, designation), grading statistics cards (total graded, certificates, this month), account information section, and save functionality. Connected to drawer header tap and Settings first item.
+- **What was done:**
+  - Created ProfileScreen with user photo + camera edit overlay, display name, email, account type badge
+  - Added 4 editable fields: Full Name, Phone Number, Company (optional), Designation (optional)
+  - Added Grading Statistics section with 3 stat cards (Total Graded, Certificates, This Month) loaded from StorageService
+  - Added Account Information section showing email, account created date, last sign in, auth provider from Firebase metadata
+  - Save button updates Firebase displayName and saves phone/company/designation to SharedPreferences
+  - Made drawer header (user photo/name/email area) tappable to navigate to ProfileScreen
+  - Updated Settings screen Profile ListTile to navigate to ProfileScreen instead of showing edit bottom sheet
+  - Removed unused _showProfileEditSheet method from SettingsScreen
+- **Files changed:**
+  - `+` app/lib/screens/profile_screen.dart (new — full profile with photo, editable fields, stats, account info)
+  - `~` app/lib/widgets/side_drawer.dart (added GestureDetector on header, import ProfileScreen)
+  - `~` app/lib/screens/settings_screen.dart (Profile item navigates to ProfileScreen, removed old bottom sheet)
+- **Connected edits:** EDIT-038 (Settings screen creation), EDIT-036 (drawer navigation)
+- **Reason:** Users need a dedicated profile screen to view and edit their personal information, see grading statistics, and review account details in one place.

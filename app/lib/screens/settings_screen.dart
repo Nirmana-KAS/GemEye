@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/storage_service.dart';
 import 'login_screen.dart';
 import 'calibration_screen.dart';
+import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -84,7 +85,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               trailing: const Icon(Icons.chevron_right, color: GemEyeColors.textMuted),
-              onTap: () => _showProfileEditSheet(context),
+              onTap: () => AppRoutes.push(context, const ProfileScreen()),
             ),
             const Divider(),
 
@@ -402,90 +403,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           fontSize: 16,
           fontWeight: FontWeight.w600,
           color: GemEyeColors.primary,
-        ),
-      ),
-    );
-  }
-
-  void _showProfileEditSheet(BuildContext context) {
-    final user = _authService.currentUser;
-    final nameController = TextEditingController(text: user?.displayName ?? '');
-    final companyController = TextEditingController();
-
-    SharedPreferences.getInstance().then((prefs) {
-      companyController.text = prefs.getString('company_name') ?? '';
-    });
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Edit Profile',
-              style: TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: GemEyeColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Display Name',
-                hintText: 'Enter your name',
-              ),
-              style: const TextStyle(fontFamily: GemEyeFonts.body, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: companyController,
-              decoration: const InputDecoration(
-                labelText: 'Company Name (Optional)',
-                hintText: 'Enter company name',
-              ),
-              style: const TextStyle(fontFamily: GemEyeFonts.body, fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: () async {
-                  try {
-                    if (nameController.text.trim().isNotEmpty) {
-                      await _authService.updateDisplayName(nameController.text.trim());
-                    }
-                    final prefs = await SharedPreferences.getInstance();
-                    await prefs.setString('company_name', companyController.text.trim());
-                    if (ctx.mounted) Navigator.pop(ctx);
-                    if (mounted) {
-                      setState(() {});
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Profile updated')),
-                      );
-                    }
-                  } catch (e) {
-                    if (ctx.mounted) {
-                      ScaffoldMessenger.of(ctx).showSnackBar(
-                        const SnackBar(content: Text('Failed to update profile')),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Save'),
-              ),
-            ),
-          ],
         ),
       ),
     );

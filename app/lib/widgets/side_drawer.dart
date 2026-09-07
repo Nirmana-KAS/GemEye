@@ -10,6 +10,7 @@ import '../screens/settings_screen.dart';
 import '../screens/about_screen.dart';
 import '../screens/privacy_screen.dart';
 import '../screens/feedback_sheet.dart';
+import '../screens/profile_screen.dart';
 
 class GemEyeSideDrawer extends StatelessWidget {
   final void Function(int index)? onTabSwitch;
@@ -26,53 +27,59 @@ class GemEyeSideDrawer extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: GemEyeColors.primary,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: Colors.white24,
-                    backgroundImage: user?.photoURL != null
-                        ? NetworkImage(user!.photoURL!)
-                        : null,
-                    child: user?.photoURL == null
-                        ? Text(
-                            authService.getFirstName()[0].toUpperCase(),
-                            style: const TextStyle(
-                              fontFamily: GemEyeFonts.heading,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    user?.displayName ?? authService.getFirstName(),
-                    style: const TextStyle(
-                      fontFamily: GemEyeFonts.heading,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+            GestureDetector(
+              onTap: () {
+                Navigator.pop(context);
+                AppRoutes.push(context, const ProfileScreen());
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  color: GemEyeColors.primary,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 28,
+                      backgroundColor: Colors.white24,
+                      backgroundImage: user?.photoURL != null
+                          ? NetworkImage(user!.photoURL!)
+                          : null,
+                      child: user?.photoURL == null
+                          ? Text(
+                              authService.getFirstName()[0].toUpperCase(),
+                              style: const TextStyle(
+                                fontFamily: GemEyeFonts.heading,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    user?.email ?? '',
-                    style: TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 12,
-                      color: Colors.white.withValues(alpha: 0.7),
+                    const SizedBox(height: 12),
+                    Text(
+                      user?.displayName ?? authService.getFirstName(),
+                      style: const TextStyle(
+                        fontFamily: GemEyeFonts.heading,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      user?.email ?? '',
+                      style: TextStyle(
+                        fontFamily: GemEyeFonts.body,
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             Expanded(
