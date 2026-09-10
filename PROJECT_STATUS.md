@@ -838,3 +838,31 @@
   - `~` .gitignore (added image exclusion rules)
 - **Connected edits:** EDIT-001 (original dataset folder creation)
 - **Reason:** Flat grade-only structure did not support multi-shape capture workflow, merged training pipeline, CCC calibration patches, processed outputs, or train/val/test splits needed for the ML training pipeline.
+
+### EDIT-041 | 10 September 2026 | IST
+- **Topic:** Dataset Image Auto-Rename Script
+- **Summary:** Created Python script (`dataset/rename_images.py`) to auto-rename all dataset images from mobile camera names (e.g., `IMG_20260823_141234.jpg`) to consistent traceable format. Script uses two-pass rename (temp names first, then final names) to avoid file conflicts.
+- **What was done:**
+  - Created `dataset/rename_images.py` with CLI modes: `raw`, `merged`, `all`
+  - **Naming convention:**
+    - `raw_by_shape`: `{shape}_g{grade}_{NNN}.jpg` (e.g., `baguette_g1_001.jpg`, `oval_g3_015.jpg`)
+    - `merged`: `g{grade}_{NNN}.jpg` (e.g., `g1_001.jpg`, `g3_160.jpg`)
+    - `ccc_patches`: manually named (`white.jpg`, `black.jpg`, `grey_18.jpg`, `grey_50.jpg`, `blue.jpg`, `red.jpg`)
+  - **Dataset mechanism:**
+    - `raw_by_shape/`: preserves original shape separation (4 shapes × 7 grades × 40 images = 1,120)
+    - `merged/`: all 4 shapes combined per grade (7 grades × 160 images = 1,120) — shape intentionally NOT tracked because model learns COLOUR not shape
+    - `ccc_patches/`: 6 CCC calibration reference images for colour correction
+    - `processed/`: auto-generated after CCC colour correction pipeline runs
+    - `splits/`: auto-generated train (80%) / val (10%) / test (10%) split
+  - **Manual steps required:**
+    1. Paste original images into `raw_by_shape/{shape}/grade_{N}/` folders (28 folders)
+    2. Copy same images merged by grade into `merged/grade_{N}_{name}/` folders (7 folders, 160 each)
+    3. Paste 6 CCC patch images into `ccc_patches/` with correct names
+    4. Run: `cd dataset && python rename_images.py all`
+  - Image files excluded from GitHub via `.gitignore` (2–5 GB too large for repo)
+  - Images stored: locally on PC + Google Drive for Colab training
+  - Folder structure preserved in GitHub via `.gitkeep` files
+- **Files changed:**
+  - `+` dataset/rename_images.py (new — auto-rename script)
+- **Connected edits:** EDIT-040 (dataset folder restructure)
+- **Reason:** Dataset images from different capture sessions had inconsistent mobile camera names, making it difficult to track counts, identify duplicates, and maintain the ML training pipeline. Consistent naming enables reliable train/val/test splitting and grade verification.
