@@ -805,3 +805,36 @@
   - `~` app/lib/screens/settings_screen.dart (Profile item navigates to ProfileScreen, removed old bottom sheet)
 - **Connected edits:** EDIT-038 (Settings screen creation), EDIT-036 (drawer navigation)
 - **Reason:** Users need a dedicated profile screen to view and edit their personal information, see grading statistics, and review account details in one place.
+
+---
+
+### EDIT-040 | 10 September 2026 | IST
+- **Topic:** Dataset Folder Restructure
+- **Summary:** Restructured dataset folder from flat grade folders to proper ML training structure with raw_by_shape (4 shapes x 7 grades), merged (7 grades, 160 images each), ccc_patches, processed, and splits directories. Added .gitignore rules to exclude image files from GitHub (too large for repo). Added .gitkeep files to preserve empty folder structure. Created comprehensive dataset README.md with capture protocol, grade definitions, and folder documentation.
+- **What was done:**
+  - Deleted old flat folder structure (calibration, grade_1_dark through grade_7_very_light, repeatability)
+  - Created raw_by_shape/ with 4 shape subdirectories (baguette, oval, pear, round) each with grade_1 through grade_7
+  - Created merged/ with 7 grade folders (grade_1_dark through grade_7_very_light)
+  - Created ccc_patches/ for CCC calibration reference images
+  - Created processed/ with grade_1 through grade_7
+  - Created splits/ with train, val, test subdirectories
+  - Added .gitkeep files in all 45 leaf folders to preserve structure in Git
+  - Updated .gitignore with expanded image exclusion rules (bmp, tiff, tif, webp, HEIC, heic) and !.gitkeep exception
+  - Added commented-out model weight exclusion rules (h5, pkl, pt, onnx)
+  - Created dataset/README.md with overview table, folder structure diagram, 7 GEMCLOUD grades, capture protocol, device info, and important notes
+- **Files changed:**
+  - `-` dataset/calibration/ (deleted)
+  - `-` dataset/grade_1_dark/ through grade_7_very_light/ (deleted old structure)
+  - `-` dataset/repeatability/ (deleted)
+  - `+` dataset/raw_by_shape/baguette/grade_1-7/ (new)
+  - `+` dataset/raw_by_shape/oval/grade_1-7/ (new)
+  - `+` dataset/raw_by_shape/pear/grade_1-7/ (new)
+  - `+` dataset/raw_by_shape/round/grade_1-7/ (new)
+  - `+` dataset/merged/grade_1_dark through grade_7_very_light/ (new)
+  - `+` dataset/ccc_patches/ (new)
+  - `+` dataset/processed/grade_1-7/ (new)
+  - `+` dataset/splits/train/ val/ test/ (new)
+  - `+` dataset/README.md (new - full documentation)
+  - `~` .gitignore (added image exclusion rules)
+- **Connected edits:** EDIT-001 (original dataset folder creation)
+- **Reason:** Flat grade-only structure did not support multi-shape capture workflow, merged training pipeline, CCC calibration patches, processed outputs, or train/val/test splits needed for the ML training pipeline.

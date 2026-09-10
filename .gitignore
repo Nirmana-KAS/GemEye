@@ -29,10 +29,28 @@ __pycache__/
 # Docker / Backend
 backend/*.tar
 
-# Dataset images
+# ============================================
+# Dataset images — too large for GitHub
+# Keep folder structure via .gitkeep files
+# Actual images stored locally + Google Drive
+# ============================================
 dataset/**/*.jpg
 dataset/**/*.jpeg
 dataset/**/*.png
+dataset/**/*.bmp
+dataset/**/*.tiff
+dataset/**/*.tif
+dataset/**/*.webp
+dataset/**/*.HEIC
+dataset/**/*.heic
+!dataset/**/.gitkeep
+
+# Trained model weights (large files)
+# Uncomment below if model files exceed 100MB
+# model/*.h5
+# model/*.pkl
+# model/*.pt
+# model/*.onnx
 
 # ML model files
 backend/models/*.tflite
