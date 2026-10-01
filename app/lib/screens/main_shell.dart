@@ -17,17 +17,26 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
 
   void _onNavTap(int index) {
     if (index == 1) {
       AppRoutes.push(context, const CaptureScreen());
     } else {
-      setState(() => _currentIndex = index);
+      _switchTab(index);
     }
   }
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  void _switchTab(int index) {
+    setState(() => _currentIndex = index);
+    if (index == 0) _homeKey.currentState?.refresh();
+  }
+
+  late final List<Widget> _screens = [
+    HomeScreen(
+      key: _homeKey,
+      onOpenHistory: () => _switchTab(2),
+    ),
     const _PlaceholderScreen(title: 'Grade', icon: Icons.camera_alt_rounded),
     const HistoryScreen(),
     const GuideScreen(),
@@ -37,7 +46,7 @@ class _MainShellState extends State<MainShell> {
     if (didPop) return;
 
     if (_currentIndex != 0) {
-      setState(() => _currentIndex = 0);
+      _switchTab(0);
       return;
     }
 
@@ -86,7 +95,7 @@ class _MainShellState extends State<MainShell> {
       child: Scaffold(
         backgroundColor: Colors.white,
         endDrawer: GemEyeSideDrawer(
-          onTabSwitch: (index) => setState(() => _currentIndex = index),
+          onTabSwitch: _switchTab,
         ),
         body: IndexedStack(
           index: _currentIndex,

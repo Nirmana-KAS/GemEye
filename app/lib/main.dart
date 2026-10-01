@@ -34,6 +34,7 @@ class GemEyeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: GemEyeTheme.lightTheme,
       navigatorKey: AppRoutes.navigatorKey,
+      navigatorObservers: [AppRoutes.routeObserver],
       home: const SplashScreen(),
     );
   }

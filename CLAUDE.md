@@ -242,7 +242,7 @@ Refer to the full notification table in the development plan for exact messages.
 9. Never generate a new certificate number for a previously exported stone
 10. Never use localStorage or SharedPreferences for sensitive data — use flutter_secure_storage
 11. Never allow the app to proceed without privacy policy acceptance
-12. Never use glossy/gradient backgrounds on cards
+12. Never use glossy/gradient backgrounds on cards. **Exception:** the Home `QuickGradeCard` ("Grade a Stone") uses a `#1B3A8C` → `#3B5FD9` gradient, per the approved Group B design
 13. Never use emojis in code comments (use them only in UI where specified)
 14. Never skip error handling on API calls
 15. Never use `print()` for logging — use `debugPrint()` in debug mode
