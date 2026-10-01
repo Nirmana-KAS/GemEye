@@ -95,6 +95,7 @@ class _MainShellState extends State<MainShell> {
       child: Scaffold(
         backgroundColor: Colors.white,
         endDrawer: GemEyeSideDrawer(
+          currentIndex: _currentIndex,
           onTabSwitch: _switchTab,
         ),
         body: IndexedStack(

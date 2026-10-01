@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
 import '../services/auth_service.dart';
@@ -6,225 +7,393 @@ import '../config/routes.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/comparison_screen.dart';
 import '../screens/capture_screen.dart';
+import '../screens/calibration_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/about_screen.dart';
 import '../screens/privacy_screen.dart';
 import '../screens/feedback_sheet.dart';
 import '../screens/profile_screen.dart';
 
+/// Right-side navigation drawer opened from the Home avatar.
 class GemEyeSideDrawer extends StatelessWidget {
   final void Function(int index)? onTabSwitch;
 
-  const GemEyeSideDrawer({super.key, this.onTabSwitch});
+  /// MainShell tab currently shown (0 Home, 2 History, 3 Guide), used to
+  /// highlight the current page.
+  final int currentIndex;
+
+  const GemEyeSideDrawer({
+    super.key,
+    this.onTabSwitch,
+    this.currentIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final authService = AuthService();
-    final user = authService.currentUser;
+    void closeThen(VoidCallback action) {
+      Navigator.pop(context);
+      action();
+    }
 
-    return Drawer(
-      backgroundColor: Colors.white,
-      child: SafeArea(
+    void push(Widget screen) =>
+        closeThen(() => AppRoutes.push(context, screen));
+    void tab(int index) => closeThen(() => onTabSwitch?.call(index));
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.lightIcons,
+      child: Drawer(
+        width: 296,
+        backgroundColor: AppColors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.horizontal(left: Radius.circular(AppRadius.xxl)),
+        ),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
-            GestureDetector(
-              onTap: () {
-                Navigator.pop(context);
-                AppRoutes.push(context, const ProfileScreen());
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  color: GemEyeColors.primary,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: user?.photoURL != null
-                          ? NetworkImage(user!.photoURL!)
-                          : null,
-                      child: user?.photoURL == null
-                          ? Text(
-                              authService.getFirstName()[0].toUpperCase(),
-                              style: const TextStyle(
-                                fontFamily: GemEyeFonts.heading,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      user?.displayName ?? authService.getFirstName(),
-                      style: const TextStyle(
-                        fontFamily: GemEyeFonts.heading,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      user?.email ?? '',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 12,
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _Header(
+                onClose: () => Navigator.pop(context),
+                onProfile: () {
+                  push(const ProfileScreen());
+                }),
             Expanded(
               child: ListView(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.lg, vertical: 10),
                 children: [
-                  _buildMenuItem(context, Icons.home_rounded, 'Home', () {
-                    Navigator.pop(context);
-                    onTabSwitch?.call(0);
-                  }),
-                  _buildMenuItem(
-                      context, Icons.camera_alt_rounded, 'Grade a Stone', () {
-                    Navigator.pop(context);
-                    AppRoutes.push(context, const CaptureScreen());
-                  }),
-                  _buildMenuItem(
-                      context, Icons.history_rounded, 'Grading History', () {
-                    Navigator.pop(context);
-                    onTabSwitch?.call(2);
-                  }),
-                  _buildMenuItem(
-                      context, Icons.palette_rounded, 'Colour Grade Guide', () {
-                    Navigator.pop(context);
-                    onTabSwitch?.call(3);
-                  }),
-                  _buildMenuItem(
-                      context, Icons.compare_rounded, 'Stone Comparison', () {
-                    Navigator.pop(context);
-                    AppRoutes.push(context, const ComparisonScreen());
-                  }),
-                  _buildMenuItem(
-                      context, Icons.settings_rounded, 'Settings', () {
-                    Navigator.pop(context);
-                    AppRoutes.push(context, const SettingsScreen());
-                  }),
-                  const Divider(height: 1),
-                  _buildMenuItem(
-                      context, Icons.feedback_rounded, 'Feedback', () {
-                    Navigator.pop(context);
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                      ),
-                      builder: (ctx) => const FeedbackSheet(),
-                    );
-                  }),
-                  _buildMenuItem(context, Icons.slideshow_rounded,
-                      'View app introduction', () {
-                    Navigator.pop(context);
-                    AppRoutes.push(
-                        context, const OnboardingScreen(replay: true));
-                  }),
-                  _buildMenuItem(
-                      context, Icons.lock_rounded, 'Privacy Policy', () {
-                    Navigator.pop(context);
-                    AppRoutes.push(context, const PrivacyScreen());
-                  }),
-                  _buildMenuItem(context, Icons.info_rounded, 'About', () {
-                    Navigator.pop(context);
-                    AppRoutes.push(context, const AboutScreen());
-                  }),
-                  const Divider(height: 1),
-                  _buildMenuItem(
-                    context,
-                    Icons.logout_rounded,
-                    'Logout',
-                    () {
-                      Navigator.pop(context);
-                      showDialog(
+                  _DrawerItem(
+                    icon: Icons.home_rounded,
+                    label: 'Home',
+                    selected: currentIndex == 0,
+                    onTap: () => tab(0),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.center_focus_strong_rounded,
+                    label: 'Grade a Stone',
+                    onTap: () => push(const CaptureScreen()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.palette_rounded,
+                    label: 'Calibration',
+                    onTap: () => push(const CalibrationScreen()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.history_rounded,
+                    label: 'Grading History',
+                    selected: currentIndex == 2,
+                    onTap: () => tab(2),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.menu_book_rounded,
+                    label: 'Colour Grade Guide',
+                    selected: currentIndex == 3,
+                    onTap: () => tab(3),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.compare_rounded,
+                    label: 'Stone Comparison',
+                    onTap: () => push(const ComparisonScreen()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.settings_rounded,
+                    label: 'Settings',
+                    onTap: () => push(const SettingsScreen()),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
+                    child: Divider(),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.rate_review_rounded,
+                    label: 'Feedback',
+                    onTap: () => closeThen(() {
+                      showModalBottomSheet(
                         context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text(
-                            'Logout',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.heading,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          content: const Text(
-                            'Are you sure you want to logout?',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.body,
-                              fontSize: 14,
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancel'),
-                            ),
-                            TextButton(
-                              onPressed: () => AuthService.endSession(),
-                              child: const Text(
-                                'Logout',
-                                style: TextStyle(color: GemEyeColors.error),
-                              ),
-                            ),
-                          ],
+                        isScrollControlled: true,
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(AppRadius.xxl + 4)),
                         ),
+                        builder: (ctx) => const FeedbackSheet(),
                       );
-                    },
-                    isDestructive: true,
+                    }),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.privacy_tip_rounded,
+                    label: 'Privacy Policy',
+                    onTap: () => push(const PrivacyScreen()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.info_rounded,
+                    label: 'About',
+                    onTap: () => push(const AboutScreen()),
+                  ),
+                  _DrawerItem(
+                    icon: Icons.slideshow_rounded,
+                    label: 'View app introduction',
+                    onTap: () => push(const OnboardingScreen(replay: true)),
                   ),
                 ],
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                '${AppConstants.appName} v${AppConstants.appVersion} · ${AppConstants.appYear}',
-                style: TextStyle(
-                  fontFamily: GemEyeFonts.body,
-                  fontSize: 11,
-                  color: GemEyeColors.textMuted,
-                ),
-              ),
-            ),
+            _Footer(onLogout: () => closeThen(_confirmLogout)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMenuItem(
-      BuildContext context, IconData icon, String title, VoidCallback onTap,
-      {bool isDestructive = false}) {
-    return ListTile(
-      leading: Icon(icon,
-          size: 22,
-          color:
-              isDestructive ? GemEyeColors.error : GemEyeColors.textSecondary),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontFamily: GemEyeFonts.body,
-          fontSize: 14,
-          fontWeight: FontWeight.w400,
-          color: isDestructive ? GemEyeColors.error : GemEyeColors.textPrimary,
+  static void _confirmLogout() {
+    final ctx = AppRoutes.navigatorKey.currentContext;
+    if (ctx == null) return;
+    showDialog(
+      context: ctx,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.card,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Logout', style: AppText.sectionHeader),
+        content: Text('Are you sure you want to logout?',
+            style: AppText.body14.copyWith(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('Cancel',
+                style: AppText.button.copyWith(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => AuthService.endSession(),
+            child: Text('Logout',
+                style: AppText.button.copyWith(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  final VoidCallback onClose;
+  final VoidCallback onProfile;
+
+  const _Header({required this.onClose, required this.onProfile});
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = AuthService();
+    final user = authService.currentUser;
+    final name = (user?.displayName?.trim().isNotEmpty ?? false)
+        ? user!.displayName!.trim()
+        : authService.getFirstName();
+    final parts = name.split(RegExp(r'\s+'));
+    final initials = (parts.length > 1
+            ? '${parts.first[0]}${parts.last[0]}'
+            : name.substring(0, name.length >= 2 ? 2 : 1))
+        .toUpperCase();
+    final photoUrl = user?.photoURL;
+
+    return Container(
+      color: AppColors.primary,
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        MediaQuery.of(context).padding.top + AppSpacing.lg,
+        AppSpacing.md,
+        AppSpacing.xxl,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+                child: Image.asset('assets/images/logo.png',
+                    width: 28, height: 28),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('GemEye',
+                    style: AppText.display
+                        .copyWith(height: 1, color: AppColors.onPrimary)),
+              ),
+              IconButton(
+                tooltip: 'Close menu',
+                onPressed: onClose,
+                color: AppColors.onPrimary,
+                style: IconButton.styleFrom(
+                    highlightColor: AppColors.primaryLight),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          InkWell(
+            onTap: onProfile,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            highlightColor: AppColors.primaryLight,
+            splashColor: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.lg),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppColors.primaryLight,
+                    backgroundImage:
+                        photoUrl != null ? NetworkImage(photoUrl) : null,
+                    child: photoUrl == null
+                        ? Text(initials,
+                            style: AppText.titleSmall
+                                .copyWith(color: AppColors.onPrimary))
+                        : null,
+                  ),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.titleSmall
+                                .copyWith(color: AppColors.onPrimary)),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(user?.email ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.secondary
+                                .copyWith(color: AppColors.onPrimary)),
+                        // TODO(F2): show "Role · Company" once the profile
+                        // is persisted.
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DrawerItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+      child: Semantics(
+        selected: selected,
+        button: true,
+        child: Material(
+          color: selected ? AppColors.surface : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            highlightColor: AppColors.surface,
+            splashColor: Colors.transparent,
+            child: SizedBox(
+              height: AppSpacing.touchTarget,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                child: Row(
+                  children: [
+                    Icon(icon,
+                        size: 22,
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.textSecondary),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: selected
+                            ? AppText.titleSmall
+                                .copyWith(color: AppColors.primary)
+                            : AppText.body14Medium,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
-      onTap: onTap,
-      dense: true,
-      visualDensity: const VisualDensity(vertical: -1),
+    );
+  }
+}
+
+class _Footer extends StatelessWidget {
+  final VoidCallback onLogout;
+
+  const _Footer({required this.onLogout});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.lg),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              child: InkWell(
+                onTap: onLogout,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                highlightColor: AppColors.errorTint,
+                splashColor: Colors.transparent,
+                child: SizedBox(
+                  height: AppSpacing.touchTarget,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.logout_rounded,
+                            size: 22, color: AppColors.error),
+                        const SizedBox(width: 14),
+                        Text('Logout',
+                            style: AppText.body14Medium
+                                .copyWith(color: AppColors.error)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            // TODO: append server status (e.g. "Server connected") once the
+            // backend health check exists.
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: Text('App v${AppConstants.appVersion}',
+                  style: AppText.caption),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
