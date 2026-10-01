@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+@keyframes ge-gem{0%{transform:rotateY(0) rotate(0)}50%{transform:rotateY(180deg) rotate(10deg)}100%{transform:rotateY(360deg) rotate(0)}}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;gap:40px;align-items:flex-start;background:#fff">
+  <div data-screen-label="Splash" style="flex:none;width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;position:relative;display:flex;flex-direction:column">
+    <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#1A1D2E">
+      <span>9:41</span>
+      <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:0 20px">
+      <div title="GemEye logo asset" style="width:80px;height:80px;border-radius:20px;flex:none;border:1px dashed #A0A4B8;background:repeating-linear-gradient(135deg,#EEF1FA 0 6px,#fff 6px 12px);display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;font:400 10px/1.15 'JetBrains Mono',monospace;color:#6B7089;overflow:hidden">GemEye logo asset</div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+        <span style="font:700 28px/1.1 Poppins,sans-serif;color:#1B3A8C">GemEye</span>
+        <span style="font:400 12px Inter,sans-serif;color:#A0A4B8">Automated Blue Sapphire Colour Grading</span>
+      </div>
+    </div>
+    <div style="padding:0 20px 32px;display:flex;justify-content:center"><span style="font:400 10px Inter,sans-serif;color:#A0A4B8">v1.0 · 2026</span></div>
+    <div style="position:absolute;left:0;bottom:0;height:2px;background:#EEF1FA;width:100%"><div style="height:100%;background:#1B3A8C;width:{{ progress }}"></div></div>
+  </div>
+
+  <div style="width:280px;flex:none;display:flex;flex-direction:column;gap:12px;padding-top:8px">
+    <span style="font:600 16px Poppins;color:#1A1D2E">Splash</span>
+    <span style="font:400 12px/1.5 Inter;color:#6B7089">Auto-continues after 3 s. No buttons, no user input.</span>
+    <span style="font:400 12px/1.5 Inter;color:#6B7089">Centre: GemEye logo asset placeholder, 80 px. Swap in the rotating brilliant-cut sapphire animation in the build.</span>
+    <span style="font:400 12px/1.5 Inter;color:#6B7089">The 2 px bar at the bottom edge is only here to show the 3 s timer. It is not part of the shipped screen.</span>
+    <span style="font:500 12px Inter;color:#1B3A8C">{{ status }}</span>
+    <button onClick="{{ replay }}" style="align-self:flex-start;height:40px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;gap:4px" style-active="color:#3B5FD9;text-decoration:underline"><span style="font-family:'Material Symbols Rounded';font-size:18px">replay</span>Replay timer</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { t: 0 };
+  componentDidMount() { this.start(); }
+  componentWillUnmount() { clearInterval(this.iv); }
+  start() {
+    clearInterval(this.iv);
+    const t0 = Date.now();
+    this.setState({ t: 0 });
+    this.iv = setInterval(() => {
+      const t = Math.min(3000, Date.now() - t0);
+      this.setState({ t });
+      if (t >= 3000) clearInterval(this.iv);
+    }, 50);
+  }
+  renderVals() {
+    const t = this.state.t;
+    return {
+      gem: React.createElement('span', { style: { display: 'inline-block', fontFamily: "'Material Symbols Rounded'", fontSize: 80, lineHeight: 1, width: 80, height: 80, color: '#1B3A8C', fontVariationSettings: "'FILL' 1", animation: 'ge-gem 1.4s ease-in-out infinite', overflow: 'hidden' } }, 'diamond'),
+      progress: (t / 30) + '%',
+      status: t >= 3000 ? '→ Continues to next screen' : `Auto-continue in ${((3000 - t) / 1000).toFixed(1)} s`,
+      replay: () => this.start(),
+    };
+  }
+}
+</script>
+</body>
+</html>

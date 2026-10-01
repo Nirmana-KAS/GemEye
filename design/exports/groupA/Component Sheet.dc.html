@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..600,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;color:#1A1D2E;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+@keyframes ge-spin{to{transform:rotate(360deg)}}
+@keyframes ge-gem{0%{transform:rotateY(0) rotate(0)}50%{transform:rotateY(180deg) rotate(10deg)}100%{transform:rotateY(360deg) rotate(0)}}
+input[type=range]{accent-color:#1B3A8C}
+</style>
+</helmet>
+
+<div style="width:1480px;padding:56px 56px 80px;display:flex;flex-direction:column;gap:0;background:#fff">
+
+<header style="display:flex;justify-content:space-between;align-items:flex-end;gap:40px;padding-bottom:36px;border-bottom:1px solid #E5E7F0">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div title="GemEye logo asset" style="width:36px;height:36px;border-radius:10px;flex:none;border:1px dashed #A0A4B8;background:repeating-linear-gradient(135deg,#EEF1FA 0 6px,#fff 6px 12px);display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;font:400 5.5px/1.15 'JetBrains Mono',monospace;color:#6B7089;overflow:hidden">GemEye logo asset</div>
+      <div style="font:700 28px/1 Poppins,sans-serif;color:#1B3A8C">GemEye</div>
+    </div>
+    <div style="font:600 20px/1.3 Poppins,sans-serif;color:#1A1D2E">Component Sheet · v1.0</div>
+    <div style="font:400 14px/1.5 Inter,sans-serif;color:#6B7089;max-width:620px;text-wrap:pretty">Android · 360 × 800 · light mode only. Blue sapphire colour grading into the 7 GEMCLOUD grades. Components are shown at 1:1 device scale with every state. Controls marked “interactive” respond to taps.</div>
+  </div>
+  <div style="display:flex;gap:32px">
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 11px Inter;color:#A0A4B8;letter-spacing:.06em;text-transform:uppercase">Brand &amp; neutrals</div>
+      <div style="display:flex;gap:8px">
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start"><div style="width:48px;height:32px;border-radius:8px;background:#1B3A8C"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#1B3A8C</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#3B5FD9"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#3B5FD9</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#EEF1FA"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#EEF1FA</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#1A1D2E"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#1A1D2E</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#6B7089"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#6B7089</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#A0A4B8"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#A0A4B8</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#fff;border:1px solid #E5E7F0"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#E5E7F0</span></div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="font:500 11px Inter;color:#A0A4B8;letter-spacing:.06em;text-transform:uppercase">Status</div>
+      <div style="display:flex;gap:8px">
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#10B981"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#10B981</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#F59E0B"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#F59E0B</span></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><div style="width:48px;height:32px;border-radius:8px;background:#EF4444"></div><span style="font:400 10px 'JetBrains Mono';color:#6B7089">#EF4444</span></div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- 01 BUTTONS -->
+<section style="padding:44px 0;border-bottom:1px solid #E5E7F0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">01</span><span style="font:600 20px Poppins;color:#1A1D2E">Buttons</span></div>
+  <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:40px 56px">
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">PrimaryButton</div>
+      <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Default (interactive)</span>
+          <button style="height:48px;padding:0 24px;border:none;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;gap:8px" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:20px">photo_camera</span>Capture stone</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Pressed</span>
+          <button style="height:48px;padding:0 24px;border:none;border-radius:12px;background:#3B5FD9;color:#fff;font:600 14px Poppins">Submit for grading</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Loading</span>
+          <button style="height:48px;padding:0 24px;border:none;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;display:flex;align-items:center;gap:10px">{{ spinBtn }}Uploading…</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+          <button disabled style="height:48px;padding:0 24px;border:none;border-radius:12px;background:#E5E7F0;color:#A0A4B8;font:600 14px Poppins">Submit for grading</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;width:328px"><span style="font:500 11px Inter;color:#A0A4B8">Full width · 328 (360 − 2×16)</span>
+          <button style="width:100%;height:48px;border:none;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;cursor:pointer" style-active="background:#3B5FD9">Start grading</button></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">SecondaryButton</div>
+      <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Default (interactive)</span>
+          <button style="height:48px;padding:0 24px;border:1.5px solid #1B3A8C;border-radius:12px;background:#fff;color:#1B3A8C;font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;gap:8px" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:20px">refresh</span>Retake photo</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Pressed</span>
+          <button style="height:48px;padding:0 24px;border:1.5px solid #3B5FD9;border-radius:12px;background:#EEF1FA;color:#3B5FD9;font:600 14px Poppins">Retake photo</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+          <button disabled style="height:48px;padding:0 24px;border:1.5px solid #E5E7F0;border-radius:12px;background:#fff;color:#A0A4B8;font:600 14px Poppins">Retake photo</button></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">TextLinkButton</div>
+      <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Default</span>
+          <button style="height:40px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;gap:4px" style-active="color:#3B5FD9;text-decoration:underline">View full report<span style="font-family:'Material Symbols Rounded';font-size:18px">chevron_right</span></button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Pressed</span>
+          <button style="height:40px;padding:0 8px;border:none;border-radius:8px;background:#EEF1FA;color:#3B5FD9;font:600 14px Poppins;text-decoration:underline">Forgot password?</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+          <button disabled style="height:40px;padding:0 8px;border:none;background:none;color:#A0A4B8;font:600 14px Poppins">Resend code</button></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">DangerButton</div>
+      <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Filled</span>
+          <button style="height:48px;padding:0 24px;border:none;border-radius:12px;background:#EF4444;color:#fff;font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;gap:8px" style-active="filter:brightness(.9)"><span style="font-family:'Material Symbols Rounded';font-size:20px">delete</span>Delete record</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Pressed</span>
+          <button style="height:48px;padding:0 24px;border:none;border-radius:12px;background:#EF4444;filter:brightness(.88);color:#fff;font:600 14px Poppins">Delete record</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Outline</span>
+          <button style="height:48px;padding:0 24px;border:1.5px solid #EF4444;border-radius:12px;background:#fff;color:#EF4444;font:600 14px Poppins;cursor:pointer">Sign out</button></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+          <button disabled style="height:48px;padding:0 24px;border:none;border-radius:12px;background:#E5E7F0;color:#A0A4B8;font:600 14px Poppins">Delete record</button></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">IconButtonRound</div>
+      <div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center"><span style="font:500 11px Inter;color:#A0A4B8">Filled</span>
+          <button style="width:48px;height:48px;border-radius:50%;border:none;background:#1B3A8C;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">photo_camera</span></button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center"><span style="font:500 11px Inter;color:#A0A4B8">Filled pressed</span>
+          <button style="width:48px;height:48px;border-radius:50%;border:none;background:#3B5FD9;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">photo_camera</span></button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center"><span style="font:500 11px Inter;color:#A0A4B8">Tonal</span>
+          <button style="width:48px;height:48px;border-radius:50%;border:none;background:#EEF1FA;color:#1B3A8C;display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="background:#3B5FD9;color:#fff"><span style="font-family:'Material Symbols Rounded';font-size:22px">flash_on</span></button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center"><span style="font:500 11px Inter;color:#A0A4B8">Outline</span>
+          <button style="width:48px;height:48px;border-radius:50%;border:1px solid #E5E7F0;background:#fff;color:#1A1D2E;display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px">share</span></button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center"><span style="font:500 11px Inter;color:#A0A4B8">Small · 40</span>
+          <button style="width:40px;height:40px;border-radius:50%;border:none;background:#EEF1FA;color:#1B3A8C;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:20px">info</span></button></div>
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+          <button disabled style="width:48px;height:48px;border-radius:50%;border:none;background:#E5E7F0;color:#A0A4B8;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">photo_camera</span></button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 NAVIGATION -->
+<section style="padding:44px 0;border-bottom:1px solid #E5E7F0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">02</span><span style="font:600 20px Poppins;color:#1A1D2E">Navigation</span></div>
+  <div style="display:flex;gap:56px;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;gap:32px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 14px Poppins;color:#1A1D2E">GemAppBar</div>
+        <div style="display:grid;grid-template-columns:360px 360px;gap:20px 32px">
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Primary · root (menu + title)</span>
+            <div style="width:360px;height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px 0 4px;border-radius:12px 12px 0 0">
+              <button style="width:48px;height:48px;border:none;background:none;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:50%"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></button>
+              <div style="flex:1;font:600 20px Poppins;color:#fff">GemEye</div>
+              <button style="width:48px;height:48px;border:none;background:none;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:50%"><span style="font-family:'Material Symbols Rounded';font-size:24px">notifications</span></button>
+            </div></div>
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Surface · root</span>
+            <div style="width:360px;height:56px;background:#fff;border-bottom:1px solid #E5E7F0;display:flex;align-items:center;gap:4px;padding:0 4px">
+              <button style="width:48px;height:48px;border:none;background:none;color:#1A1D2E;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></button>
+              <div style="flex:1;font:600 20px Poppins;color:#1B3A8C">GemEye</div>
+              <button style="width:48px;height:48px;border:none;background:none;color:#1A1D2E;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">notifications</span></button>
+            </div></div>
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Primary · back + title</span>
+            <div style="width:360px;height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px">
+              <button style="width:48px;height:48px;border:none;background:none;color:#fff;display:flex;align-items:center;justify-content:center;border-radius:50%" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></button>
+              <div style="flex:1;font:600 20px Poppins;color:#fff">Capture stone</div>
+            </div></div>
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Surface · back + title</span>
+            <div style="width:360px;height:56px;background:#fff;border-bottom:1px solid #E5E7F0;display:flex;align-items:center;gap:4px;padding:0 4px">
+              <button style="width:48px;height:48px;border:none;background:none;color:#1A1D2E;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></button>
+              <div style="flex:1;font:600 20px Poppins;color:#1A1D2E">Capture stone</div>
+            </div></div>
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Primary · back + title + action</span>
+            <div style="width:360px;height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px">
+              <button style="width:48px;height:48px;border:none;background:none;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></button>
+              <div style="flex:1;display:flex;flex-direction:column"><span style="font:600 20px/1.2 Poppins;color:#fff">Grade result</span><span style="font:400 11px Inter;color:#ABBDD6">GE-202610-00042</span></div>
+              <button style="width:48px;height:48px;border:none;background:none;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">share</span></button>
+            </div></div>
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Surface · back + title + action</span>
+            <div style="width:360px;height:56px;background:#fff;border-bottom:1px solid #E5E7F0;display:flex;align-items:center;gap:4px;padding:0 4px">
+              <button style="width:48px;height:48px;border:none;background:none;color:#1A1D2E;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></button>
+              <div style="flex:1;font:600 20px Poppins;color:#1A1D2E">History</div>
+              <button style="width:48px;height:48px;border:none;background:none;color:#1B3A8C;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">tune</span></button>
+            </div></div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 14px Poppins;color:#1A1D2E">BottomNavBar</div>
+        <div style="display:grid;grid-template-columns:360px 360px;gap:20px 32px">
+          <div style="display:flex;flex-direction:column;gap:8px;grid-column:span 2"><span style="font:500 11px Inter;color:#A0A4B8">Interactive · tap a tab</span>
+            <div style="width:360px;height:64px;background:#fff;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(4,1fr)">
+              <sc-for list="{{ navLive }}" as="t" hint-placeholder-count="4">
+                <button onClick="{{ t.onTap }}" style="border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:{{ t.color }}">
+                  <span style="font-family:'Material Symbols Rounded';font-size:24px;font-variation-settings:{{ t.fill }}">{{ t.icon }}</span>
+                  <span style="font:{{ t.font }};font-size:11px">{{ t.label }}</span>
+                  <span style="width:4px;height:4px;border-radius:50%;background:#1B3A8C;opacity:{{ t.dot }}"></span>
+                </button>
+              </sc-for>
+            </div></div>
+          <sc-for list="{{ navStates }}" as="s" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">{{ s.name }}</span>
+              <div style="width:360px;height:64px;background:#fff;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(4,1fr)">
+                <sc-for list="{{ s.tabs }}" as="t" hint-placeholder-count="4">
+                  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:{{ t.color }}">
+                    <span style="font-family:'Material Symbols Rounded';font-size:24px;font-variation-settings:{{ t.fill }}">{{ t.icon }}</span>
+                    <span style="font:{{ t.font }};font-size:11px">{{ t.label }}</span>
+                    <span style="width:4px;height:4px;border-radius:50%;background:#1B3A8C;opacity:{{ t.dot }}"></span>
+                  </div>
+                </sc-for>
+              </div></div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">SideDrawer</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Open · over scrim · 360 × 800 · active item = Home</span>
+      <div style="width:360px;height:800px;position:relative;overflow:hidden;border:1px solid #E5E7F0;border-radius:14px;background:#fff">
+        <div style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+        <div style="position:absolute;top:0;left:0;bottom:0;width:296px;background:#fff;border-radius:0 16px 16px 0;display:flex;flex-direction:column">
+          <div style="background:#1B3A8C;padding:24px 20px 20px;display:flex;flex-direction:column;gap:16px;border-radius:0 16px 0 0">
+            <div style="display:flex;align-items:center;gap:10px"><div title="GemEye logo asset" style="width:28px;height:28px;border-radius:8px;flex:none;border:1px dashed rgba(255,255,255,.55);background:repeating-linear-gradient(135deg,rgba(255,255,255,.16) 0 5px,rgba(255,255,255,.04) 5px 10px);display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;font:400 4.5px/1.15 'JetBrains Mono',monospace;color:#fff;overflow:hidden">GemEye logo asset</div><span style="font:700 28px/1 Poppins;color:#fff">GemEye</span></div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style="width:44px;height:44px;border-radius:50%;background:#3B5FD9;display:flex;align-items:center;justify-content:center;font:600 14px Poppins;color:#fff;flex:none">NP</div>
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font:600 14px Poppins;color:#fff">Nimal Perera</span><span style="font:400 12px Inter;color:#fff">n.perera@ceylongems.lk</span><span style="font:400 11px Inter;color:#ABBDD6">Gemologist · Ceylon Gem Exports</span></div>
+            </div>
+          </div>
+          <div style="padding:10px 12px;display:flex;flex-direction:column;gap:2px">
+            <div style="height:44px;padding:0 16px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;gap:14px;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">home</span><span style="font:600 14px Poppins">Home</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">center_focus_strong</span><span style="font:500 14px Inter">Grade a Stone</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">palette</span><span style="font:500 14px Inter">Calibration</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">history</span><span style="font:500 14px Inter">Grading History</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">menu_book</span><span style="font:500 14px Inter">Colour Grade Guide</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">compare</span><span style="font:500 14px Inter">Stone Comparison</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">settings</span><span style="font:500 14px Inter">Settings</span></div>
+            <div style="height:1px;background:#E5E7F0;margin:6px 16px"></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">rate_review</span><span style="font:500 14px Inter">Feedback</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">privacy_tip</span><span style="font:500 14px Inter">Privacy Policy</span></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#1A1D2E" style-hover="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">info</span><span style="font:500 14px Inter">About</span></div>
+            <div style="height:1px;background:#E5E7F0;margin:6px 16px"></div>
+            <div style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#EF4444"><span style="font-family:'Material Symbols Rounded';font-size:22px">logout</span><span style="font:500 14px Inter">Logout</span></div>
+          </div>
+          <div style="margin-top:auto;padding:12px 28px 16px;border-top:1px solid #E5E7F0;display:flex;flex-direction:column;gap:2px">
+            <span style="font:400 11px Inter;color:#A0A4B8">App v1.0.0 · Server connected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 03 CONTAINERS & STATUS -->
+<section style="padding:44px 0;border-bottom:1px solid #E5E7F0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">03</span><span style="font:600 20px Poppins;color:#1A1D2E">Containers &amp; status</span></div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px 40px">
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">CardContainer</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Default</span>
+      <div style="width:328px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px">
+        <div style="font:600 16px Poppins;color:#1A1D2E">Calibration status</div>
+        <div style="font:400 14px/1.5 Inter;color:#6B7089">Calibrated today at 09:14 · residual 0.08 (Excellent)</div>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Tappable · pressed (interactive)</span>
+      <div style="width:328px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px;cursor:pointer" style-active="background:#EEF1FA;border-color:#3B5FD9">
+        <div style="width:40px;height:40px;border-radius:10px;background:#EEF1FA;color:#1B3A8C;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">menu_book</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:600 14px Poppins;color:#1A1D2E">How to photograph a stone</span><span style="font:400 12px Inter;color:#6B7089">Macro lens, CPL, lighting setup</span></div>
+        <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#A0A4B8">chevron_right</span>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Selected</span>
+      <div style="width:328px;background:#fff;border:1.5px solid #1B3A8C;border-radius:12px;padding:16px;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:600 14px Poppins;color:#1A1D2E">100 mm macro + CPL</span><span style="font:400 12px Inter;color:#6B7089">Recommended setup</span></div>
+        <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#1B3A8C;font-variation-settings:'FILL' 1">check_circle</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">StatCard</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Default · loading (4th)</span>
+      <div style="display:grid;grid-template-columns:156px 156px;gap:16px">
+        <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px">
+          <span style="font:500 12px Inter;color:#6B7089">Today</span>
+          <span style="font:700 24px/1.1 Poppins;color:#1A1D2E;font-variant-numeric:tabular-nums">12</span>
+          <span style="font:500 11px Inter;color:#A0A4B8">stones</span>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px">
+          <span style="font:500 12px Inter;color:#6B7089">Avg confidence</span>
+          <span style="font:700 24px/1.1 Poppins;color:#1A1D2E;font-variant-numeric:tabular-nums">81%</span>
+          <span style="font:500 11px Inter;color:#A0A4B8">Today</span>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px">
+          <span style="font:500 12px Inter;color:#6B7089">Referred</span>
+          <span style="font:700 24px/1.1 Poppins;color:#1A1D2E;font-variant-numeric:tabular-nums">3</span>
+          <span style="font:500 11px Inter;color:#A0A4B8">For gemologist review</span>
+        </div>
+        <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px">
+          <div style="width:80px;height:10px;border-radius:5px;background:#EEF1FA"></div>
+          <div style="width:96px;height:22px;border-radius:6px;background:#EEF1FA"></div>
+          <div style="width:64px;height:10px;border-radius:5px;background:#EEF1FA"></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">StatusBanner</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Success</span>
+      <div style="width:328px;min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" style-active="background:#EEF1FA">
+        <span style="width:8px;height:8px;border-radius:50%;background:#10B981;flex:none;box-shadow:0 0 0 4px rgba(16,185,129,.15)"></span>
+        <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">Calibrated · residual 0.08 · today 09:12</span>
+        <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#A0A4B8">chevron_right</span>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Warning</span>
+      <div style="width:328px;min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" style-active="background:#EEF1FA">
+        <span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex:none;box-shadow:0 0 0 4px rgba(245,158,11,.15)"></span>
+        <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">Calibration is over 8 hours old · Recalibrate</span>
+        <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#A0A4B8">chevron_right</span>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Error</span>
+      <div style="width:328px;min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" style-active="background:#EEF1FA">
+        <span style="width:8px;height:8px;border-radius:50%;background:#EF4444;flex:none;box-shadow:0 0 0 4px rgba(239,68,68,.15)"></span>
+        <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">No connection · grading needs internet</span>
+        <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#A0A4B8">chevron_right</span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px;grid-column:span 3">
+      <div style="font:600 14px Poppins;color:#1A1D2E">BottomSheetContainer</div>
+      <div style="display:flex;gap:32px;align-items:flex-start">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Content sheet · over scrim</span>
+          <div style="width:360px;height:520px;position:relative;overflow:hidden;border:1px solid #E5E7F0;border-radius:14px;background:#fff">
+            <div style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:8px 20px 24px;display:flex;flex-direction:column;gap:16px">
+              <div style="width:36px;height:4px;border-radius:2px;background:#E5E7F0;align-self:center"></div>
+              <div style="display:flex;flex-direction:column;gap:4px"><span style="font:600 16px Poppins;color:#1A1D2E">Before you capture</span><span style="font:400 12px Inter;color:#6B7089">Check these for a reliable grade</span></div>
+              <div style="display:flex;flex-direction:column;gap:12px">
+                <div style="display:flex;gap:12px;align-items:flex-start"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C">center_focus_strong</span><span style="font:400 14px/1.45 Inter;color:#1A1D2E">Stone centred, table facet up, 100 mm macro focused</span></div>
+                <div style="display:flex;gap:12px;align-items:flex-start"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C">palette</span><span style="font:400 14px/1.45 Inter;color:#1A1D2E">Calibration done for this session</span></div>
+                <div style="display:flex;gap:12px;align-items:flex-start"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C">flare</span><span style="font:400 14px/1.45 Inter;color:#1A1D2E">CPL rotated until reflections disappear</span></div>
+              </div>
+              <button style="height:48px;border:none;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins" style-active="background:#3B5FD9">Open camera</button>
+            </div>
+          </div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Option list sheet</span>
+          <div style="width:360px;height:520px;position:relative;overflow:hidden;border:1px solid #E5E7F0;border-radius:14px;background:#fff">
+            <div style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:8px 8px 16px;display:flex;flex-direction:column;gap:4px">
+              <div style="width:36px;height:4px;border-radius:2px;background:#E5E7F0;align-self:center;margin-bottom:8px"></div>
+              <div style="font:600 16px Poppins;color:#1A1D2E;padding:4px 12px 8px">Sort history by</div>
+              <div style="height:48px;padding:0 12px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;gap:12px"><span style="flex:1;font:600 14px Poppins;color:#1B3A8C">Newest first</span><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C">check</span></div>
+              <div style="height:48px;padding:0 12px;border-radius:12px;display:flex;align-items:center" style-hover="background:#EEF1FA"><span style="font:500 14px Inter;color:#1A1D2E">Oldest first</span></div>
+              <div style="height:48px;padding:0 12px;border-radius:12px;display:flex;align-items:center" style-hover="background:#EEF1FA"><span style="font:500 14px Inter;color:#1A1D2E">Grade (G1 → G7)</span></div>
+              <div style="height:48px;padding:0 12px;border-radius:12px;display:flex;align-items:center" style-hover="background:#EEF1FA"><span style="font:500 14px Inter;color:#1A1D2E">Confidence (high → low)</span></div>
+            </div>
+          </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 04 GRADE DATA -->
+<section style="padding:44px 0;border-bottom:1px solid #E5E7F0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">04</span><span style="font:600 20px Poppins;color:#1A1D2E">Grade data</span></div>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:40px 56px">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">GradeSwatch</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">40 px · radius 10</span>
+      <div style="display:flex;gap:16px">
+        <sc-for list="{{ grades }}" as="g" hint-placeholder-count="7">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:48px">
+            <div style="width:40px;height:40px;border-radius:10px;background:{{ g.hex }};box-shadow:inset 0 0 0 1px rgba(26,29,46,.08)"></div>
+            <span style="font:600 11px Poppins;color:#1A1D2E">{{ g.code }}</span>
+            <span style="font:400 10px 'JetBrains Mono';color:#6B7089">{{ g.hex }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">32 px · radius 8 · selected (G3)</span>
+      <div style="display:flex;gap:16px;align-items:center">
+        <sc-for list="{{ grades }}" as="g" hint-placeholder-count="7">
+          <div style="width:48px;display:flex;justify-content:center"><div style="width:32px;height:32px;border-radius:8px;background:{{ g.hex }};box-shadow:{{ g.ring }}"></div></div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">GradeChip</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Default · G1–G7</span>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <sc-for list="{{ grades }}" as="g" hint-placeholder-count="7">
+          <div style="height:32px;padding:0 12px 0 6px;border-radius:16px;background:#EEF1FA;display:flex;align-items:center;gap:8px">
+            <span style="width:20px;height:20px;border-radius:6px;background:{{ g.hex }}"></span>
+            <span style="font:600 11px Poppins;color:#1B3A8C">{{ g.code }}</span>
+            <span style="font:500 11px Inter;color:#1A1D2E">{{ g.name }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Selected · compact</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div style="height:32px;padding:0 12px 0 6px;border-radius:16px;background:#1B3A8C;display:flex;align-items:center;gap:8px"><span style="width:20px;height:20px;border-radius:6px;background:#091A72;box-shadow:0 0 0 1.5px #fff"></span><span style="font:600 11px Poppins;color:#fff">G3</span><span style="font:500 11px Inter;color:#fff">Vivid</span></div>
+        <div style="height:24px;padding:0 8px 0 4px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;gap:6px"><span style="width:16px;height:16px;border-radius:4px;background:#2A408C"></span><span style="font:600 11px Poppins;color:#1B3A8C">G4</span></div>
+        <div style="height:24px;padding:0 8px 0 4px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;gap:6px"><span style="width:16px;height:16px;border-radius:4px;background:#ABBDD6"></span><span style="font:600 11px Poppins;color:#1B3A8C">G7</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">FilterChip</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Interactive · default / selected</span>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+          <button onClick="{{ f.onTap }}" style="height:32px;padding:0 14px;border-radius:16px;border:1px solid {{ f.border }};background:{{ f.bg }};color:{{ f.color }};font:500 12px Inter;display:flex;align-items:center;gap:6px;cursor:pointer">
+            <sc-if value="{{ f.on }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Material Symbols Rounded';font-size:16px">check</span></sc-if>{{ f.label }}</button>
+        </sc-for>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">With count · disabled</span>
+      <div style="display:flex;gap:8px">
+        <div style="height:32px;padding:0 6px 0 14px;border-radius:16px;border:1px solid #1B3A8C;background:#1B3A8C;color:#fff;font:500 12px Inter;display:flex;align-items:center;gap:8px">Borderline<span style="min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#fff;color:#1B3A8C;font:600 11px Poppins;display:flex;align-items:center;justify-content:center">12</span></div>
+        <div style="height:32px;padding:0 14px;border-radius:16px;border:1px solid #E5E7F0;background:#fff;color:#A0A4B8;font:500 12px Inter;display:flex;align-items:center">Low confidence</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:48px">
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 14px Poppins;color:#1A1D2E">ConfidenceBadge</div>
+        <span style="font:400 12px Inter;color:#6B7089">High ≥ 60% · Borderline 40–59% · Low &lt; 40%</span>
+        <span style="font:500 11px Inter;color:#A0A4B8">On light</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(16,185,129,.12);display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#1A1D2E"><span style="width:6px;height:6px;border-radius:50%;background:#10B981"></span>High · 94%</span>
+          <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(245,158,11,.14);display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#1A1D2E"><span style="width:6px;height:6px;border-radius:50%;background:#F59E0B"></span>Borderline · 52%</span>
+          <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(239,68,68,.12);display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#1A1D2E"><span style="width:6px;height:6px;border-radius:50%;background:#EF4444"></span>Low · 38%</span>
+        </div>
+        <span style="font:500 11px Inter;color:#A0A4B8">On grade gradient</span>
+        <div style="display:flex;gap:8px;padding:12px;border-radius:12px;background:linear-gradient(135deg,#091A72,#1A3B8C)">
+          <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.14);display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#fff"><span style="width:6px;height:6px;border-radius:50%;background:#10B981"></span>High</span>
+          <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.14);display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#fff"><span style="width:6px;height:6px;border-radius:50%;background:#F59E0B"></span>Borderline</span>
+          <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.14);display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#fff"><span style="width:6px;height:6px;border-radius:50%;background:#EF4444"></span>Low</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div style="font:600 14px Poppins;color:#1A1D2E">UncertaintyPill</div>
+        <span style="font:500 11px Inter;color:#A0A4B8">On light</span>
+        <span style="align-self:flex-start;height:24px;padding:0 10px;border-radius:12px;background:#EEF1FA;display:inline-flex;align-items:center;font:600 11px Poppins;color:#1B3A8C;font-variant-numeric:tabular-nums">± 0.22 grade</span>
+        <span style="font:500 11px Inter;color:#A0A4B8">On grade gradient</span>
+        <div style="display:flex;padding:12px;border-radius:12px;background:linear-gradient(135deg,#091A72,#1A3B8C)"><span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);display:inline-flex;align-items:center;font:600 11px Poppins;color:#fff">± 0.22 grade</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div style="font:600 14px Poppins;color:#1A1D2E">GradeBadgeCard</div>
+    <div style="display:flex;gap:32px">
+      <sc-for list="{{ badges }}" as="b" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">{{ b.state }}</span>
+          <div style="width:328px;border-radius:14px;background:linear-gradient(135deg,#091A72 0%,#1A3B8C 100%);padding:20px;display:flex;flex-direction:column;gap:16px;position:relative;overflow:hidden">
+            <div style="position:absolute;right:-28px;top:-28px;width:132px;height:132px;border-radius:50%;border:1px solid rgba(255,255,255,.1)"></div>
+            <div style="position:absolute;right:8px;top:8px;width:76px;height:76px;border-radius:50%;border:1px solid rgba(255,255,255,.1)"></div>
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <div style="display:flex;flex-direction:column;gap:4px">
+                <span style="font:600 11px Poppins;letter-spacing:.14em;color:#ABBDD6">GEMCLOUD GRADE</span>
+                <span style="font:700 40px/1.05 Poppins;color:#fff">{{ b.grade }}</span>
+                <span style="font:500 14px Inter;color:#fff">{{ b.name }}</span>
+              </div>
+              <div style="width:48px;height:48px;border-radius:12px;background:{{ b.hex }};box-shadow:0 0 0 2px rgba(255,255,255,.85);position:relative"></div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);display:inline-flex;align-items:center;font:600 11px Poppins;color:#fff">{{ b.unc }}</span>
+              <span style="height:24px;padding:0 10px;border-radius:12px;background:rgba(255,255,255,.14);display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#fff"><span style="width:6px;height:6px;border-radius:50%;background:{{ b.dot }}"></span>{{ b.conf }}</span>
+            </div>
+          </div></div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:auto auto;gap:40px 56px;justify-content:start">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">ColourValueTile</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">CIELAB / LCh · calibrated · 2-col grid in 328</span>
+      <div style="display:grid;grid-template-columns:156px 156px;gap:16px">
+        <sc-for list="{{ tiles }}" as="t" hint-placeholder-count="4">
+          <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:500 12px Inter;color:#6B7089">{{ t.label }}</span><span style="font:400 11px Inter;color:#A0A4B8">{{ t.range }}</span></div>
+            <span style="font:500 12px 'JetBrains Mono';color:#1A1D2E">{{ t.value }}</span>
+            <div style="height:4px;border-radius:2px;background:#EEF1FA;position:relative">
+              <div style="position:absolute;left:0;top:0;bottom:0;width:{{ t.pct }};border-radius:2px;background:#1B3A8C"></div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="grid-column:span 2;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:500 12px Inter;color:#6B7089">Mean body colour</span><span style="font:500 12px 'JetBrains Mono';color:#1A1D2E">#0E1F6E</span></div>
+          <div style="display:flex;gap:2px;height:8px;position:relative">
+            <sc-for list="{{ grades }}" as="g" hint-placeholder-count="7"><div style="flex:1;background:{{ g.hex }};border-radius:2px"></div></sc-for>
+            <div style="position:absolute;left:36%;top:-4px;width:3px;height:16px;border-radius:2px;background:#1A1D2E;box-shadow:0 0 0 1.5px #fff"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between"><span style="font:400 11px Inter;color:#A0A4B8">G1 Dark</span><span style="font:400 11px Inter;color:#A0A4B8">G7 Very Light</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">ProbabilityBar</div>
+      <div style="display:flex;gap:32px">
+        <sc-for list="{{ probSets }}" as="ps" hint-placeholder-count="2">
+          <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">{{ ps.state }}</span>
+            <div style="width:328px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px"><span style="font:600 14px Poppins;color:#1A1D2E">Grade probability</span><span style="font:400 11px Inter;color:#A0A4B8">Ensemble output</span></div>
+              <sc-for list="{{ ps.rows }}" as="r" hint-placeholder-count="7">
+                <div style="display:flex;align-items:center;gap:10px;height:16px">
+                  <span style="width:12px;height:12px;border-radius:3px;background:{{ r.hex }};flex:none"></span>
+                  <span style="width:20px;font:{{ r.font }};font-size:11px;color:{{ r.labelColor }}">{{ r.code }}</span>
+                  <div style="flex:1;height:6px;border-radius:3px;background:#EEF1FA;overflow:hidden"><div style="height:100%;width:{{ r.w }};border-radius:3px;background:{{ r.fill }}"></div></div>
+                  <span style="width:40px;text-align:right;font:{{ r.font }};font-size:11px;color:{{ r.labelColor }};font-variant-numeric:tabular-nums">{{ r.pctText }}</span>
+                </div>
+              </sc-for>
+            </div></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 PROCESS & MEDIA -->
+<section style="padding:44px 0;border-bottom:1px solid #E5E7F0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">05</span><span style="font:600 20px Poppins;color:#1A1D2E">Process, media &amp; empty states</span></div>
+  <div style="display:flex;gap:48px;align-items:flex-start;flex-wrap:wrap">
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">StepProgress</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Vertical · analysis pipeline</span>
+      <div style="width:328px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column">
+        <sc-for list="{{ steps }}" as="s" hint-placeholder-count="5">
+          <div style="display:flex;gap:12px">
+            <div style="display:flex;flex-direction:column;align-items:center;width:28px">
+              <sc-if value="{{ s.done }}" hint-placeholder-val="{{ false }}"><div style="width:28px;height:28px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:18px;font-weight:600">check</span></div></sc-if>
+              <sc-if value="{{ s.active }}" hint-placeholder-val="{{ false }}"><div style="width:28px;height:28px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center">{{ spinStep }}</div></sc-if>
+              <sc-if value="{{ s.pending }}" hint-placeholder-val="{{ true }}"><div style="width:28px;height:28px;border-radius:50%;border:1.5px solid #E5E7F0;color:#A0A4B8;display:flex;align-items:center;justify-content:center;font:600 12px Poppins">{{ s.n }}</div></sc-if>
+              <sc-if value="{{ s.line }}" hint-placeholder-val="{{ true }}"><div style="width:2px;flex:1;min-height:16px;background:{{ s.lineColor }};margin:4px 0"></div></sc-if>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px;padding:4px 0 16px">
+              <span style="font:{{ s.font }};font-size:14px;color:{{ s.color }}">{{ s.title }}</span>
+              <span style="font:400 12px Inter;color:#6B7089">{{ s.sub }}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Horizontal · calibration patches (step 3 of 6)</span>
+      <div style="width:328px;position:relative;display:grid;grid-template-columns:repeat(6,minmax(0,1fr))">
+        <div style="position:absolute;left:27px;right:27px;top:11px;height:2px;background:#E5E7F0"></div>
+        <div style="position:absolute;left:27px;width:109px;top:11px;height:2px;background:#10B981"></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative"><div style="width:24px;height:24px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:16px;font-weight:600">check</span></div><span style="font:500 11px Inter;color:#1A1D2E;text-align:center">White</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative"><div style="width:24px;height:24px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:16px;font-weight:600">check</span></div><span style="font:500 11px Inter;color:#1A1D2E;text-align:center">Black</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative"><div style="width:24px;height:24px;border-radius:50%;background:#1B3A8C;color:#fff;display:flex;align-items:center;justify-content:center;font:600 11px Poppins;box-shadow:0 0 0 4px #EEF1FA">3</div><span style="font:600 11px Poppins;color:#1B3A8C;text-align:center">18% Grey</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative"><div style="width:24px;height:24px;border-radius:50%;border:1.5px solid #E5E7F0;background:#fff;color:#A0A4B8;display:flex;align-items:center;justify-content:center;font:600 11px Poppins">4</div><span style="font:500 11px Inter;color:#A0A4B8;text-align:center">50% Grey</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative"><div style="width:24px;height:24px;border-radius:50%;border:1.5px solid #E5E7F0;background:#fff;color:#A0A4B8;display:flex;align-items:center;justify-content:center;font:600 11px Poppins">5</div><span style="font:500 11px Inter;color:#A0A4B8;text-align:center">Blue</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;position:relative"><div style="width:24px;height:24px;border-radius:50%;border:1.5px solid #E5E7F0;background:#fff;color:#A0A4B8;display:flex;align-items:center;justify-content:center;font:600 11px Poppins">6</div><span style="font:500 11px Inter;color:#A0A4B8;text-align:center">Red</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">StoneImageCard</div>
+      <div style="display:flex;gap:24px">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Graded</span>
+          <div style="width:220px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;overflow:hidden">
+            <div style="height:160px;background:repeating-linear-gradient(135deg,#EEF1FA 0 8px,#fff 8px 16px);display:flex;align-items:center;justify-content:center;position:relative">
+              <span style="font:400 10px 'JetBrains Mono';color:#6B7089">stone macro shot</span>
+              <div style="position:absolute;left:8px;top:8px;height:24px;padding:0 8px 0 4px;border-radius:12px;background:#fff;display:flex;align-items:center;gap:6px;border:1px solid #E5E7F0"><span style="width:16px;height:16px;border-radius:4px;background:#091A72"></span><span style="font:600 11px Poppins;color:#1B3A8C">G3</span></div>
+            </div>
+            <div style="padding:12px;display:flex;flex-direction:column;gap:4px">
+              <span style="font:600 14px Poppins;color:#1A1D2E">GE-STONE-00042</span>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font:400 12px Inter;color:#6B7089">14 Oct, 14:23</span><span style="height:20px;padding:0 8px;border-radius:10px;background:rgba(16,185,129,.12);display:inline-flex;align-items:center;gap:4px;font:600 10px Poppins;color:#1A1D2E"><span style="width:5px;height:5px;border-radius:50%;background:#10B981"></span>High</span></div>
+            </div>
+          </div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Uploading</span>
+          <div style="width:220px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;overflow:hidden">
+            <div style="height:160px;background:repeating-linear-gradient(135deg,#EEF1FA 0 8px,#fff 8px 16px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;position:relative">
+              <span style="font:400 10px 'JetBrains Mono';color:#6B7089">stone macro shot</span>
+              <div style="position:absolute;left:0;right:0;bottom:0;height:4px;background:#E5E7F0"><div style="width:64%;height:100%;background:#1B3A8C"></div></div>
+            </div>
+            <div style="padding:12px;display:flex;flex-direction:column;gap:4px">
+              <span style="font:600 14px Poppins;color:#1A1D2E">GE-STONE-00043</span>
+              <span style="font:400 12px Inter;color:#6B7089">14 Oct, 14:31</span>
+              <span style="font:500 11px Inter;color:#1B3A8C;margin-top:4px;display:flex;align-items:center;gap:6px">{{ gem16 }}Uploading · 64%</span>
+            </div>
+          </div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Failed</span>
+          <div style="width:220px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;overflow:hidden">
+            <div style="height:160px;background:repeating-linear-gradient(135deg,#EEF1FA 0 8px,#fff 8px 16px);display:flex;align-items:center;justify-content:center;position:relative;opacity:.6">
+              <span style="font:400 10px 'JetBrains Mono';color:#6B7089">stone macro shot</span>
+            </div>
+            <div style="padding:12px;display:flex;flex-direction:column;gap:4px">
+              <span style="font:600 14px Poppins;color:#1A1D2E">GE-STONE-00044</span>
+              <span style="font:400 12px Inter;color:#6B7089">14 Oct, 14:36</span>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font:500 11px Inter;color:#EF4444;display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#EF4444"></span>Upload failed</span><button style="border:none;background:none;padding:0;font:600 12px Poppins;color:#1B3A8C;cursor:pointer">Retry</button></div>
+            </div>
+          </div></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">EmptyState</div>
+      <div style="display:flex;gap:24px">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">No history · with action</span>
+          <div style="width:328px;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;border:1px dashed #E5E7F0;border-radius:12px">
+            <div style="width:64px;height:64px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:32px">diamond</span></div>
+            <span style="font:600 16px Poppins;color:#1A1D2E">No stones graded yet</span>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Grade your first sapphire and the report will appear here.</span>
+            <button style="margin-top:4px;height:48px;padding:0 24px;border:none;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins" style-active="background:#3B5FD9">Grade a stone</button>
+          </div></div>
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">No filter results · hint only</span>
+          <div style="width:328px;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;border:1px dashed #E5E7F0;border-radius:12px">
+            <div style="width:64px;height:64px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:32px">filter_alt_off</span></div>
+            <span style="font:600 16px Poppins;color:#1A1D2E">No matching records</span>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Try removing a grade or date filter.</span>
+            <button style="height:40px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins">Clear filters</button>
+          </div></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">LoadingIndicator</div>
+      <div style="display:flex;gap:28px;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="height:40px;display:flex;align-items:center">{{ gem16 }}</div><span style="font:500 11px Inter;color:#A0A4B8">16 · inline</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="height:40px;display:flex;align-items:center">{{ gem24 }}</div><span style="font:500 11px Inter;color:#A0A4B8">24 · default</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="height:40px;display:flex;align-items:center">{{ gem40 }}</div><span style="font:500 11px Inter;color:#A0A4B8">40 · full screen</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="height:40px;padding:0 16px;border-radius:12px;background:#1B3A8C;display:flex;align-items:center">{{ gemWhite }}</div><span style="font:500 11px Inter;color:#A0A4B8">On primary</span></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="height:40px;padding:0 14px;border-radius:20px;background:#EEF1FA;display:flex;align-items:center;gap:8px">{{ gem16 }}<span style="font:500 12px Inter;color:#1B3A8C">Analysing colour…</span></div><span style="font:500 11px Inter;color:#A0A4B8">With label</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 06 FORMS -->
+<section style="padding:44px 0;border-bottom:1px solid #E5E7F0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">06</span><span style="font:600 20px Poppins;color:#1A1D2E">Form controls</span></div>
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:40px 32px">
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">InputField</div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Interactive</span>
+        <label style="font:500 12px Inter;color:#6B7089">Full name</label>
+        <input value="{{ refVal }}" onChange="{{ onRef }}" placeholder="e.g. Nimal Perera" style="height:48px;padding:0 14px;border-radius:12px;border:1.5px solid transparent;background:#EEF1FA;font:400 14px Inter;color:#1A1D2E;outline:none" style-focus="border-color:#1B3A8C;background:#fff"></input></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Focused</span>
+        <label style="font:500 12px Inter;color:#1B3A8C">Email</label>
+        <div style="height:48px;padding:0 14px;border-radius:12px;border:1.5px solid #1B3A8C;background:#fff;display:flex;align-items:center;font:400 14px Inter;color:#1A1D2E">n.perera@gemlab<span style="width:1.5px;height:18px;background:#1B3A8C;margin-left:1px"></span></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Filled · with icon</span>
+        <label style="font:500 12px Inter;color:#6B7089">Phone</label>
+        <div style="height:48px;padding:0 14px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;gap:10px;font:400 14px Inter;color:#1A1D2E"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#6B7089">call</span>+94 77 123 4567</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Error</span>
+        <label style="font:500 12px Inter;color:#EF4444">Company name</label>
+        <div style="height:48px;padding:0 14px;border-radius:12px;border:1.5px solid #EF4444;background:#fff;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#A0A4B8">Company name<span style="font-family:'Material Symbols Rounded';font-size:20px;color:#EF4444">error</span></div>
+        <span style="font:400 11px Inter;color:#EF4444">Company name is required</span></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+        <label style="font:500 12px Inter;color:#A0A4B8">Email · verified</label>
+        <div style="height:48px;padding:0 14px;border-radius:12px;background:#EEF1FA;opacity:.6;display:flex;align-items:center;font:400 14px Inter;color:#A0A4B8">n.perera@ceylongems.lk</div></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">PasswordField</div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Interactive · tap eye to toggle</span>
+        <label style="font:500 12px Inter;color:#6B7089">Password</label>
+        <div style="height:48px;padding:0 4px 0 14px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;gap:8px">
+          <input type="{{ pwType }}" value="{{ pwVal }}" onChange="{{ onPw }}" style="flex:1;min-width:0;border:none;background:none;outline:none;font:400 14px Inter;color:#1A1D2E;letter-spacing:{{ pwSpacing }}"></input>
+          <button onClick="{{ togglePw }}" style="width:40px;height:40px;border:none;background:none;border-radius:50%;color:#6B7089;display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="background:#fff"><span style="font-family:'Material Symbols Rounded';font-size:20px">{{ pwIcon }}</span></button>
+        </div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Visible · focused</span>
+        <label style="font:500 12px Inter;color:#1B3A8C">Password</label>
+        <div style="height:48px;padding:0 4px 0 14px;border-radius:12px;border:1.5px solid #1B3A8C;background:#fff;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#1A1D2E">Sapphire#2026<span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C">visibility_off</span></div>
+        <div style="display:flex;gap:4px;margin-top:4px"><div style="flex:1;height:3px;border-radius:2px;background:#10B981"></div><div style="flex:1;height:3px;border-radius:2px;background:#10B981"></div><div style="flex:1;height:3px;border-radius:2px;background:#10B981"></div><div style="flex:1;height:3px;border-radius:2px;background:#E5E7F0"></div></div>
+        <span style="font:400 11px Inter;color:#6B7089">Strong password</span></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Error</span>
+        <label style="font:500 12px Inter;color:#EF4444">Password</label>
+        <div style="height:48px;padding:0 4px 0 14px;border-radius:12px;border:1.5px solid #EF4444;background:#fff;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#1A1D2E;letter-spacing:3px">••••••<span style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-family:'Material Symbols Rounded';font-size:20px;color:#6B7089;letter-spacing:0">visibility</span></div>
+        <span style="font:400 11px Inter;color:#EF4444">Incorrect password. 2 attempts left.</span></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">DropdownField</div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Interactive · tap to open</span>
+        <label style="font:500 12px Inter;color:#6B7089">Role</label>
+        <div style="position:relative">
+          <button onClick="{{ toggleDd }}" style="width:100%;height:48px;padding:0 10px 0 14px;border-radius:12px;border:1.5px solid {{ ddBorder }};background:{{ ddBg }};display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#1A1D2E;cursor:pointer">{{ ddVal }}<span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">{{ ddIcon }}</span></button>
+          <sc-if value="{{ ddOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;left:0;right:0;top:52px;z-index:5;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:6px;box-shadow:0 8px 24px rgba(26,29,46,.12);display:flex;flex-direction:column">
+              <sc-for list="{{ ddOpts }}" as="o" hint-placeholder-count="5">
+                <button onClick="{{ o.onPick }}" style="height:44px;padding:0 10px;border:none;border-radius:8px;background:{{ o.bg }};display:flex;align-items:center;justify-content:space-between;font:{{ o.font }};font-size:14px;color:{{ o.color }};cursor:pointer;text-align:left" style-hover="background:#EEF1FA">{{ o.label }}<sc-if value="{{ o.sel }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Material Symbols Rounded';font-size:18px;color:#1B3A8C">check</span></sc-if></button>
+              </sc-for>
+            </div>
+          </sc-if>
+        </div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Placeholder</span>
+        <label style="font:500 12px Inter;color:#6B7089">Country</label>
+        <div style="height:48px;padding:0 10px 0 14px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#A0A4B8">Select country<span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">expand_more</span></div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Error</span>
+        <label style="font:500 12px Inter;color:#EF4444">Country</label>
+        <div style="height:48px;padding:0 10px 0 14px;border-radius:12px;border:1.5px solid #EF4444;background:#fff;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#A0A4B8">Select country<span style="font-family:'Material Symbols Rounded';font-size:22px;color:#EF4444">expand_more</span></div>
+        <span style="font:400 11px Inter;color:#EF4444">Select your country to continue</span></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+        <label style="font:500 12px Inter;color:#A0A4B8">Role</label>
+        <div style="height:48px;padding:0 10px 0 14px;border-radius:12px;background:#EEF1FA;opacity:.6;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#A0A4B8">Gemologist<span style="font-family:'Material Symbols Rounded';font-size:22px">expand_more</span></div></div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">Checkbox</div>
+      <span style="font:500 11px Inter;color:#A0A4B8">Interactive · unchecked / checked</span>
+      <sc-for list="{{ checks }}" as="c" hint-placeholder-count="2">
+        <button onClick="{{ c.onTap }}" style="min-height:44px;border:none;background:none;padding:0;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+          <span style="width:20px;height:20px;border-radius:6px;border:2px solid {{ c.border }};background:{{ c.bg }};display:flex;align-items:center;justify-content:center;flex:none;color:#fff;font-family:'Material Symbols Rounded';font-size:16px;font-weight:700">{{ c.mark }}</span>
+          <span style="font:400 14px/1.4 Inter;color:#1A1D2E">{{ c.label }}</span>
+        </button>
+      </sc-for>
+      <span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+      <div style="display:flex;align-items:center;gap:12px;min-height:44px"><span style="width:20px;height:20px;border-radius:6px;border:2px solid #E5E7F0;background:#fff"></span><span style="font:400 14px Inter;color:#A0A4B8">Share with GEMCLOUD</span></div>
+      <div style="display:flex;align-items:center;gap:12px;min-height:44px"><span style="width:20px;height:20px;border-radius:6px;background:#E5E7F0;display:flex;align-items:center;justify-content:center;color:#A0A4B8;font-family:'Material Symbols Rounded';font-size:16px;font-weight:700">check</span><span style="font:400 14px Inter;color:#A0A4B8">Required by lab policy</span></div>
+
+      <div style="font:600 14px Poppins;color:#1A1D2E;margin-top:12px">ToggleRow</div>
+      <sc-for list="{{ toggles }}" as="t" hint-placeholder-count="2">
+        <button onClick="{{ t.onTap }}" style="width:100%;min-height:56px;border:none;background:none;padding:8px 0;border-bottom:1px solid #E5E7F0;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+          <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:500 14px Inter;color:#1A1D2E">{{ t.label }}</span><span style="font:400 12px Inter;color:#6B7089">{{ t.sub }}</span></div>
+          <span style="width:44px;height:24px;border-radius:12px;background:{{ t.track }};position:relative;flex:none;transition:background .2s"><span style="position:absolute;top:2px;left:{{ t.knob }};width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(26,29,46,.25);transition:left .2s"></span></span>
+        </button>
+      </sc-for>
+      <div style="min-height:56px;padding:8px 0;display:flex;align-items:center;gap:12px">
+        <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:500 14px Inter;color:#A0A4B8">Auto-save graded photos to gallery</span><span style="font:400 12px Inter;color:#A0A4B8">Disabled · storage permission needed</span></div>
+        <span style="width:44px;height:24px;border-radius:12px;background:#E5E7F0;position:relative;flex:none"><span style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff"></span></span>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;grid-column:span 2">
+      <div style="font:600 14px Poppins;color:#1A1D2E">SliderRow</div>
+      <div style="display:flex;gap:32px">
+        <div style="width:328px;display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Interactive</span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:500 14px Inter;color:#1A1D2E">Referral threshold</span><span style="height:24px;padding:0 10px;border-radius:12px;background:#EEF1FA;display:inline-flex;align-items:center;font:600 11px Poppins;color:#1B3A8C">{{ sliderText }}</span></div>
+          <input type="range" min="40" max="90" value="{{ slider }}" onChange="{{ onSlider }}" style="width:100%;height:24px;margin:0"></input>
+          <div style="display:flex;justify-content:space-between"><span style="font:400 11px Inter;color:#A0A4B8">40%</span><span style="font:400 11px Inter;color:#A0A4B8">90%</span></div>
+          <span style="font:400 12px Inter;color:#6B7089">Stones below this confidence are flagged for gemologist review</span>
+        </div>
+        <div style="width:328px;display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span>
+          <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font:500 14px Inter;color:#A0A4B8">Referral threshold</span><span style="font:600 11px Poppins;color:#A0A4B8">60%</span></div>
+          <div style="height:24px;display:flex;align-items:center;position:relative"><div style="flex:1;height:4px;border-radius:2px;background:#E5E7F0"></div><div style="position:absolute;left:40%;width:20px;height:20px;border-radius:50%;background:#E5E7F0;border:2px solid #fff;box-shadow:0 0 0 1px #E5E7F0"></div></div>
+          <div style="display:flex;justify-content:space-between"><span style="font:400 11px Inter;color:#A0A4B8">40%</span><span style="font:400 11px Inter;color:#A0A4B8">90%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 ACCOUNT -->
+<section style="padding:44px 0;border-bottom:1px solid #E5E7F0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">08</span><span style="font:600 20px Poppins;color:#1A1D2E">Account components</span></div>
+  <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:40px">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">GoogleSignInButton</div>
+      <span style="font:400 12px/1.5 Inter;color:#6B7089;max-width:328px">Follows Google sign-in branding: white, 1 px #747775 border, Roboto Medium 14, #1F1F1F label. The dashed box is the official Google G asset.</span>
+      <div style="display:flex;flex-direction:column;gap:8px;width:328px"><span style="font:500 11px Inter;color:#A0A4B8">Default (interactive)</span><button style="width:100%;height:48px;border:1px solid #747775;border-radius:12px;background:#fff;color:#1F1F1F;font:500 14px Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:12px;cursor:pointer" style-active="background:#F8F9FA"><span title="official Google G asset" style="width:20px;height:20px;flex:none;border:1px dashed #747775;border-radius:4px;background:repeating-linear-gradient(135deg,#F1F3F4 0 3px,#fff 3px 6px);display:flex;align-items:center;justify-content:center;font:500 9px 'JetBrains Mono',monospace;color:#747775;opacity:1">G</span>Continue with Google</button></div>
+      <div style="display:flex;flex-direction:column;gap:8px;width:328px"><span style="font:500 11px Inter;color:#A0A4B8">Pressed · #F8F9FA</span><button style="width:100%;height:48px;border:1px solid #747775;border-radius:12px;background:#F8F9FA;color:#1F1F1F;font:500 14px Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:12px"><span title="official Google G asset" style="width:20px;height:20px;flex:none;border:1px dashed #747775;border-radius:4px;background:repeating-linear-gradient(135deg,#F1F3F4 0 3px,#fff 3px 6px);display:flex;align-items:center;justify-content:center;font:500 9px 'JetBrains Mono',monospace;color:#747775;opacity:1">G</span>Continue with Google</button></div>
+      <div style="display:flex;flex-direction:column;gap:8px;width:328px"><span style="font:500 11px Inter;color:#A0A4B8">Disabled</span><button disabled="{{ true }}" style="width:100%;height:48px;border:1px solid rgba(31,31,31,.12);border-radius:12px;background:#fff;color:rgba(31,31,31,.38);font:500 14px Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:12px"><span title="official Google G asset" style="width:20px;height:20px;flex:none;border:1px dashed #747775;border-radius:4px;background:repeating-linear-gradient(135deg,#F1F3F4 0 3px,#fff 3px 6px);display:flex;align-items:center;justify-content:center;font:500 9px 'JetBrains Mono',monospace;color:#747775;opacity:0.38">G</span>Continue with Google</button></div>
+      <div style="display:flex;flex-direction:column;gap:8px;width:328px"><span style="font:500 11px Inter;color:#A0A4B8">Loading</span><button disabled="{{ true }}" style="width:100%;height:48px;border:1px solid #747775;border-radius:12px;background:#fff;color:#1F1F1F;font:500 14px Roboto,sans-serif;display:flex;align-items:center;justify-content:center;gap:12px">{{ spinGoogle }}Signing in…</button></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">SegmentedToggle</div>
+      <span style="font:400 12px/1.5 Inter;color:#6B7089;max-width:328px">Two options with icons · height 44 · radius 12.</span>
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Individual selected</span><div style="width:328px;height:44px;border-radius:12px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr">
+            <button style="border:none;background:#1B3A8C;color:#fff;font:600 14px Poppins;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:18px">person</span>Individual</button>
+            <button style="border:none;background:#EEF1FA;color:#6B7089;font:500 14px Inter;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:18px">business</span>Company</button>
+          </div></div>
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Company selected</span><div style="width:328px;height:44px;border-radius:12px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr">
+            <button style="border:none;background:#EEF1FA;color:#6B7089;font:500 14px Inter;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:18px">person</span>Individual</button>
+            <button style="border:none;background:#1B3A8C;color:#fff;font:600 14px Poppins;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:18px">business</span>Company</button>
+          </div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:600 14px Poppins;color:#1A1D2E">ImagePickerField</div>
+      <span style="font:400 12px/1.5 Inter;color:#6B7089;max-width:328px">Circular = profile photo · rounded square = company logo.</span>
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Circular · empty (initial letter)</span><div style="width:328px;display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px;border-radius:50%;flex:none;background:#1B3A8C;display:flex;align-items:center;justify-content:center;font:600 26px Poppins;color:#fff">N</div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font:500 14px Inter;color:#1A1D2E">Profile photo<span style="font:400 12px Inter;color:#A0A4B8"> · Optional</span></span>
+              <div style="display:flex;margin-left:-8px"><button style="height:36px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;border-radius:8px;display:flex;align-items:center;gap:4px" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:18px">photo_camera</span>Upload photo</button></div>
+              <span style="font:400 11px Inter;color:#A0A4B8">JPG or PNG · up to 5 MB</span>
+            </div></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Circular · filled</span><div style="width:328px;display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px;border-radius:50%;flex:none;overflow:hidden;background:repeating-linear-gradient(135deg,#EEF1FA 0 6px,#fff 6px 12px);border:1px solid #E5E7F0;display:flex;align-items:center;justify-content:center;font:400 9px 'JetBrains Mono';color:#6B7089">photo</div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font:500 14px Inter;color:#1A1D2E">Profile photo<span style="font:400 12px Inter;color:#A0A4B8"> · Optional</span></span>
+              <div style="display:flex;margin-left:-8px"><button style="height:36px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;border-radius:8px;display:flex;align-items:center;gap:4px" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:18px">delete</span>Remove</button></div>
+              <span style="font:400 11px Inter;color:#A0A4B8">JPG or PNG · up to 5 MB</span>
+            </div></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Rounded square · empty (upload icon)</span><div style="width:328px;display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px;border-radius:14px;flex:none;background:#EEF1FA;border:1.5px dashed #A0A4B8;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:26px">upload</span></div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font:500 14px Inter;color:#1A1D2E">Company Logo<span style="font:400 12px Inter;color:#A0A4B8"> · Optional</span></span>
+              <div style="display:flex;margin-left:-8px"><button style="height:36px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;border-radius:8px;display:flex;align-items:center;gap:4px" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:18px">upload</span>Upload logo</button></div>
+              <span style="font:400 11px Inter;color:#A0A4B8">JPG or PNG · up to 5 MB</span>
+            </div></div></div>
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Rounded square · filled</span><div style="width:328px;display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px;border-radius:14px;flex:none;overflow:hidden;background:repeating-linear-gradient(135deg,#EEF1FA 0 6px,#fff 6px 12px);border:1px solid #E5E7F0;display:flex;align-items:center;justify-content:center;font:400 9px 'JetBrains Mono';color:#6B7089">logo</div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+              <span style="font:500 14px Inter;color:#1A1D2E">Company Logo<span style="font:400 12px Inter;color:#A0A4B8"> · Optional</span></span>
+              <div style="display:flex;margin-left:-8px"><button style="height:36px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;border-radius:8px;display:flex;align-items:center;gap:4px" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:18px">delete</span>Remove</button></div>
+              <span style="font:400 11px Inter;color:#A0A4B8">JPG or PNG · up to 5 MB</span>
+            </div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 FEEDBACK -->
+<section style="padding:44px 0 0;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#A0A4B8">07</span><span style="font:600 20px Poppins;color:#1A1D2E">Feedback</span></div>
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div style="font:600 14px Poppins;color:#1A1D2E">AppSnackBar</div>
+    <div style="display:grid;grid-template-columns:328px 328px 328px 328px;gap:24px">
+      <sc-for list="{{ snacks }}" as="s" hint-placeholder-count="4">
+        <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">{{ s.kind }}</span>
+          <div style="min-height:52px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:8px 8px 8px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(26,29,46,.10)">
+            <span style="width:28px;height:28px;border-radius:50%;background:{{ s.tint }};color:{{ s.color }};display:flex;align-items:center;justify-content:center;flex:none;font-family:'Material Symbols Rounded';font-size:18px;font-variation-settings:'FILL' 1">{{ s.icon }}</span>
+            <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">{{ s.text }}</span>
+            <button style="height:36px;padding:0 10px;border:none;border-radius:8px;background:none;font:600 13px Poppins;color:#1B3A8C;cursor:pointer" style-active="background:#EEF1FA">{{ s.action }}</button>
+          </div></div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div style="font:600 14px Poppins;color:#1A1D2E">AppDialog</div>
+    <div style="display:grid;grid-template-columns:repeat(4,328px);gap:24px">
+
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Info · single action</span>
+        <div style="height:400px;border-radius:14px;background:rgba(26,29,46,.42);display:flex;align-items:center;justify-content:center;padding:16px">
+          <div style="width:296px;background:#fff;border-radius:14px;padding:24px 20px 16px;display:flex;flex-direction:column;gap:12px">
+            <div style="width:40px;height:40px;border-radius:50%;background:#EEF1FA;color:#1B3A8C;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">info</span></div>
+            <span style="font:600 16px Poppins;color:#1A1D2E">What is uncertainty?</span>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">± 0.22 grade is the spread of the model’s prediction. Smaller values mean a more certain grade.</span>
+            <div style="display:flex;justify-content:flex-end;margin-top:4px"><button style="height:40px;padding:0 16px;border:none;border-radius:10px;background:none;color:#1B3A8C;font:600 14px Poppins" style-active="background:#EEF1FA">Got it</button></div>
+          </div></div></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Confirm</span>
+        <div style="height:400px;border-radius:14px;background:rgba(26,29,46,.42);display:flex;align-items:center;justify-content:center;padding:16px">
+          <div style="width:296px;background:#fff;border-radius:14px;padding:24px 20px 16px;display:flex;flex-direction:column;gap:12px">
+            <span style="font:600 16px Poppins;color:#1A1D2E">Submit for grading?</span>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">1 photo of GE-STONE-00042 will be analysed.</span>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+              <button style="height:40px;padding:0 16px;border:none;border-radius:10px;background:none;color:#6B7089;font:600 14px Poppins" style-active="background:#EEF1FA">Cancel</button>
+              <button style="height:40px;padding:0 18px;border:none;border-radius:10px;background:#1B3A8C;color:#fff;font:600 14px Poppins" style-active="background:#3B5FD9">Submit</button>
+            </div>
+          </div></div></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Danger</span>
+        <div style="height:400px;border-radius:14px;background:rgba(26,29,46,.42);display:flex;align-items:center;justify-content:center;padding:16px">
+          <div style="width:296px;background:#fff;border-radius:14px;padding:24px 20px 16px;display:flex;flex-direction:column;gap:12px">
+            <div style="width:40px;height:40px;border-radius:50%;background:rgba(239,68,68,.12);color:#EF4444;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">delete</span></div>
+            <span style="font:600 16px Poppins;color:#1A1D2E">Delete this record?</span>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">The grade report and photo for GE-STONE-00042 will be permanently removed.</span>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+              <button style="height:40px;padding:0 16px;border:none;border-radius:10px;background:none;color:#6B7089;font:600 14px Poppins" style-active="background:#EEF1FA">Cancel</button>
+              <button style="height:40px;padding:0 18px;border:none;border-radius:10px;background:#EF4444;color:#fff;font:600 14px Poppins" style-active="filter:brightness(.9)">Delete</button>
+            </div>
+          </div></div></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px"><span style="font:500 11px Inter;color:#A0A4B8">Blocking · not dismissible</span>
+        <div style="height:400px;border-radius:14px;background:rgba(26,29,46,.55);display:flex;align-items:center;justify-content:center;padding:16px">
+          <div style="width:296px;background:#fff;border-radius:14px;padding:28px 20px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center">
+            <div style="height:48px;display:flex;align-items:center">{{ gem40 }}</div>
+            <span style="font:600 16px Poppins;color:#1A1D2E">Grading on server</span>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Usually a few seconds</span>
+            <div style="width:100%;height:4px;border-radius:2px;background:#EEF1FA;overflow:hidden;margin-top:4px"><div style="width:58%;height:100%;background:#1B3A8C;border-radius:2px"></div></div>
+            <span style="font:400 11px Inter;color:#A0A4B8">Step 3 of 5 · Extracting colour features</span>
+          </div></div></div>
+    </div>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { tab: 1, filters: { All: false, 'This week': true, G3: false, 'High confidence': true, Borderline: false }, pw: 'Sapphire#2026', pwShow: false, ref: '', ddOpen: false, dd: 'Gemologist', checks: [false, true], toggles: [true, false], slider: 60 };
+
+  spin(size, color, track) {
+    return React.createElement('span', { style: { display: 'inline-block', width: size, height: size, borderRadius: '50%', border: `2px solid ${track}`, borderTopColor: color, animation: 'ge-spin .8s linear infinite', boxSizing: 'border-box', flex: 'none' } });
+  }
+  gem(size, color) {
+    return React.createElement('span', { style: { display: 'inline-block', fontFamily: "'Material Symbols Rounded'", fontSize: size, lineHeight: 1, width: size, height: size, color, fontVariationSettings: "'FILL' 1", animation: 'ge-gem 1.4s ease-in-out infinite', overflow: 'hidden' } }, 'diamond');
+  }
+
+  renderVals() {
+    const s = this.state;
+    const G = [['G1','Dark','Midnight Blue','#020519'],['G2','Deep','Twilight Blue','#0B0F3F'],['G3','Vivid','Royal Blue','#091A72'],['G4','Intense','Intense Cornflower','#2A408C'],['G5','Medium Intense','Cornflower Blue','#47619E'],['G6','Light','Pastel Blue','#718BB7'],['G7','Very Light','Very Light Blue','#ABBDD6']];
+    const grades = G.map(([code,name,trade,hex], i) => ({ code, name, trade, hex, ring: i === 2 ? '0 0 0 2px #fff, 0 0 0 4px #1B3A8C' : 'inset 0 0 0 1px rgba(26,29,46,.08)' }));
+
+    const tabs = [['home','Home'],['center_focus_strong','Grade'],['history','History'],['menu_book','Guide']];
+    const mkTabs = (active, live) => tabs.map(([icon,label], i) => {
+      const on = i === active;
+      return { icon, label, color: on ? '#1B3A8C' : '#6B7089', fill: on ? "'FILL' 1" : "'FILL' 0", font: on ? '600 11px Poppins' : '500 11px Inter', dot: on ? 1 : 0, onTap: live ? () => this.setState({ tab: i }) : undefined };
+    });
+
+    const filters = Object.keys(s.filters).map(label => {
+      const on = s.filters[label];
+      return { label, on, bg: on ? '#1B3A8C' : '#fff', color: on ? '#fff' : '#1A1D2E', border: on ? '#1B3A8C' : '#E5E7F0', onTap: () => this.setState(st => ({ filters: { ...st.filters, [label]: !st.filters[label] } })) };
+    });
+
+    const probs = (arr, pred) => arr.map((p, i) => ({ code: G[i][0], hex: G[i][3], w: Math.max(p, 0.6) + '%', pctText: p.toFixed(1) + '%', fill: i === pred ? '#1B3A8C' : '#A0A4B8', font: i === pred ? '600 11px Poppins' : '400 11px Inter', labelColor: i === pred ? '#1B3A8C' : '#6B7089' }));
+
+    const stepDefs = [['Image received','1 photo · 3.8 MB'],['Colour calibration','Session calibration · residual 0.08'],['Feature extraction','EfficientNet-B0 embeddings'],['Ensemble prediction','CNN + Random Forest'],['Report generated','GEMCLOUD grade + uncertainty']];
+    const activeStep = 2;
+    const steps = stepDefs.map(([title, sub], i) => ({ n: i + 1, title, sub, done: i < activeStep, active: i === activeStep, pending: i > activeStep, line: i < stepDefs.length - 1, lineColor: i < activeStep ? '#10B981' : '#E5E7F0', font: i === activeStep ? '600 14px Poppins' : i < activeStep ? '500 14px Inter' : '400 14px Inter', color: i > activeStep ? '#A0A4B8' : i === activeStep ? '#1B3A8C' : '#1A1D2E' }));
+
+    const ddList = ['Gemologist','Trader','Exporter','Student','Other'];
+
+    return {
+      grades,
+      navLive: mkTabs(s.tab, true),
+      navStates: tabs.map((t, i) => ({ name: `Active · ${t[1]}`, tabs: mkTabs(i, false) })),
+      filters,
+      badges: [
+        { state: 'High confidence', grade: 'Grade 3', name: 'Vivid — Royal Blue', hex: '#091A72', unc: '± 0.22 grade', conf: 'High · 94%', dot: '#10B981' },
+        { state: 'Borderline', grade: 'Grade 4', name: 'Intense — Intense Cornflower', hex: '#2A408C', unc: '± 0.22 grade', conf: 'Borderline · 52%', dot: '#F59E0B' },
+        { state: 'Low confidence', grade: 'Grade 6', name: 'Light — Pastel Blue', hex: '#718BB7', unc: '± 0.22 grade', conf: 'Low · 38%', dot: '#EF4444' },
+      ],
+      tiles: [
+        { label: 'Lightness L*', range: '0–100', value: '24.81', pct: '24.81%' },
+        { label: 'Chroma C*', range: '0–80', value: '41.36', pct: '51.7%' },
+        { label: 'Hue h°', range: '200–300', value: '268.4°', pct: '68.4%' },
+        { label: 'b* (blue)', range: '0 – −80', value: '−39.92', pct: '49.9%' },
+      ],
+      probSets: [
+        { state: 'High confidence · G3', rows: probs([0.4,3.1,78.6,14.2,2.9,0.6,0.2], 2) },
+        { state: 'Borderline · G4 vs G5', rows: probs([0.1,0.8,4.9,48.1,41.3,4.2,0.6], 3) },
+      ],
+      steps,
+      spinBtn: this.spin(18, '#fff', 'rgba(255,255,255,.3)'),
+      spinGoogle: this.spin(18, '#747775', '#E5E7F0'),
+      spinStep: this.spin(16, '#1B3A8C', '#E5E7F0'),
+      gem16: this.gem(16, '#1B3A8C'), gem24: this.gem(24, '#1B3A8C'), gem40: this.gem(40, '#1B3A8C'), gemWhite: this.gem(24, '#fff'),
+      refVal: s.ref, onRef: e => this.setState({ ref: e.target.value }),
+      pwVal: s.pw, onPw: e => this.setState({ pw: e.target.value }), pwType: s.pwShow ? 'text' : 'password', pwIcon: s.pwShow ? 'visibility_off' : 'visibility', pwSpacing: s.pwShow ? '0' : '2px', togglePw: () => this.setState({ pwShow: !s.pwShow }),
+      ddOpen: s.ddOpen, ddVal: s.dd, ddIcon: s.ddOpen ? 'expand_less' : 'expand_more', ddBorder: s.ddOpen ? '#1B3A8C' : 'transparent', ddBg: s.ddOpen ? '#fff' : '#EEF1FA',
+      toggleDd: () => this.setState({ ddOpen: !s.ddOpen }),
+      ddOpts: ddList.map(label => ({ label, sel: label === s.dd, bg: label === s.dd ? '#EEF1FA' : 'transparent', color: label === s.dd ? '#1B3A8C' : '#1A1D2E', font: label === s.dd ? '600 14px Poppins' : '400 14px Inter', onPick: () => this.setState({ dd: label, ddOpen: false }) })),
+      checks: ['Save original images', 'I agree to the Privacy Policy'].map((label, i) => { const on = s.checks[i]; return { label, mark: on ? 'check' : '', bg: on ? '#1B3A8C' : '#fff', border: on ? '#1B3A8C' : '#A0A4B8', onTap: () => this.setState(st => { const c = [...st.checks]; c[i] = !c[i]; return { checks: c }; }) }; }),
+      toggles: [['Auto-save graded photos to gallery','Save a copy after each result'],['Recalibration reminder','Alert when calibration is over 8 hours old']].map(([label, sub], i) => { const on = s.toggles[i]; return { label, sub, track: on ? '#1B3A8C' : '#E5E7F0', knob: on ? '22px' : '2px', onTap: () => this.setState(st => { const t = [...st.toggles]; t[i] = !t[i]; return { toggles: t }; }) }; }),
+      slider: s.slider, sliderText: s.slider + '%', onSlider: e => this.setState({ slider: +e.target.value }),
+      snacks: [
+        { kind: 'Success', icon: 'check_circle', color: '#10B981', tint: 'rgba(16,185,129,.12)', text: 'Report saved to History', action: 'View' },
+        { kind: 'Info', icon: 'info', color: '#1B3A8C', tint: '#EEF1FA', text: 'Model updated to v1.3', action: 'Details' },
+        { kind: 'Warning', icon: 'warning', color: '#F59E0B', tint: 'rgba(245,158,11,.14)', text: 'Weak signal · upload may be slow', action: 'Retry' },
+        { kind: 'Error', icon: 'error', color: '#EF4444', tint: 'rgba(239,68,68,.12)', text: 'Upload failed · check connection', action: 'Retry' },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
