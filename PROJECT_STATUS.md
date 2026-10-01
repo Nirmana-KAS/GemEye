@@ -1108,3 +1108,13 @@
   - `~` app/lib/screens/main_shell.dart
 - **Connected edits:** EDIT-050, EDIT-051, EDIT-052; Claude Design Group B export (design/exports/groupB/Notifications.dc.html)
 - **Reason:** Users need one place to see referrals, certificate saves and account updates.
+
+### EDIT-055 | 01 October 2026 23:52 | IST
+- **Topic:** Mandatory Edit History Rule
+- **Summary:** Added a permanent CLAUDE.md rule that every code or asset change must get a PROJECT_STATUS.md entry, committed together with the change.
+- **What was done:**
+  - Added the "Edit history (mandatory)" section to CLAUDE.md after the mandatory rules
+- **Files changed:**
+  - `~` CLAUDE.md
+- **Connected edits:** EDIT-001 (Rule 1, PROJECT_STATUS logging); Claude Design Group B export (design/exports/groupB)
+- **Reason:** Make sure small fixes are logged too, not only larger features.

@@ -305,6 +305,12 @@ After modifying ANY Dart file, always run "flutter analyze" from the app/ direct
 
 ---
 
+## Edit history (mandatory)
+
+After EVERY code or asset change, append an entry to PROJECT_STATUS.md using the existing EDIT-0NN format (date, IST, Topic, Summary, What was done, Files changed with +/~/-, Connected edits, Reason), then commit it with the change. Never skip this, even for small fixes.
+
+---
+
 ## WHEN IN DOUBT
 
 - Check this file first
