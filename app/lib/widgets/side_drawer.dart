@@ -6,7 +6,6 @@ import '../services/auth_service.dart';
 import '../config/routes.dart';
 import '../screens/onboarding_screen.dart';
 import '../screens/comparison_screen.dart';
-import '../screens/capture_screen.dart';
 import '../screens/calibration_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/about_screen.dart';
@@ -35,8 +34,9 @@ class GemEyeSideDrawer extends StatelessWidget {
       action();
     }
 
-    void push(Widget screen) =>
-        closeThen(() => AppRoutes.push(context, screen));
+    // Separate screens open over the drawer, so back returns to it.
+    void push(Widget screen) => AppRoutes.push(context, screen);
+    // Tab items close the drawer, then switch the MainShell tab.
     void tab(int index) => closeThen(() => onTabSwitch?.call(index));
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -65,12 +65,12 @@ class GemEyeSideDrawer extends StatelessWidget {
                     icon: Icons.home_rounded,
                     label: 'Home',
                     selected: currentIndex == 0,
-                    onTap: () => tab(0),
+                    onTap: () => Navigator.pop(context),
                   ),
                   _DrawerItem(
                     icon: Icons.center_focus_strong_rounded,
                     label: 'Grade a Stone',
-                    onTap: () => push(const CaptureScreen()),
+                    onTap: () => tab(1),
                   ),
                   _DrawerItem(
                     icon: Icons.palette_rounded,
@@ -107,7 +107,7 @@ class GemEyeSideDrawer extends StatelessWidget {
                   _DrawerItem(
                     icon: Icons.rate_review_rounded,
                     label: 'Feedback',
-                    onTap: () => closeThen(() {
+                    onTap: () {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -117,7 +117,7 @@ class GemEyeSideDrawer extends StatelessWidget {
                         ),
                         builder: (ctx) => const FeedbackSheet(),
                       );
-                    }),
+                    },
                   ),
                   _DrawerItem(
                     icon: Icons.privacy_tip_rounded,

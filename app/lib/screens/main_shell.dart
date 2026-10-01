@@ -19,6 +19,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
   final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _onNavTap(int index) {
     if (index == 1) {
@@ -49,6 +50,13 @@ class _MainShellState extends State<MainShell> {
 
   void _handleBackButton(bool didPop, dynamic result) {
     if (didPop) return;
+
+    // Back with the drawer open closes the drawer first.
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold != null && scaffold.isEndDrawerOpen) {
+      scaffold.closeEndDrawer();
+      return;
+    }
 
     if (_currentIndex != 0) {
       _switchTab(0);
@@ -98,10 +106,11 @@ class _MainShellState extends State<MainShell> {
       canPop: false,
       onPopInvokedWithResult: _handleBackButton,
       child: Scaffold(
+        key: _scaffoldKey,
         backgroundColor: Colors.white,
         endDrawer: GemEyeSideDrawer(
           currentIndex: _currentIndex,
-          onTabSwitch: _switchTab,
+          onTabSwitch: _onNavTap,
         ),
         body: IndexedStack(
           index: _currentIndex,

@@ -1131,3 +1131,19 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-053 (Side Drawer redesign); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
 - **Reason:** Logo contrast on the primary-coloured header.
+
+### EDIT-057 | 01 October 2026 23:58 | IST
+- **Topic:** Side Drawer Back Navigation
+- **Summary:** Screens opened from the drawer now return to the open drawer on back; tab items close the drawer and switch tab; back with the drawer open closes it instead of showing the exit dialog.
+- **What was done:**
+  - Calibration, Stone Comparison, Settings, Privacy Policy, About, View app introduction and the profile header push their screen without closing the drawer
+  - Feedback bottom sheet opens over the open drawer; dismissing it leaves the drawer open
+  - Grade a Stone, Grading History and Colour Grade Guide close the drawer, then go through MainShell's `_onNavTap` (Grade opens Capture, same as the bottom nav)
+  - Home item just closes the drawer; Logout unchanged (`AuthService.endSession()`)
+  - MainShell: added a Scaffold key; the PopScope back handler closes an open end-drawer first, then returns non-Home tabs to Home, then shows the exit dialog
+  - Tested on the OnePlus Nord 2: Settings → back → drawer → back → Home; History → back → Home tab; Feedback → dismiss → drawer still open
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` app/lib/screens/main_shell.dart
+- **Connected edits:** EDIT-053 (Side Drawer redesign), EDIT-056 (drawer logo); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** Back from a drawer screen used to land on Home with the drawer closed, and back with the drawer open showed the exit dialog.
