@@ -1116,5 +1116,18 @@
   - Added the "Edit history (mandatory)" section to CLAUDE.md after the mandatory rules
 - **Files changed:**
   - `~` CLAUDE.md
-- **Connected edits:** EDIT-001 (Rule 1, PROJECT_STATUS logging); Claude Design Group B export (design/exports/groupB)
+- **Connected edits:** CLAUDE.md Rule 1 (always update PROJECT_STATUS.md); Claude Design Group B export (design/exports/groupB)
 - **Reason:** Make sure small fixes are logged too, not only larger features.
+
+### EDIT-056 | 01 October 2026 23:55 | IST
+- **Topic:** Side Drawer Logo Visibility
+- **Summary:** The dark-blue logo was hard to see on the Royal Blue drawer header; it now sits in a white rounded frame.
+- **What was done:**
+  - logo.png placed in a 40×40 white frame (radius AppRadius.md, padding 4, subtle shadow), logo 32×32 BoxFit.contain
+  - "GemEye" text kept beside it, vertically centred
+  - Corrected EDIT-055 "Connected edits" to reference CLAUDE.md Rule 1
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-053 (Side Drawer redesign); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** Logo contrast on the primary-coloured header.
