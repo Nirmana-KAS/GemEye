@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   SystemChrome.setSystemUIOverlayStyle(AppSystemUi.darkIcons);
+  await NotificationService.init();
   FlutterNativeSplash.remove();
   runApp(const GemEyeApp());
 }

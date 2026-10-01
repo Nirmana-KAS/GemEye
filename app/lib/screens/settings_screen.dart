@@ -9,6 +9,8 @@ import '../services/storage_service.dart';
 import 'onboarding_screen.dart';
 import 'calibration_screen.dart';
 import 'profile_screen.dart';
+import '../models/app_notification.dart';
+import '../services/notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -545,6 +547,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
                 await user?.reauthenticateWithCredential(credential);
                 await user?.updatePassword(newController.text);
+                await NotificationService.add(
+                  type: AppNotificationType.info,
+                  title: 'Password changed',
+                  message: 'Your GemEye password was updated.',
+                );
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -595,6 +602,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               try {
                 await FirebaseAuth.instance.currentUser
                     ?.verifyBeforeUpdateEmail(emailController.text.trim());
+                await NotificationService.add(
+                  type: AppNotificationType.info,
+                  title: 'Email change requested',
+                  message:
+                      'Confirm the link sent to ${emailController.text.trim()}.',
+                );
                 if (ctx.mounted) Navigator.pop(ctx);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

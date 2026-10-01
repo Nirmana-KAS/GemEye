@@ -11,6 +11,8 @@ import '../models/grade_result.dart';
 import '../services/storage_service.dart';
 import '../services/certificate_service.dart';
 import 'certificate_screen.dart';
+import '../models/app_notification.dart';
+import '../services/notification_service.dart';
 
 class ResultScreen extends StatefulWidget {
   final String imagePath;
@@ -87,6 +89,16 @@ class _ResultScreenState extends State<ResultScreen> {
         );
       }
       await StorageService.saveGradeResult(_result);
+      if (_result.confidence < 60) {
+        await NotificationService.add(
+          type: AppNotificationType.warning,
+          title: 'Stone referred',
+          message: '${_result.stoneId} is borderline '
+              '(${_result.confidence.round()}%). Gemologist review recommended.',
+          action: AppNotificationAction.openResult,
+          payload: _result.stoneId,
+        );
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Stone saved — ${_result.stoneId}')),
