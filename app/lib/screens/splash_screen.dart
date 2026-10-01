@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
@@ -32,86 +33,59 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          height: double.infinity,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.darkIcons,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
           child: Column(
             children: [
-              const Spacer(flex: 3),
-              Center(
-                child: SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: Lottie.asset(
-                    'assets/animations/sapphire_rotate.json',
-                    repeat: true,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
+              Expanded(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
                         width: 120,
                         height: 120,
-                        decoration: BoxDecoration(
-                          color: GemEyeColors.primarySurface,
-                          borderRadius: BorderRadius.circular(60),
-                          border: Border.all(
-                            color: GemEyeColors.primary.withValues(alpha: 0.3),
-                            width: 2,
-                          ),
+                        child: Lottie.asset(
+                          'assets/animations/sapphire_rotate.json',
+                          repeat: true,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            return ClipRRect(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.logo),
+                              child: Image.asset('assets/images/logo.png'),
+                            );
+                          },
                         ),
-                        child: const Icon(
-                          Icons.diamond_rounded,
-                          size: 56,
-                          color: GemEyeColors.primary,
-                        ),
-                      );
-                    },
+                      ),
+                      const SizedBox(height: AppSpacing.xxxl),
+                      const Text(
+                        AppConstants.appName,
+                        textAlign: TextAlign.center,
+                        style: AppText.display,
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        AppConstants.appTagline,
+                        textAlign: TextAlign.center,
+                        style: AppText.secondary
+                            .copyWith(color: AppColors.textMuted),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 32),
-              const Center(
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.huge),
                 child: Text(
-                  AppConstants.appName,
+                  'v${AppConstants.appVersion} · ${AppConstants.appYear}',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: GemEyeFonts.heading,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: GemEyeColors.primary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Center(
-                child: Text(
-                  AppConstants.appTagline,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: GemEyeFonts.body,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: GemEyeColors.textMuted,
-                  ),
-                ),
-              ),
-              const Spacer(flex: 4),
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 24),
-                  child: Text(
-                    'v${AppConstants.appVersion} · ${AppConstants.appYear}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: GemEyeColors.textMuted,
-                    ),
-                  ),
+                  style: AppText.caption.copyWith(fontSize: 10),
                 ),
               ),
             ],
