@@ -153,7 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) => SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(child: _buildContent()),
@@ -205,8 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
             controller: _passwordController,
             textInputAction: TextInputAction.done,
             autofillHints: const [AutofillHints.password],
-            errorText:
-                _credentialError ? 'Incorrect email or password' : null,
+            errorText: _credentialError ? 'Incorrect email or password' : null,
             showErrorIcon: true,
             onChanged: _clearCredentialError,
             onSubmitted: (_) => _isBusy ? null : _signInWithEmail(),

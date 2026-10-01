@@ -38,57 +38,60 @@ class _SplashScreenState extends State<SplashScreen> {
       child: Scaffold(
         backgroundColor: AppColors.background,
         body: SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        height: 120,
-                        child: Lottie.asset(
-                          'assets/animations/sapphire_rotate.json',
-                          repeat: true,
-                          fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) {
-                            return ClipRRect(
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.logo),
-                              child: Image.asset('assets/images/logo.png'),
-                            );
-                          },
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screen),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          height: 120,
+                          child: Lottie.asset(
+                            'assets/animations/sapphire_rotate.json',
+                            repeat: true,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return ClipRRect(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.logo),
+                                child: Image.asset('assets/images/logo.png'),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxxl),
-                      const Text(
-                        AppConstants.appName,
-                        textAlign: TextAlign.center,
-                        style: AppText.display,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        AppConstants.appTagline,
-                        textAlign: TextAlign.center,
-                        style: AppText.secondary
-                            .copyWith(color: AppColors.textMuted),
-                      ),
-                    ],
+                        const SizedBox(height: AppSpacing.xxxl),
+                        const Text(
+                          AppConstants.appName,
+                          textAlign: TextAlign.center,
+                          style: AppText.display,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          AppConstants.appTagline,
+                          textAlign: TextAlign.center,
+                          style: AppText.secondary
+                              .copyWith(color: AppColors.textMuted),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.huge),
-                child: Text(
-                  'v${AppConstants.appVersion} · ${AppConstants.appYear}',
-                  textAlign: TextAlign.center,
-                  style: AppText.caption.copyWith(fontSize: 10),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.huge),
+                  child: Text(
+                    'v${AppConstants.appVersion} · ${AppConstants.appYear}',
+                    textAlign: TextAlign.center,
+                    style: AppText.caption.copyWith(fontSize: 10),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -104,7 +104,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: AnimatedOpacity(
                         opacity: _isLast ? 0 : 1,
                         duration: const Duration(milliseconds: 200),
-                        child: TextLinkButton(label: 'Skip', onPressed: _finish),
+                        child:
+                            TextLinkButton(label: 'Skip', onPressed: _finish),
                       ),
                     ),
                   ),
@@ -139,9 +140,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       trailingIcon: _isLast
                           ? Icons.arrow_forward_rounded
                           : Icons.chevron_right_rounded,
-                      onPressed: _isLast
-                          ? _finish
-                          : () => _goTo(_currentPage + 1),
+                      onPressed:
+                          _isLast ? _finish : () => _goTo(_currentPage + 1),
                     ),
                   ],
                 ),
@@ -248,69 +248,72 @@ class _GradeRingVisual extends StatelessWidget {
     const orbit = 112.0;
 
     return Center(
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: Stack(
-          children: [
-            Positioned(
-              left: 32,
-              top: 32,
-              child: CustomPaint(
-                size: const Size(200, 200),
-                painter: _DashedCirclePainter(),
-              ),
-            ),
-            Positioned(
-              left: 76,
-              top: 76,
-              child: Container(
-                width: 112,
-                height: 112,
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  shape: BoxShape.circle,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                left: 32,
+                top: 32,
+                child: CustomPaint(
+                  size: const Size(200, 200),
+                  painter: _DashedCirclePainter(),
                 ),
-                child: const Icon(Icons.diamond_rounded,
-                    size: 64, color: AppColors.primary),
               ),
-            ),
-            for (var k = 0; k < AppColors.grades.length; k++)
-              Builder(builder: (context) {
-                final angle = -math.pi / 2 + k * 2 * math.pi / 7;
-                return Positioned(
-                  left: centre + orbit * math.cos(angle) - 23,
-                  top: centre + orbit * math.sin(angle) - 30,
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        padding: const EdgeInsets.all(3),
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(13),
-                        ),
-                        child: Container(
+              Positioned(
+                left: 76,
+                top: 76,
+                child: Container(
+                  width: 112,
+                  height: 112,
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.diamond_rounded,
+                      size: 64, color: AppColors.primary),
+                ),
+              ),
+              for (var k = 0; k < AppColors.grades.length; k++)
+                Builder(builder: (context) {
+                  final angle = -math.pi / 2 + k * 2 * math.pi / 7;
+                  return Positioned(
+                    left: centre + orbit * math.cos(angle) - 23,
+                    top: centre + orbit * math.sin(angle) - 30,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 46,
+                          height: 46,
+                          padding: const EdgeInsets.all(3),
                           decoration: BoxDecoration(
-                            color: AppColors.grades[k],
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.md),
-                            border:
-                                Border.all(color: AppColors.swatchOutline),
+                            color: AppColors.background,
+                            borderRadius: BorderRadius.circular(13),
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.grades[k],
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                              border:
+                                  Border.all(color: AppColors.swatchOutline),
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        'G${k + 1}',
-                        style: AppText.titleSmall.copyWith(fontSize: 11),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-          ],
+                        const SizedBox(height: 1),
+                        Text(
+                          'G${k + 1}',
+                          style: AppText.titleSmall.copyWith(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+            ],
+          ),
         ),
       ),
     );
@@ -329,8 +332,8 @@ class _DashedCirclePainter extends CustomPainter {
     const dashes = 72;
     const sweep = 2 * math.pi / dashes;
     for (var i = 0; i < dashes; i++) {
-      canvas.drawArc(Rect.fromCircle(center: centre, radius: radius),
-          i * sweep, sweep * 0.5, false, paint);
+      canvas.drawArc(Rect.fromCircle(center: centre, radius: radius), i * sweep,
+          sweep * 0.5, false, paint);
     }
   }
 
@@ -601,8 +604,8 @@ class _ReportVisual extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Borderline · flagged for gemologist review',
-                  style: AppText.label.copyWith(
-                      color: AppColors.textPrimary, height: 1.35),
+                  style: AppText.label
+                      .copyWith(color: AppColors.textPrimary, height: 1.35),
                 ),
               ),
               const Icon(Icons.chevron_right_rounded,
@@ -656,14 +659,15 @@ class _ReportVisual extends StatelessWidget {
                       Text(
                         'Grade 3',
                         style: AppText.display.copyWith(
-                            fontSize: 30, height: 1.05,
+                            fontSize: 30,
+                            height: 1.05,
                             color: AppColors.onPrimary),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Vivid — Royal Blue',
-                        style: AppText.label
-                            .copyWith(color: AppColors.onPrimary),
+                        style:
+                            AppText.label.copyWith(color: AppColors.onPrimary),
                       ),
                       const SizedBox(height: AppSpacing.md + AppSpacing.xs),
                       Row(

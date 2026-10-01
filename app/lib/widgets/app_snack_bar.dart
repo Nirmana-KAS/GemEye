@@ -61,15 +61,21 @@ class _AppSnackBarContent extends StatelessWidget {
           AppColors.success,
           AppColors.successTint
         ),
-      AppSnackBarType.info =>
-        (Icons.info_rounded, AppColors.primary, AppColors.surface),
+      AppSnackBarType.info => (
+          Icons.info_rounded,
+          AppColors.primary,
+          AppColors.surface
+        ),
       AppSnackBarType.warning => (
           Icons.warning_rounded,
           AppColors.warning,
           AppColors.warningTint
         ),
-      AppSnackBarType.error =>
-        (Icons.error_rounded, AppColors.error, AppColors.errorTint),
+      AppSnackBarType.error => (
+          Icons.error_rounded,
+          AppColors.error,
+          AppColors.errorTint
+        ),
     };
 
     return Container(
@@ -106,8 +112,7 @@ class _AppSnackBarContent extends StatelessWidget {
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
                 minimumSize: const Size(AppSpacing.touchTarget, 36),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 textStyle: AppText.button.copyWith(fontSize: 13),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.sm)),

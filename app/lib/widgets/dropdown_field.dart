@@ -67,14 +67,13 @@ class _DropdownFieldState<T> extends State<DropdownField<T>> {
               onOpen: () => setState(() => _open = true),
               onClose: () => setState(() => _open = false),
               style: MenuStyle(
-                backgroundColor:
-                    const WidgetStatePropertyAll(AppColors.card),
+                backgroundColor: const WidgetStatePropertyAll(AppColors.card),
                 surfaceTintColor:
                     const WidgetStatePropertyAll(Colors.transparent),
                 shadowColor: const WidgetStatePropertyAll(AppColors.menuShadow),
                 elevation: const WidgetStatePropertyAll(8),
-                padding: const WidgetStatePropertyAll(
-                    EdgeInsets.all(AppSpacing.sm)),
+                padding:
+                    const WidgetStatePropertyAll(EdgeInsets.all(AppSpacing.sm)),
                 minimumSize: WidgetStatePropertyAll(Size(width, 0)),
                 maximumSize: WidgetStatePropertyAll(Size(width, 320)),
                 shape: WidgetStatePropertyAll(RoundedRectangleBorder(
@@ -93,8 +92,7 @@ class _DropdownFieldState<T> extends State<DropdownField<T>> {
               ],
               builder: (context, controller, _) {
                 return Material(
-                  color: AppFieldStyle.fill(
-                      focused: _open, hasError: hasError),
+                  color: AppFieldStyle.fill(focused: _open, hasError: hasError),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.lg),
                     side: BorderSide(
@@ -116,7 +114,7 @@ class _DropdownFieldState<T> extends State<DropdownField<T>> {
                             : controller.open()
                         : null,
                     child: SizedBox(
-                      height: AppSpacing.controlHeight - 3,
+                      height: AppSpacing.controlHeight,
                       child: Padding(
                         padding: const EdgeInsets.only(left: 14, right: 10),
                         child: Row(
@@ -179,8 +177,8 @@ class _MenuOption extends StatelessWidget {
       onPressed: onPressed,
       style: ButtonStyle(
         minimumSize: WidgetStatePropertyAll(Size(width, 44)),
-        padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 10)),
+        padding:
+            const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 10)),
         shape: WidgetStatePropertyAll(RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.sm))),
         overlayColor: const WidgetStatePropertyAll(AppColors.surface),

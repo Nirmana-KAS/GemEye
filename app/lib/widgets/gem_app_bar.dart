@@ -41,8 +41,10 @@ class GemAppBar extends StatelessWidget implements PreferredSizeWidget {
         color: fg,
         tooltip: leading == GemAppBarLeading.back ? 'Back' : 'Menu',
         style: IconButton.styleFrom(
-          minimumSize: const Size(AppSpacing.touchTarget, AppSpacing.touchTarget),
-          highlightColor: _isPrimary ? AppColors.primaryLight : AppColors.surface,
+          minimumSize:
+              const Size(AppSpacing.touchTarget, AppSpacing.touchTarget),
+          highlightColor:
+              _isPrimary ? AppColors.primaryLight : AppColors.surface,
         ),
         icon: Icon(leading == GemAppBarLeading.back
             ? Icons.arrow_back_rounded
@@ -78,9 +80,7 @@ class GemAppBar extends StatelessWidget implements PreferredSizeWidget {
             overflow: TextOverflow.ellipsis,
             style: AppText.screenTitle.copyWith(
               height: 1.2,
-              color: _isPrimary
-                  ? AppColors.onPrimary
-                  : AppColors.textPrimary,
+              color: _isPrimary ? AppColors.onPrimary : AppColors.textPrimary,
             ),
           ),
           if (subtitle != null)

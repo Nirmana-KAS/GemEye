@@ -37,8 +37,7 @@ class AppCheckbox extends StatelessWidget {
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
         child: ConstrainedBox(
-          constraints:
-              const BoxConstraints(minHeight: AppSpacing.touchTarget),
+          constraints: const BoxConstraints(minHeight: AppSpacing.touchTarget),
           child: Row(
             children: [
               AnimatedContainer(
@@ -57,9 +56,8 @@ class AppCheckbox extends StatelessWidget {
                     ? Icon(
                         Icons.check_rounded,
                         size: 14,
-                        color: enabled
-                            ? AppColors.onPrimary
-                            : AppColors.textMuted,
+                        color:
+                            enabled ? AppColors.onPrimary : AppColors.textMuted,
                       )
                     : null,
               ),
@@ -68,9 +66,8 @@ class AppCheckbox extends StatelessWidget {
                 child: DefaultTextStyle.merge(
                   style: AppText.body14.copyWith(
                     height: 1.4,
-                    color: enabled
-                        ? AppColors.textPrimary
-                        : AppColors.textMuted,
+                    color:
+                        enabled ? AppColors.textPrimary : AppColors.textMuted,
                   ),
                   child: label,
                 ),

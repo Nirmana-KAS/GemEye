@@ -250,11 +250,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
       switch (e.code) {
         case 'email-already-in-use':
-          setState(() => _serverEmailError =
-              'An account already exists for this email');
+          setState(() =>
+              _serverEmailError = 'An account already exists for this email');
         case 'invalid-email':
-          setState(
-              () => _serverEmailError = 'Enter a valid email address');
+          setState(() => _serverEmailError = 'Enter a valid email address');
         case 'network-request-failed':
           AppSnackBar.show(context,
               message: 'No connection. Check your internet and try again.',
@@ -305,26 +304,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
         title: _googleMode ? 'Complete your profile' : 'Register',
         leading: GemAppBarLeading.back,
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                  AppSpacing.screen, AppSpacing.screen, AppSpacing.huge),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: _withGaps([
-                  if (_googleMode) _buildGoogleBanner() else _buildGoogleEntry(),
-                  _buildAccountType(),
-                  ...(_isCompany ? _companyFields() : _individualFields()),
-                  if (!_googleMode) _buildLoginLink(),
-                ]),
-              ),
-            ),
-          ),
-          _buildBottomBar(),
-        ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.screen,
+            AppSpacing.screen, AppSpacing.huge),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: _withGaps([
+            if (_googleMode) _buildGoogleBanner() else _buildGoogleEntry(),
+            _buildAccountType(),
+            ...(_isCompany ? _companyFields() : _individualFields()),
+            if (!_googleMode) _buildLoginLink(),
+          ]),
+        ),
       ),
+      bottomNavigationBar: _buildBottomBar(),
     );
   }
 

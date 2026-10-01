@@ -140,7 +140,8 @@ class InputField extends StatefulWidget {
 
 class _InputFieldState extends State<InputField> {
   FocusNode? _ownFocusNode;
-  FocusNode get _focusNode => widget.focusNode ?? (_ownFocusNode ??= FocusNode());
+  FocusNode get _focusNode =>
+      widget.focusNode ?? (_ownFocusNode ??= FocusNode());
 
   @override
   void initState() {
@@ -175,11 +176,11 @@ class _InputFieldState extends State<InputField> {
 
     Widget? suffix = widget.suffix;
     if (widget.locked) {
-      suffix = const Icon(Icons.lock_rounded,
-          size: 18, color: AppColors.textMuted);
+      suffix =
+          const Icon(Icons.lock_rounded, size: 18, color: AppColors.textMuted);
     } else if (hasError && suffix == null && widget.showErrorIcon) {
-      suffix = const Icon(Icons.error_rounded,
-          size: 20, color: AppColors.error);
+      suffix =
+          const Icon(Icons.error_rounded, size: 20, color: AppColors.error);
     }
 
     final field = TextField(
@@ -208,8 +209,8 @@ class _InputFieldState extends State<InputField> {
         filled: true,
         fillColor: AppFieldStyle.fill(focused: focused, hasError: hasError),
         hintText: widget.hintText,
-        hintStyle: AppText.body14
-            .copyWith(height: 1.2, color: AppColors.textMuted),
+        hintStyle:
+            AppText.body14.copyWith(height: 1.2, color: AppColors.textMuted),
         contentPadding: EdgeInsets.symmetric(
           horizontal: 14,
           vertical: widget.maxLines > 1 ? AppSpacing.lg : 15,

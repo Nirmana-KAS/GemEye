@@ -121,7 +121,9 @@ class TextLinkButton extends StatelessWidget {
         }),
         foregroundColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) return AppColors.textMuted;
-          if (states.contains(WidgetState.pressed)) return AppColors.primaryLight;
+          if (states.contains(WidgetState.pressed)) {
+            return AppColors.primaryLight;
+          }
           return AppColors.primary;
         }),
         textStyle: WidgetStateProperty.resolveWith((states) {

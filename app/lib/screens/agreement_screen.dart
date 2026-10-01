@@ -29,25 +29,19 @@ class _AgreementScreenState extends State<AgreementScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const GemAppBar(title: 'Before you start'),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
-                  AppSpacing.screen, AppSpacing.screen, AppSpacing.xxxl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildSummary(),
-                  const SizedBox(height: AppSpacing.xxxl),
-                  const PolicyMarkdown(),
-                ],
-              ),
-            ),
-          ),
-          _buildBottomBar(),
-        ],
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.screen,
+            AppSpacing.screen, AppSpacing.xxxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _buildSummary(),
+            const SizedBox(height: AppSpacing.xxxl),
+            const PolicyMarkdown(),
+          ],
+        ),
       ),
+      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
@@ -113,8 +107,8 @@ class _AgreementScreenState extends State<AgreementScreen> {
               PrimaryButton(
                 label: 'Accept & Continue',
                 onPressed: _accepted
-                    ? () => AppRoutes.pushReplacement(
-                        context, const LoginScreen())
+                    ? () =>
+                        AppRoutes.pushReplacement(context, const LoginScreen())
                     : null,
               ),
             ],

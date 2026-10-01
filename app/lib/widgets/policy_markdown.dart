@@ -56,8 +56,7 @@ class _PolicyMarkdownState extends State<PolicyMarkdown> {
                 .copyWith(height: 1.55, color: AppColors.textSecondary),
             em: AppText.secondary.copyWith(fontStyle: FontStyle.normal),
             strong: AppText.body14Medium,
-            listBullet:
-                AppText.body14.copyWith(color: AppColors.textSecondary),
+            listBullet: AppText.body14.copyWith(color: AppColors.textSecondary),
             blockSpacing: AppSpacing.sm,
           ),
         );

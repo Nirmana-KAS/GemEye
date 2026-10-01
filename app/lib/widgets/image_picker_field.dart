@@ -74,8 +74,9 @@ class ImagePickerField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCircle = shape == ImagePickerShape.circle;
-    final radius =
-        isCircle ? BorderRadius.circular(32) : BorderRadius.circular(AppRadius.xl);
+    final radius = isCircle
+        ? BorderRadius.circular(32)
+        : BorderRadius.circular(AppRadius.xl);
     final hasImage = image != null;
 
     Widget preview;
@@ -136,8 +137,8 @@ class ImagePickerField extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: ' · Optional',
-                    style: AppText.secondary
-                        .copyWith(color: AppColors.textMuted),
+                    style:
+                        AppText.secondary.copyWith(color: AppColors.textMuted),
                   ),
                 ],
               )),

@@ -30,6 +30,7 @@ class SegmentedToggle<T> extends StatelessWidget {
       child: SizedBox(
         height: AppSpacing.touchTarget,
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (final option in options)
               Expanded(child: _segment(option, option.value == selected)),
