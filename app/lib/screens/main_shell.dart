@@ -7,6 +7,7 @@ import 'home_screen.dart';
 import 'capture_screen.dart';
 import 'history_screen.dart';
 import 'guide_screen.dart';
+import 'notifications_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -36,6 +37,10 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(
       key: _homeKey,
       onOpenHistory: () => _switchTab(2),
+      onOpenNotifications: () => AppRoutes.push(
+        context,
+        NotificationsScreen(onOpenHistory: () => _switchTab(2)),
+      ),
     ),
     const _PlaceholderScreen(title: 'Grade', icon: Icons.camera_alt_rounded),
     const HistoryScreen(),
