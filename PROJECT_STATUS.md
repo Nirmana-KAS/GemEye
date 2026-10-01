@@ -866,3 +866,33 @@
   - `+` dataset/rename_images.py (new — auto-rename script)
 - **Connected edits:** EDIT-040 (dataset folder restructure)
 - **Reason:** Dataset images from different capture sessions had inconsistent mobile camera names, making it difficult to track counts, identify duplicates, and maintain the ML training pipeline. Consistent naming enables reliable train/val/test splitting and grade verification.
+
+### EDIT-042 | 01 October 2026 21:58 | IST
+- **Topic:** UI Redesign Group A (Splash, Privacy Agreement, Login, Register, Onboarding)
+- **Summary:** Rebuilt the five Group A screens in Flutter from the Claude Design handoff (design/exports/groupA), on branch `ui-redesign`. Added design tokens and the reusable Component Sheet widgets that Group A uses; auth, storage and certificate services are unchanged.
+- **What was done:**
+  - Added `AppColors`, `AppText`, `AppRadius`, `AppSpacing`, `AppSystemUi` tokens to theme.dart (including the 7 grade colours and the 6 calibration patch colours); `GemEyeColors`/`GemEyeFonts` kept as aliases so other screens still compile
+  - Added widgets: PrimaryButton, TextLinkButton, GemAppBar, CardContainer, InputField, PasswordField, DropdownField, AppCheckbox, AppSnackBar, LoadingIndicator, GoogleSignInButton, SegmentedToggle, ImagePickerField, plus helpers OrDivider and PolicyMarkdown
+  - Added Roboto Medium (from the Flutter SDK's bundled Material fonts) for the Google sign-in button
+  - Splash: new layout; existing Lottie (sapphire_rotate.json) and 3 s routing unchanged
+  - Privacy Agreement: summary card, scrollable policy, fixed checkbox + button (disabled until ticked); privacy_policy.md replaced with the 8 design sections; Agreement and Privacy Policy screens both render it through PolicyMarkdown (hardcoded strings removed)
+  - Login: logo, Google button, or divider, labelled fields, inline "Incorrect email or password" error, separate loading states for Google and Log In, friendly messages instead of raw Firebase errors
+  - Register: Individual/Company toggle, all design fields and validation (Required, email format, password rules: 8+ chars, 1 uppercase, 1 number), photo/logo pickers (JPG/PNG, 5 MB), fixed Create Account bar, Google "Complete your profile" variant with name/email locked (shown when Google sign-in from Register returns a new user)
+  - Onboarding: 4 widget-built slides, Skip, dots, Next/Get Started; shown once after first successful registration using SharedPreferences bool `onboarding_done`, then opens MainShell
+  - Built and checked every screen on a OnePlus Nord 2 (DN2103); fixed Splash centring, toggle height, dropdown height, snackbar overlap and slide 1 clipping
+- **Files changed:**
+  - `~` app/lib/config/theme.dart
+  - `~` app/lib/config/constants.dart (onboardingDoneKey)
+  - `~` app/lib/screens/splash_screen.dart
+  - `~` app/lib/screens/agreement_screen.dart
+  - `~` app/lib/screens/privacy_screen.dart
+  - `~` app/lib/screens/login_screen.dart
+  - `~` app/lib/screens/register_screen.dart
+  - `~` app/lib/screens/onboarding_screen.dart
+  - `+` app/lib/widgets/app_buttons.dart, app_checkbox.dart, app_snack_bar.dart, card_container.dart, dropdown_field.dart, gem_app_bar.dart, google_sign_in_button.dart, image_picker_field.dart, input_field.dart, loading_indicator.dart, or_divider.dart, password_field.dart, policy_markdown.dart, segmented_toggle.dart
+  - `~` app/assets/data/privacy_policy.md
+  - `+` app/assets/fonts/Roboto-Medium.ttf
+  - `~` app/pubspec.yaml (Roboto font)
+- **Connected edits:** EDIT-041 (previous edit). Group B screens will reuse these widgets.
+- **Open items:** `TODO(F2)` in register_screen.dart: company profile, phone, country, role, profile photo and company logo are collected but not saved anywhere yet. Login's Google sign-in still goes straight to MainShell for new users (only Register shows the "Complete your profile" step).
+- **Reason:** Apply the approved Claude Design UI to the first-run flow while keeping existing auth behaviour working.
