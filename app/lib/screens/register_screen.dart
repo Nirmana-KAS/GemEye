@@ -16,7 +16,6 @@ import '../widgets/input_field.dart';
 import '../widgets/or_divider.dart';
 import '../widgets/password_field.dart';
 import '../widgets/segmented_toggle.dart';
-import 'main_shell.dart';
 import 'onboarding_screen.dart';
 
 enum _AccountType { individual, company }
@@ -196,7 +195,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (result.additionalUserInfo?.isNewUser ?? false) {
         setState(() => _enterGoogleMode(result.user));
       } else {
-        AppRoutes.pushReplacement(context, const MainShell());
+        AppRoutes.pushReplacement(context, const OnboardingScreen());
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Google sign-in failed: $e');
@@ -230,7 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_googleMode) {
       // TODO(F2): persist profile (phone, country, role, photo) for Google users.
       _persistCompanyProfile();
-      await _finishRegistration();
+      _finishRegistration();
       return;
     }
 
@@ -244,7 +243,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await _authService.updateDisplayName(name);
       // TODO(F2): persist profile (phone, country, role, photo).
       _persistCompanyProfile();
-      if (mounted) await _finishRegistration();
+      if (mounted) _finishRegistration();
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) debugPrint('Registration failed: ${e.code}');
       if (!mounted) return;
@@ -281,15 +280,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // no, industry, address). Not stored anywhere yet.
   }
 
-  Future<void> _finishRegistration() async {
-    final showOnboarding = !await OnboardingScreen.isDone();
-    if (!mounted) return;
+  void _finishRegistration() {
     AppSnackBar.show(context,
         message: 'Account created', type: AppSnackBarType.success);
-    AppRoutes.pushReplacement(
-      context,
-      showOnboarding ? const OnboardingScreen() : const MainShell(),
-    );
+    AppRoutes.pushReplacement(context, const OnboardingScreen());
   }
 
   // ---------------------------------------------------------------------------

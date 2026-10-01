@@ -1,39 +1,19 @@
 import 'dart:math' as math;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../config/constants.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/card_container.dart';
 import 'main_shell.dart';
 
-/// Four-slide introduction shown once, after the first successful
-/// registration. Completion is stored as [AppConstants.onboardingDoneKey].
+/// Four-slide introduction shown after every successful sign-in, then
+/// MainShell. In [replay] mode (from Settings or the drawer) Skip and
+/// Get Started just return to the previous screen.
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  final bool replay;
 
-  /// Whether onboarding has already been completed or skipped.
-  static Future<bool> isDone() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      return prefs.getBool(AppConstants.onboardingDoneKey) ?? false;
-    } catch (e) {
-      if (kDebugMode) debugPrint('Onboarding flag read failed: $e');
-      return true;
-    }
-  }
-
-  static Future<void> markDone() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(AppConstants.onboardingDoneKey, true);
-    } catch (e) {
-      if (kDebugMode) debugPrint('Onboarding flag write failed: $e');
-    }
-  }
+  const OnboardingScreen({super.key, this.replay = false});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -70,10 +50,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _finish() async {
-    await OnboardingScreen.markDone();
-    if (!mounted) return;
-    AppRoutes.pushReplacement(context, const MainShell());
+  void _finish() {
+    if (widget.replay) {
+      Navigator.of(context).pop();
+    } else {
+      AppRoutes.pushReplacement(context, const MainShell());
+    }
   }
 
   void _goTo(int index) {

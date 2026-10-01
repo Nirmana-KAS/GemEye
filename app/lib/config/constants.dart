@@ -13,7 +13,7 @@ class AppConstants {
   static const String studentNo = '28973';
 
   // Preferences
-  static const String onboardingDoneKey = 'onboarding_done';
+  static const String policyAcceptedKey = 'policy_accepted';
 
   // Certificate
   static const String defaultCertificatePrefix = 'GE';

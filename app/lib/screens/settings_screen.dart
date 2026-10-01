@@ -6,7 +6,7 @@ import '../config/constants.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
 import '../services/storage_service.dart';
-import 'login_screen.dart';
+import 'onboarding_screen.dart';
 import 'calibration_screen.dart';
 import 'profile_screen.dart';
 
@@ -366,6 +366,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(),
 
+            _buildSectionHeader('Help'),
+            ListTile(
+              leading: const Icon(Icons.slideshow_rounded, color: GemEyeColors.textSecondary),
+              title: const Text(
+                'View app introduction',
+                style: TextStyle(
+                  fontFamily: GemEyeFonts.body,
+                  fontSize: 14,
+                  color: GemEyeColors.textPrimary,
+                ),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded, color: GemEyeColors.textMuted),
+              onTap: () => AppRoutes.push(context, const OnboardingScreen(replay: true)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout_rounded, color: GemEyeColors.error),
+              title: const Text(
+                'Log out',
+                style: TextStyle(
+                  fontFamily: GemEyeFonts.body,
+                  fontSize: 14,
+                  color: GemEyeColors.error,
+                ),
+              ),
+              onTap: () => AuthService.endSession(),
+            ),
+            const Divider(),
+
             _buildSectionHeader('App Info'),
             const ListTile(
               leading: Icon(Icons.info_outline_rounded, color: GemEyeColors.textSecondary),
@@ -690,20 +718,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              try {
-                await StorageService.clearHistory();
-                await FirebaseAuth.instance.currentUser?.delete();
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) {
-                  AppRoutes.pushReplacement(context, const LoginScreen());
-                }
-              } catch (e) {
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Failed to delete account. Please re-login and try again.')),
-                  );
-                }
+              final ok = await AuthService.endSession(
+                beforeSignOut: () async {
+                  await StorageService.clearHistory();
+                  await FirebaseAuth.instance.currentUser?.delete();
+                },
+              );
+              if (!ok && mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Failed to delete account. Please re-login and try again.')),
+                );
               }
             },
             child: const Text(

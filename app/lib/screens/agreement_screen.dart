@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/constants.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
 import '../widgets/app_buttons.dart';
@@ -43,6 +46,17 @@ class _AgreementScreenState extends State<AgreementScreen> {
       ),
       bottomNavigationBar: _buildBottomBar(),
     );
+  }
+
+  Future<void> _accept() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.policyAcceptedKey, true);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Policy flag write failed: $e');
+    }
+    if (!mounted) return;
+    AppRoutes.pushReplacement(context, const LoginScreen());
   }
 
   Widget _buildSummary() {
@@ -106,10 +120,7 @@ class _AgreementScreenState extends State<AgreementScreen> {
               const SizedBox(height: AppSpacing.lg),
               PrimaryButton(
                 label: 'Accept & Continue',
-                onPressed: _accepted
-                    ? () =>
-                        AppRoutes.pushReplacement(context, const LoginScreen())
-                    : null,
+                onPressed: _accepted ? _accept : null,
               ),
             ],
           ),

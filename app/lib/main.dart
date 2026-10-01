@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
 import 'config/theme.dart';
+import 'config/routes.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
@@ -35,6 +36,7 @@ class GemEyeApp extends StatelessWidget {
       title: 'GemEye',
       debugShowCheckedModeBanner: false,
       theme: GemEyeTheme.lightTheme,
+      navigatorKey: AppRoutes.navigatorKey,
       home: const SplashScreen(),
     );
   }

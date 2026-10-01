@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
 import 'agreement_screen.dart';
+import 'login_screen.dart';
 import 'main_shell.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -20,15 +23,27 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      final authService = AuthService();
-      if (authService.isLoggedIn) {
-        AppRoutes.pushReplacement(context, const MainShell());
-      } else {
-        AppRoutes.pushReplacement(context, const AgreementScreen());
-      }
-    });
+    Timer(const Duration(seconds: 3), _route);
+  }
+
+  Future<void> _route() async {
+    if (!mounted) return;
+    if (AuthService().isLoggedIn) {
+      AppRoutes.pushReplacement(context, const MainShell());
+      return;
+    }
+    var accepted = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      accepted = prefs.getBool(AppConstants.policyAcceptedKey) ?? false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Policy flag read failed: $e');
+    }
+    if (!mounted) return;
+    AppRoutes.pushReplacement(
+      context,
+      accepted ? const LoginScreen() : const AgreementScreen(),
+    );
   }
 
   @override

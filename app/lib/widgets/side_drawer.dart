@@ -3,7 +3,7 @@ import '../config/theme.dart';
 import '../config/constants.dart';
 import '../services/auth_service.dart';
 import '../config/routes.dart';
-import '../screens/login_screen.dart';
+import '../screens/onboarding_screen.dart';
 import '../screens/comparison_screen.dart';
 import '../screens/capture_screen.dart';
 import '../screens/settings_screen.dart';
@@ -128,6 +128,12 @@ class GemEyeSideDrawer extends StatelessWidget {
                       builder: (ctx) => const FeedbackSheet(),
                     );
                   }),
+                  _buildMenuItem(context, Icons.slideshow_rounded,
+                      'View app introduction', () {
+                    Navigator.pop(context);
+                    AppRoutes.push(
+                        context, const OnboardingScreen(replay: true));
+                  }),
                   _buildMenuItem(
                       context, Icons.lock_rounded, 'Privacy Policy', () {
                     Navigator.pop(context);
@@ -167,14 +173,7 @@ class GemEyeSideDrawer extends StatelessWidget {
                               child: const Text('Cancel'),
                             ),
                             TextButton(
-                              onPressed: () async {
-                                Navigator.pop(ctx);
-                                await authService.signOut();
-                                if (context.mounted) {
-                                  AppRoutes.pushReplacement(
-                                      context, const LoginScreen());
-                                }
-                              },
+                              onPressed: () => AuthService.endSession(),
                               child: const Text(
                                 'Logout',
                                 style: TextStyle(color: GemEyeColors.error),

@@ -12,7 +12,7 @@ import '../widgets/input_field.dart';
 import '../widgets/or_divider.dart';
 import '../widgets/password_field.dart';
 import 'register_screen.dart';
-import 'main_shell.dart';
+import 'onboarding_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,8 +54,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isGoogleLoading = true);
     try {
       final result = await _authService.signInWithGoogle();
-      if (result != null && mounted) {
-        AppRoutes.pushReplacement(context, const MainShell());
+      if (result == null || !mounted) return;
+      if (result.additionalUserInfo?.isNewUser ?? false) {
+        AppRoutes.pushReplacement(
+            context, const RegisterScreen(completeGoogleProfile: true));
+      } else {
+        AppRoutes.pushReplacement(context, const OnboardingScreen());
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Google sign-in failed: $e');
@@ -88,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await _authService.signInWithEmail(email, password);
       if (mounted) {
-        AppRoutes.pushReplacement(context, const MainShell());
+        AppRoutes.pushReplacement(context, const OnboardingScreen());
       }
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) debugPrint('Email sign-in failed: ${e.code}');
