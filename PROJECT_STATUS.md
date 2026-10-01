@@ -1004,3 +1004,107 @@
   - `~` app/lib/widgets/side_drawer.dart
 - **Connected edits:** EDIT-044 (Agreement), EDIT-045 (Login), EDIT-046 (Register), EDIT-047 (Onboarding); Claude Design Group A export (design/exports/groupA)
 - **Reason:** Logout ran twice and could leave stale screens, the policy was shown on every launch, and new Google users from Login skipped profile completion.
+
+### EDIT-049 | 01 October 2026 23:26 | IST
+- **Topic:** UI Redesign B1 — Status Bar Contrast
+- **Summary:** Made status bar icons readable on every screen. The global default is now dark icons on a transparent bar; screens with a dark top set light icons.
+- **What was done:**
+  - main.dart: global `SystemUiOverlayStyle` → `AppSystemUi.darkIcons`
+  - Home and Processing (white tops, no app bar): `AnnotatedRegion(AppSystemUi.darkIcons)`
+  - Guide (dark gradient header under the status bar): `AnnotatedRegion(AppSystemUi.lightIcons)` so MainShell tab switching stays legible
+  - Splash, Login and Onboarding already set dark icons; primary app bars keep light icons through the app bar theme
+- **Files changed:**
+  - `~` app/lib/main.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/processing_screen.dart
+  - `~` app/lib/screens/guide_screen.dart
+- **Connected edits:** EDIT-042 (AppSystemUi tokens); Claude Design Group B export (design/exports/groupB)
+- **Reason:** White-top screens showed white status bar icons on a white background.
+
+### EDIT-050 | 01 October 2026 23:28 | IST
+- **Topic:** UI Redesign B2 — NotificationService
+- **Summary:** Added a local in-app notification store with a live unread count, and wired the first real events.
+- **What was done:**
+  - `AppNotification` model: id, type (success/warning/error/info), title, message, createdAt, read, action (none/openResult/openCalibration/openCapture/openHistory/openPrivacy), payload
+  - `NotificationService`: JSON in SharedPreferences, newest first, max 100; `add`, `markRead`, `markAllRead`, `delete`, `clearAll`, `list`, `ValueNotifier<int> unreadCount`; loaded at startup in main.dart
+  - Events: result saved with confidence < 60 → warning "Stone referred" (openResult with stone ID); certificate PDF saved → success "Certificate saved" (openHistory); password changed → info; email change requested → info
+  - TODO hooks: `TODO(C4)` calibration over 8 h, `TODO(backend)` grading failed (openCapture), `TODO` privacy policy updated
+- **Files changed:**
+  - `+` app/lib/models/app_notification.dart
+  - `+` app/lib/services/notification_service.dart
+  - `~` app/lib/main.dart
+  - `~` app/lib/screens/result_screen.dart
+  - `~` app/lib/screens/certificate_screen.dart
+  - `~` app/lib/screens/settings_screen.dart
+- **Connected edits:** Claude Design Group B export (design/exports/groupB/Notifications.dc.html)
+- **Reason:** The Home bell and Notifications screen need real, persisted notifications.
+
+### EDIT-051 | 01 October 2026 23:30 | IST
+- **Topic:** UI Redesign B3 — Group B Widgets
+- **Summary:** Created the reusable widgets used by Home, the Side Drawer and Notifications.
+- **What was done:**
+  - NotificationBell (40 px round button, red badge, "9+" above 9, hidden at 0, listens to unreadCount)
+  - NotificationTile (tinted type icon, title, one-line message, relative time, unread surface background + blue dot, swipe-left Dismissible delete)
+  - StatCard, StatusBanner (success/warning/error), GradeSwatch, ConfidenceBadge (High ≥ 60, Borderline 40–59, Low < 40), EmptyState (dashed border), RecentGradeTile (with "Referred" chip), QuickGradeCard (gradient, white icon frame with sapphire Lottie, logo fallback)
+  - `formatRelativeTime` / `isSameDay` helpers
+- **Files changed:**
+  - `+` app/lib/widgets/notification_bell.dart
+  - `+` app/lib/widgets/notification_tile.dart
+  - `+` app/lib/widgets/stat_card.dart
+  - `+` app/lib/widgets/status_banner.dart
+  - `+` app/lib/widgets/grade_swatch.dart
+  - `+` app/lib/widgets/confidence_badge.dart
+  - `+` app/lib/widgets/empty_state.dart
+  - `+` app/lib/widgets/recent_grade_tile.dart
+  - `+` app/lib/widgets/quick_grade_card.dart
+  - `+` app/lib/widgets/relative_time.dart
+- **Connected edits:** EDIT-042 (tokens), EDIT-050 (notification model); Claude Design Group B export (design/exports/groupB)
+- **Reason:** Group B screens share these components; building them once keeps the screens consistent.
+
+### EDIT-052 | 01 October 2026 23:32 | IST
+- **Topic:** UI Redesign B4 — Home Dashboard
+- **Summary:** Rebuilt Home per the design using real data from StorageService and NotificationService.
+- **What was done:**
+  - Header: time-of-day greeting + first name, NotificationBell, avatar (photo or initials) opening the right-side drawer
+  - Calibration StatusBanner: red "Not calibrated. Calibrate before grading." → CalibrationScreen (`TODO(C4)` drive from saved calibration)
+  - QuickGradeCard "Grade a Stone" → CaptureScreen (replaces the empty onTap TODO; `TODO(B9)` route to Calibration when not calibrated)
+  - Stats for today: count, average confidence ("—" if none), referred (< 60)
+  - Recent Grades: last 5 RecentGradeTiles → ResultScreen; "See all" → History tab; EmptyState with "Grade a stone"
+  - Refresh on pull, on switching back to the Home tab, and when any route above MainShell pops (`AppRoutes.routeObserver`)
+  - CLAUDE.md: added the QuickGradeCard gradient (`#1B3A8C` → `#3B5FD9`) as an exception to rule 12
+- **Files changed:**
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+  - `~` app/lib/config/routes.dart
+  - `~` app/lib/main.dart
+  - `~` CLAUDE.md
+- **Connected edits:** EDIT-049, EDIT-050, EDIT-051; Claude Design Group B export (design/exports/groupB/Home Dashboard.dc.html)
+- **Reason:** Home showed placeholder stats and a Grade a Stone card that did nothing.
+
+### EDIT-053 | 01 October 2026 23:33 | IST
+- **Topic:** UI Redesign B5 — Side Drawer
+- **Summary:** Rebuilt the right-side drawer per the design with current-page highlighting and the shared logout helper.
+- **What was done:**
+  - Royal Blue header: logo.png, "GemEye", close button, avatar, name, email (tap → Profile); role/company line left as `TODO(F2)`
+  - Items: Home, Grade a Stone, Calibration (new), Grading History, Colour Grade Guide, Stone Comparison, Settings, divider, Feedback, Privacy Policy, About, View app introduction; current MainShell tab highlighted
+  - Footer: red Logout (confirm dialog → `AuthService.endSession()`) and "App v1.0"; server status left as TODO
+  - Light status bar icons while the drawer is open
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` app/lib/screens/main_shell.dart
+- **Connected edits:** EDIT-048 (logout helper, View app introduction), EDIT-052; Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** Apply the approved drawer design and add the missing Calibration entry.
+
+### EDIT-054 | 01 October 2026 23:34 | IST
+- **Topic:** UI Redesign B6 — Notifications Screen
+- **Summary:** Added the Notifications centre per the design, opened from the Home bell.
+- **What was done:**
+  - Surface GemAppBar "Notifications" with back and "Mark all as read" (disabled when nothing is unread)
+  - "TODAY" / "EARLIER" sections of NotificationTiles; tap marks read and runs the action (openResult → ResultScreen for the stone ID, openCalibration, openCapture, openHistory → History tab, openPrivacy); swipe left deletes
+  - EmptyState "You're all caught up"
+  - Built and installed the debug APK on the OnePlus Nord 2; Home checked on device
+- **Files changed:**
+  - `+` app/lib/screens/notifications_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+- **Connected edits:** EDIT-050, EDIT-051, EDIT-052; Claude Design Group B export (design/exports/groupB/Notifications.dc.html)
+- **Reason:** Users need one place to see referrals, certificate saves and account updates.
