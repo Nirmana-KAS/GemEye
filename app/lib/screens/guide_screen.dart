@@ -33,7 +33,9 @@ class _GuideScreenState extends State<GuideScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.lightIcons,
+      child: SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -131,6 +133,7 @@ class _GuideScreenState extends State<GuideScreen> {
           const SizedBox(height: 24),
         ],
       ),
+    ),
     );
   }
 
