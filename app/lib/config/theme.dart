@@ -13,6 +13,11 @@ class AppColors {
   static const Color card = Color(0xFFFFFFFF);
   static const Color onPrimary = Color(0xFFFFFFFF);
   static const Color onPrimaryTrack = Color(0x4DFFFFFF);
+  static const Color onPrimarySubtle = Color(0x1AFFFFFF);
+  static const Color onPrimaryFaint = Color(0x24FFFFFF);
+  static const Color onPrimaryLine = Color(0x33FFFFFF);
+  static const Color onPrimaryRing = Color(0xD9FFFFFF);
+  static const Color swatchOutline = Color(0x141A1D2E);
   static const Color textPrimary = Color(0xFF1A1D2E);
   static const Color textSecondary = Color(0xFF6B7089);
   static const Color textMuted = Color(0xFFA0A4B8);

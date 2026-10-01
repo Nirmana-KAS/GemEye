@@ -17,6 +17,7 @@ import '../widgets/or_divider.dart';
 import '../widgets/password_field.dart';
 import '../widgets/segmented_toggle.dart';
 import 'main_shell.dart';
+import 'onboarding_screen.dart';
 
 enum _AccountType { individual, company }
 
@@ -229,7 +230,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (_googleMode) {
       // TODO(F2): persist profile (phone, country, role, photo) for Google users.
       _persistCompanyProfile();
-      _finishRegistration();
+      await _finishRegistration();
       return;
     }
 
@@ -243,7 +244,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       await _authService.updateDisplayName(name);
       // TODO(F2): persist profile (phone, country, role, photo).
       _persistCompanyProfile();
-      if (mounted) _finishRegistration();
+      if (mounted) await _finishRegistration();
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) debugPrint('Registration failed: ${e.code}');
       if (!mounted) return;
@@ -281,10 +282,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // no, industry, address). Not stored anywhere yet.
   }
 
-  void _finishRegistration() {
+  Future<void> _finishRegistration() async {
+    final showOnboarding = !await OnboardingScreen.isDone();
+    if (!mounted) return;
     AppSnackBar.show(context,
         message: 'Account created', type: AppSnackBarType.success);
-    AppRoutes.pushReplacement(context, const MainShell());
+    AppRoutes.pushReplacement(
+      context,
+      showOnboarding ? const OnboardingScreen() : const MainShell(),
+    );
   }
 
   // ---------------------------------------------------------------------------
