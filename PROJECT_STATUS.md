@@ -1366,3 +1366,33 @@
   - `~` app/lib/services/certificate_service.dart
 - **Connected edits:** EDIT-067, EDIT-069; Claude Design Group EF export (Certificate PDF)
 - **Reason:** The exported certificate must match the approved design.
+
+### EDIT-071 | 02 October 2026 13:09 | IST
+- **Topic:** Certificate Preview Redesign
+- **Summary:** Certificate screen shows the file name, a scaled A4 page with pinch to zoom, and Save to Downloads / Share / Print.
+- **What was done:**
+  - GemAppBar "Certificate"; header row with the PDF file name (mono) and "A4 · 1 page"
+  - Page rasterised once with `Printing.raster` and shown in an InteractiveViewer (1x to 5x) inside a bordered A4 frame; PdfPreview fallback
+  - Bottom bar: "Save to Downloads" (primary), "Share" (outlined), Print icon button (printing package)
+  - Success snackbar "Saved to Downloads"; save notification, save path and share/print behaviour unchanged; errors via AppSnackBar
+- **Files changed:**
+  - `~` app/lib/screens/certificate_screen.dart
+- **Connected edits:** EDIT-070; Claude Design Group EF export (Certificate Preview)
+- **Reason:** The preview must match the approved design.
+
+### EDIT-072 | 02 October 2026 13:09 | IST
+- **Topic:** Grading History Redesign
+- **Summary:** History follows the Group E design with all existing features kept and a separate sort sheet.
+- **What was done:**
+  - GemAppBar with menu (opens the shell drawer), sort and filter actions (red count badge)
+  - Search, chips All / G1-G7 (grade swatches) / Referred (confidence below the referral threshold)
+  - Count row ("N stones · All time" or date range) and current sort
+  - Rows: grade swatch, stone ID, Referred pill, "Grade N · Name", confidence level + time, certificate pill
+  - Swipe left to delete with AppDialog confirm; long press selection with checkboxes, "N selected", All / None, bottom bar Export Batch / Share / Delete
+  - Filter sheet: date range, Confidence (All / High only / Borderline only), Certificate, Session dropdown, Reset, Cancel / "Show N stones" (live count)
+  - Sort sheet grouped Date / Grade / Confidence with the selected option ticked
+  - Two EmptyStates: "No stones graded yet" (Grade a stone) and "No matching stones" (Clear filters)
+- **Files changed:**
+  - `~` app/lib/screens/history_screen.dart
+- **Connected edits:** EDIT-070; Claude Design Group EF export (Grading History)
+- **Reason:** History must match the approved design and flag referred stones.
