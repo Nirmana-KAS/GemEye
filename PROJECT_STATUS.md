@@ -1159,3 +1159,82 @@
   - `~` app/lib/widgets/side_drawer.dart
 - **Connected edits:** EDIT-056 (white logo frame), EDIT-053 (Side Drawer redesign); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
 - **Reason:** A circular frame matches the round logo better than a rounded square.
+
+### EDIT-059 | 02 October 2026 07:45 | IST
+- **Topic:** No Em/En Dash in User-Visible Text
+- **Summary:** Added a CLAUDE.md rule banning the em dash and en dash in user-visible text and replaced the existing ones with a hyphen.
+- **What was done:**
+  - CLAUDE.md "Things to never do" item 16: use a hyphen (-) instead of the em/en dash in user-visible text
+  - Replaced the dashes in 7 user-visible strings (crop fallback snackbar, Home average placeholder, onboarding slide text and sample grade, result save snackbar, share text, grade title)
+  - Code comments left unchanged; no dashes found in assets/data/
+- **Files changed:**
+  - `~` CLAUDE.md
+  - `~` app/lib/screens/capture_screen.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/onboarding_screen.dart
+  - `~` app/lib/screens/result_screen.dart
+- **Connected edits:** EDIT-055 (edit history rule); Group C task brief
+- **Reason:** Consistent typography in the UI; the hyphen is the agreed separator.
+
+### EDIT-060 | 02 October 2026 08:05 | IST
+- **Topic:** Calibration Service (6-patch CCM)
+- **Summary:** Added the real colour calibration engine: patch measurement, least-squares 3x3 colour correction matrix, quality verdict and session storage.
+- **What was done:**
+  - Added `image` (pure Dart decoding) and `device_info_plus` packages
+  - Reference patches in training order: White, Black, 18% Grey (117), 50% Grey (186), Blue (0,63,135), Red (175,54,60)
+  - `measurePatch(File)`: decode + EXIF orientation, central 50% region, mean RGB and per-channel std dev, run in an isolate via `compute()`; uniform when every std dev <= `kPatchMaxStd` (0.06 x 255, to be tuned)
+  - `computeCcm`: normalised 0-1, normal equations M = (CᵀC)⁻¹CᵀR (same as numpy lstsq, no offset), RMS residual and per-patch Euclidean error
+  - Quality: Excellent <= 0.30, Acceptable <= 0.45, Poor above (provisional; training residual 0.2548)
+  - `CalibrationSession` (id S-YYYY-MM-DD-NN, 8 h validity, device model, ccm, residual, quality, measured, per-patch error) stored as JSON in flutter_secure_storage: current + history (max 50), live `ValueNotifier`
+  - `applyCcm(r,g,b)` helper for grading; `remindIfExpired()` for the recalibrate notification
+  - Unit tests: identity case (residual 0), uniform gain recovery, quality thresholds
+- **Files changed:**
+  - `+` app/lib/services/calibration_service.dart
+  - `+` app/test/calibration_service_test.dart
+  - `~` app/pubspec.yaml
+  - `~` app/pubspec.lock
+- **Connected edits:** EDIT-059; Claude Design Group C export (design/exports/groupCD)
+- **Reason:** Grading must run on colour-corrected photos using the same CCM as the training pipeline.
+
+### EDIT-061 | 02 October 2026 08:30 | IST
+- **Topic:** Calibration Flow Screens
+- **Summary:** Replaced the placeholder 3-step calibration wizard with the Group C flow: Start, Patch Capture (x6), Result and the History bottom sheet.
+- **What was done:**
+  - Calibration Start: intro card, "Before you start" checklist, 6 patches in order (swatch, number, hex), 8 h note, "Start Calibration"; history icon in the app bar opens the History sheet
+  - Patch Capture: StepProgress over the 6 patches, reference swatch + instruction, phone guide illustration (dashed centre 50%, corner brackets), "Take Photo" (camera) and "Import from Gallery (Pro mode)"
+  - After capture: photo thumbnail with the measured square, reference vs measured swatches, "Measured RGB r, g, b" in JetBrains Mono, Retake / Next patch (Finish on patch 6)
+  - Non-uniform patch: error state, AppSnackBar "Patch not uniform - shadow or edge detected. Retake." with Retake action, Next disabled
+  - Back with progress: AppDialog "Cancel calibration? Progress will be lost."
+  - Result: residual + verdict chip + note, 6 tiles (reference vs corrected = measured · M, per-patch error), device / session / valid until; Excellent/Acceptable save and open Capture with "Calibrated - residual 0.xx"; Poor disables save (Recalibrate only)
+  - History sheet: newest first, "Current" tag on the valid session, expired sessions muted, EmptyState with "Start Calibration"
+  - New reusable widgets: AppDialog, StepProgress, SecondaryButton, QualityChip
+- **Files changed:**
+  - `~` app/lib/screens/calibration_screen.dart
+  - `+` app/lib/screens/calibration_patch_screen.dart
+  - `+` app/lib/screens/calibration_result_screen.dart
+  - `+` app/lib/widgets/calibration_history_sheet.dart
+  - `+` app/lib/widgets/app_dialog.dart
+  - `+` app/lib/widgets/step_progress.dart
+  - `~` app/lib/widgets/app_buttons.dart
+  - `~` app/macos/Flutter/GeneratedPluginRegistrant.swift
+- **Connected edits:** EDIT-060 (calibration service); Claude Design Group C export (design/exports/groupCD/Calibration Start, Patch Capture, Result, History)
+- **Reason:** Real 6-patch calibration replaces the mock CCC-card wizard.
+
+### EDIT-062 | 02 October 2026 08:55 | IST
+- **Topic:** Calibration State Wired Through the App
+- **Summary:** Home banner, grade entry points, Settings and notifications now use the saved calibration session (resolves C4, C6, B9).
+- **What was done:**
+  - Home StatusBanner listens to `CalibrationService.session`: green "Calibrated · <device> · Session N · today HH:mm", amber "Calibration is over 8 hours old. Recalibrate for best accuracy.", red when none; removed TODO(C4)
+  - Home QuickGradeCard, empty-state action, bottom-nav Grade tab and drawer "Grade a Stone" go through `CalibrationScreen.openGrading`: Capture when the calibration is valid, otherwise Calibration Start with an info snackbar; removed TODO(B9)
+  - Calibration session loaded at app start (`main.dart`); Home load sends one "Recalibrate - Your calibration is over 8 hours old." warning notification per expired session (action openCalibration); removed the TODO(C4) note in NotificationService
+  - Settings: calibration status from the saved session; Calibration History opens the shared History sheet
+  - Debug APK built and installed on the OnePlus Nord 2 (installed from a copy outside OneDrive; the in-place install failed with a signature digest error)
+  - Note: test/widget_test.dart was already failing before this task (Firebase not initialised in tests); calibration unit tests pass
+- **Files changed:**
+  - `~` app/lib/main.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `~` app/lib/services/notification_service.dart
+- **Connected edits:** EDIT-060 (calibration service), EDIT-061 (calibration screens); Claude Design Group C export (design/exports/groupCD)
+- **Reason:** Grading must not start without a valid calibration, and users need to see calibration status at a glance.

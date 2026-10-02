@@ -101,7 +101,7 @@ class _ResultScreenState extends State<ResultScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Stone saved — ${_result.stoneId}')),
+          SnackBar(content: Text('Stone saved - ${_result.stoneId}')),
         );
         Navigator.of(context).popUntil((route) => route.isFirst);
       }
@@ -195,7 +195,7 @@ class _ResultScreenState extends State<ResultScreen> {
 
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'GemEye Grade ${_result.gradeNumber} — ${_result.gradeName} (${_result.tradeName})',
+        text: 'GemEye Grade ${_result.gradeNumber} - ${_result.gradeName} (${_result.tradeName})',
       );
     } catch (e) {
       if (mounted) {
@@ -350,7 +350,7 @@ class _ResultScreenState extends State<ResultScreen> {
           ),
           const SizedBox(height: 2),
           Text(
-            '${_result.gradeName} — ${_result.tradeName}',
+            '${_result.gradeName} - ${_result.tradeName}',
             style: const TextStyle(
               fontFamily: GemEyeFonts.heading,
               fontSize: 16,

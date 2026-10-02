@@ -4,7 +4,7 @@ import '../config/routes.dart';
 import '../widgets/bottom_nav.dart';
 import '../widgets/side_drawer.dart';
 import 'home_screen.dart';
-import 'capture_screen.dart';
+import 'calibration_screen.dart';
 import 'history_screen.dart';
 import 'guide_screen.dart';
 import 'notifications_screen.dart';
@@ -23,7 +23,7 @@ class _MainShellState extends State<MainShell> {
 
   void _onNavTap(int index) {
     if (index == 1) {
-      AppRoutes.push(context, const CaptureScreen());
+      CalibrationScreen.openGrading(context);
     } else {
       _switchTab(index);
     }

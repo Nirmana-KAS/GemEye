@@ -7,8 +7,6 @@ import '../models/app_notification.dart';
 // Local in-app notification store (SharedPreferences, newest first, max 100).
 //
 // Planned events not wired yet:
-// TODO(C4): warning "Recalibrate" when the saved calibration is over 8 h old
-//   (action openCalibration).
 // TODO(backend): error "Grading failed" when the grading request fails
 //   (action openCapture).
 // TODO: info "Privacy policy updated" when the policy version changes

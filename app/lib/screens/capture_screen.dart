@@ -106,7 +106,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Crop unavailable — using original image'),
+            content: Text('Crop unavailable - using original image'),
             backgroundColor: GemEyeColors.warning,
           ),
         );

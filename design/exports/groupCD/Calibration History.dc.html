@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Calibration History</span>
+    <span style="font:400 13px Inter;color:#6B7089">BottomSheetContainer over Colour Calibration · opened from the history icon in the app bar</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="2">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:10px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 7px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#A0A4B8">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+        <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none">
+          <div style="width:48px;height:48px;color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></div>
+          <div style="flex:1;min-width:0;font:600 20px Poppins;color:#fff">Colour Calibration</div>
+          <div style="width:48px;height:48px;color:#fff;display:flex;align-items:center;justify-content:center;flex:none"><span style="font-family:'Material Symbols Rounded';font-size:24px">history</span></div>
+        </div>
+        <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <div style="height:96px;border:1px solid #E5E7F0;border-radius:12px"></div>
+          <div style="height:180px;border:1px solid #E5E7F0;border-radius:12px"></div>
+        </div>
+
+        <div style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;max-height:640px;background:#fff;border-radius:20px 20px 0 0;padding:8px 0 16px;display:flex;flex-direction:column">
+          <div style="width:36px;height:4px;border-radius:2px;background:#E5E7F0;align-self:center;flex:none"></div>
+          <div style="padding:12px 20px 8px;display:flex;flex-direction:column;gap:4px;flex:none"><span style="font:600 16px Poppins;color:#1A1D2E">Calibration history</span><span style="font:400 12px Inter;color:#6B7089">Each session is valid for 8 hours</span></div>
+
+          <sc-if value="{{ fr.hasItems }}" hint-placeholder-val="{{ true }}">
+            <div data-scroll="1" style="overflow-y:auto;min-height:0;display:flex;flex-direction:column;padding:4px 8px 0">
+              <sc-for list="{{ sessions }}" as="s" hint-placeholder-count="5">
+                <div style="min-height:72px;padding:12px;border-radius:12px;display:flex;align-items:center;gap:12px;background:{{ s.bg }}" style-hover="background:#EEF1FA">
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="font:600 14px Poppins;color:#1A1D2E;white-space:nowrap">{{ s.when }}</span>
+                      <sc-if value="{{ s.current }}" hint-placeholder-val="{{ false }}"><span style="height:20px;padding:0 8px;border-radius:10px;background:#1B3A8C;color:#fff;font:600 10px Poppins;display:inline-flex;align-items:center">Current</span></sc-if>
+                    </div>
+                    <span style="font:400 12px Inter;color:#6B7089">{{ s.device }}</span>
+                    <span style="font:400 11px 'JetBrains Mono',monospace;color:#A0A4B8">{{ s.id }}</span>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none">
+                    <span style="font:600 16px Poppins;color:#1A1D2E;font-variant-numeric:tabular-nums">{{ s.res }}</span>
+                    <span style="height:20px;padding:0 8px;border-radius:10px;background:{{ s.tint }};display:inline-flex;align-items:center;gap:4px;font:600 10px Poppins;color:#1A1D2E"><span style="width:5px;height:5px;border-radius:50%;background:{{ s.color }}"></span>{{ s.q }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ fr.isEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:8px 16px 8px;display:flex;flex-direction:column;gap:16px">
+              <div style="padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;border:1px dashed #E5E7F0;border-radius:12px">
+                <div style="width:64px;height:64px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:32px">palette</span></div>
+                <span style="font:600 16px Poppins;color:#1A1D2E">No calibrations yet</span>
+                <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Calibrate once per session before grading. Past sessions will appear here.</span>
+              </div>
+              <a href="Calibration Start.dc.html" style="width:100%;height:48px;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;display:flex;align-items:center;justify-content:center" style-active="background:#3B5FD9">Start Calibration</a>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const Q = { Excellent: ['#10B981', 'rgba(16,185,129,.12)'], Acceptable: ['#F59E0B', 'rgba(245,158,11,.14)'], Poor: ['#EF4444', 'rgba(239,68,68,.12)'] };
+    const S = [
+      ['Today, 09:12', 'S-2026-10-14-04', 0.08, 'Excellent', true],
+      ['Today, 06:40', 'S-2026-10-14-03', 0.34, 'Poor'],
+      ['13 Oct, 14:05', 'S-2026-10-13-02', 0.17, 'Acceptable'],
+      ['13 Oct, 08:30', 'S-2026-10-13-01', 0.09, 'Excellent'],
+      ['10 Oct, 10:22', 'S-2026-10-10-01', 0.11, 'Excellent'],
+    ];
+    const sessions = S.map(([when, id, r, q, current]) => ({
+      when, id, res: r.toFixed(2), q, current: !!current, device: 'OnePlus Nord 2',
+      color: Q[q][0], tint: Q[q][1], bg: current ? '#EEF1FA' : 'transparent',
+    }));
+    return {
+      sessions,
+      frames: [
+        { id: '7a', caption: 'List · 5 sessions', label: 'Calibration History · a', hasItems: true, isEmpty: false },
+        { id: '7b', caption: 'Empty', label: 'Calibration History · b', hasItems: false, isEmpty: true },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

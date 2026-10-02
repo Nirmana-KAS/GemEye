@@ -6,6 +6,7 @@ import 'firebase_options.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
 import 'screens/splash_screen.dart';
+import 'services/calibration_service.dart';
 import 'services/notification_service.dart';
 
 void main() async {
@@ -20,6 +21,7 @@ void main() async {
   ]);
   SystemChrome.setSystemUIOverlayStyle(AppSystemUi.darkIcons);
   await NotificationService.init();
+  await CalibrationService.init();
   FlutterNativeSplash.remove();
   runApp(const GemEyeApp());
 }

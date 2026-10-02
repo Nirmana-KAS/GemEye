@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+@keyframes ge-spin{to{transform:rotate(360deg)}}
+@keyframes ge-gem{0%{transform:rotateY(0) rotate(0)}50%{transform:rotateY(180deg) rotate(10deg)}100%{transform:rotateY(360deg) rotate(0)}}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Processing</span>
+    <span style="font:400 13px Inter;color:#6B7089">After "Grade This Stone" · 11a in progress, 11b–11d AppDialog errors over the same screen</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="4">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:10px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 7px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#A0A4B8">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#1A1D2E;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+
+        <div style="flex:1;min-height:0;padding:72px 32px 24px;display:flex;flex-direction:column;align-items:center;gap:40px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:16px">
+            <div style="width:80px;height:80px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center">{{ gem }}</div>
+            <span style="font:600 20px Poppins;color:#1A1D2E">Grading your stone</span>
+          </div>
+
+          <div style="align-self:stretch;display:flex;flex-direction:column">
+            <sc-for list="{{ steps }}" as="s" hint-placeholder-count="6">
+              <div style="display:flex;gap:12px">
+                <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex:none">
+                  <sc-if value="{{ s.done }}" hint-placeholder-val="{{ false }}"><div style="width:28px;height:28px;border-radius:50%;background:#10B981;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:18px;font-weight:600">check</span></div></sc-if>
+                  <sc-if value="{{ s.active }}" hint-placeholder-val="{{ false }}"><div style="width:28px;height:28px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center">{{ spinStep }}</div></sc-if>
+                  <sc-if value="{{ s.pending }}" hint-placeholder-val="{{ true }}"><div style="width:28px;height:28px;border-radius:50%;border:1.5px solid #E5E7F0;color:#A0A4B8;display:flex;align-items:center;justify-content:center;font:600 12px Poppins">{{ s.n }}</div></sc-if>
+                  <sc-if value="{{ s.line }}" hint-placeholder-val="{{ true }}"><div style="width:2px;flex:1;min-height:12px;background:{{ s.lineColor }};margin:4px 0"></div></sc-if>
+                </div>
+                <div style="flex:1;min-width:0;padding:4px 0 14px">
+                  <span style="font:{{ s.font }};font-size:14px;line-height:1.4;color:{{ s.color }};text-wrap:pretty">{{ s.title }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <span style="font:400 13px Inter;color:#A0A4B8;margin-top:auto">Usually 2–5 seconds</span>
+        </div>
+
+        <sc-if value="{{ fr.hasDialog }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background:rgba(26,29,46,.42);display:flex;align-items:center;justify-content:center;padding:16px">
+            <div style="width:296px;background:#fff;border-radius:14px;padding:24px 20px 16px;display:flex;flex-direction:column;gap:12px">
+              <div style="width:40px;height:40px;border-radius:50%;background:{{ fr.iconTint }};color:{{ fr.iconColor }};display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">{{ fr.icon }}</span></div>
+              <span style="font:600 16px Poppins;color:#1A1D2E">{{ fr.title }}</span>
+              <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">{{ fr.body }}</span>
+              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+                <sc-if value="{{ fr.hasCancel }}" hint-placeholder-val="{{ false }}"><a href="Photo Check.dc.html" style="height:40px;padding:0 16px;border-radius:10px;color:#6B7089;font:600 14px Poppins;display:flex;align-items:center" style-active="background:#EEF1FA">Cancel</a></sc-if>
+                <button style="height:40px;padding:0 18px;border:none;border-radius:10px;background:#1B3A8C;color:#fff;font:600 14px Poppins;cursor:pointer" style-active="background:#3B5FD9">{{ fr.action }}</button>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  spin(size, color, track) {
+    return React.createElement('span', { style: { display: 'inline-block', width: size, height: size, borderRadius: '50%', border: `2px solid ${track}`, borderTopColor: color, animation: 'ge-spin .8s linear infinite', boxSizing: 'border-box', flex: 'none' } });
+  }
+  gem(size, color) {
+    return React.createElement('span', { style: { display: 'inline-block', fontFamily: "'Material Symbols Rounded'", fontSize: size, lineHeight: 1, width: size, height: size, color, fontVariationSettings: "'FILL' 1", animation: 'ge-gem 1.4s ease-in-out infinite', overflow: 'hidden' } }, 'diamond');
+  }
+  renderVals() {
+    const T = ['Uploading photo', 'Applying colour correction', 'Checking image (stone, colour, quality)', 'Measuring 12 colour values', 'Running AI ensemble (CNN + Random Forest)', 'Preparing report'];
+    const A = 3;
+    const steps = T.map((title, i) => ({
+      n: i + 1, title, done: i < A, active: i === A, pending: i > A, line: i < T.length - 1,
+      lineColor: i < A ? '#10B981' : '#E5E7F0',
+      font: i === A ? '600 14px Poppins' : '400 14px Inter', color: i > A ? '#A0A4B8' : '#1A1D2E',
+    }));
+    const err = ['rgba(239,68,68,.12)', '#EF4444'], warn = ['rgba(245,158,11,.14)', '#B45309'];
+    const frames = [
+      { id: '11a', caption: 'Step 4 of 6 active', label: 'Processing', hasDialog: false },
+      { id: '11b', caption: 'Error · No connection', label: 'Processing · No connection', hasDialog: true, icon: 'wifi_off', iconTint: err[0], iconColor: err[1], title: 'No connection', body: 'Check your internet connection and try again. Your photo is kept.', action: 'Retry', hasCancel: true },
+      { id: '11c', caption: 'Error · Timeout', label: 'Processing · Timeout', hasDialog: true, icon: 'hourglass_top', iconTint: warn[0], iconColor: warn[1], title: 'Server is taking too long', body: 'The grading server did not respond in time.', action: 'Retry', hasCancel: false },
+      { id: '11d', caption: 'Error · Generic', label: 'Processing · Error', hasDialog: true, icon: 'error', iconTint: err[0], iconColor: err[1], title: 'Something went wrong', body: 'Please try again later.', action: 'OK', hasCancel: false },
+    ];
+    return { frames, steps, gem: this.gem(40, '#1B3A8C'), spinStep: this.spin(16, '#1B3A8C', '#E5E7F0') };
+  }
+}
+</script>
+</body>
+</html>

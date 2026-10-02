@@ -5,7 +5,9 @@ import '../config/theme.dart';
 import '../config/constants.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
+import '../services/calibration_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/calibration_history_sheet.dart';
 import 'onboarding_screen.dart';
 import 'calibration_screen.dart';
 import 'profile_screen.dart';
@@ -40,7 +42,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _exportFormat = prefs.getString('export_format') ?? 'PDF Certificate';
       _certificatePrefix = prefs.getString('certificate_prefix') ?? AppConstants.defaultCertificatePrefix;
       _autoSaveImages = prefs.getBool('auto_save_images') ?? false;
-      _isCalibrated = prefs.getBool('is_calibrated') ?? false;
+      _isCalibrated = CalibrationService.isValidNow;
     });
   }
 
@@ -143,33 +145,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               trailing: const Icon(Icons.chevron_right, color: GemEyeColors.textMuted),
-              onTap: () {
-                showModalBottomSheet(
-                  context: context,
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-                  ),
-                  builder: (ctx) => const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.history_rounded, size: 40, color: GemEyeColors.textMuted),
-                        SizedBox(height: 12),
-                        Text(
-                          'No calibrations recorded yet',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.body,
-                            fontSize: 14,
-                            color: GemEyeColors.textSecondary,
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                );
-              },
+              onTap: () => CalibrationHistorySheet.show(
+                context,
+                onStart: () =>
+                    AppRoutes.push(context, const CalibrationScreen()),
+              ),
             ),
             const Divider(),
 

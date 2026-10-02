@@ -26,7 +26,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   static const List<_SlideText> _slides = [
     _SlideText(
       'Grade blue sapphires objectively',
-      'Classify 1–5 mm blue sapphires into the 7 GEMCLOUD colour grades using your phone.',
+      'Classify 1-5 mm blue sapphires into the 7 GEMCLOUD colour grades using your phone.',
     ),
     _SlideText(
       'What you need',
@@ -647,7 +647,7 @@ class _ReportVisual extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        'Vivid — Royal Blue',
+                        'Vivid - Royal Blue',
                         style:
                             AppText.label.copyWith(color: AppColors.onPrimary),
                       ),

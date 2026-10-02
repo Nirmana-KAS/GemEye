@@ -1,483 +1,268 @@
 import 'package:flutter/material.dart';
+import '../config/routes.dart';
 import '../config/theme.dart';
+import '../services/calibration_service.dart';
+import '../widgets/app_buttons.dart';
+import '../widgets/app_snack_bar.dart';
+import '../widgets/calibration_history_sheet.dart';
+import '../widgets/card_container.dart';
+import '../widgets/gem_app_bar.dart';
+import 'calibration_patch_screen.dart';
+import 'capture_screen.dart';
 
-class CalibrationScreen extends StatefulWidget {
+/// Reference swatch colours, in [kCalibrationPatches] order.
+const List<Color> kPatchColors = [
+  AppColors.patchWhite,
+  AppColors.patchBlack,
+  AppColors.patchGrey18,
+  AppColors.patchGrey50,
+  AppColors.patchBlue,
+  AppColors.patchRed,
+];
+
+/// "#RRGGBB" for an RGB triple (0-255).
+String rgbHex(List<int> rgb) =>
+    '#${rgb.map((v) => v.toRadixString(16).padLeft(2, '0')).join().toUpperCase()}';
+
+/// Colour Calibration start: explains the 6-patch flow and starts it.
+class CalibrationScreen extends StatelessWidget {
   const CalibrationScreen({super.key});
 
-  @override
-  State<CalibrationScreen> createState() => _CalibrationScreenState();
-}
+  /// Opens Capture when the calibration is valid, otherwise Calibration.
+  static void openGrading(BuildContext context) {
+    if (CalibrationService.isValidNow) {
+      AppRoutes.push(context, const CaptureScreen());
+      return;
+    }
+    AppSnackBar.show(context,
+        message: 'Calibrate your phone before grading.',
+        type: AppSnackBarType.info);
+    AppRoutes.push(context, const CalibrationScreen());
+  }
 
-class _CalibrationScreenState extends State<CalibrationScreen> {
-  int _currentStep = 0;
+  Future<void> _start(BuildContext context) async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const CalibrationPatchScreen()),
+    );
+    if (saved == true && context.mounted) {
+      AppRoutes.pushReplacement(context, const CaptureScreen());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Calibrate Device'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
+      backgroundColor: AppColors.background,
+      appBar: GemAppBar(
+        title: 'Colour Calibration',
+        leading: GemAppBarLeading.back,
+        actions: [
+          IconButton(
+            tooltip: 'Calibration history',
+            color: AppColors.onPrimary,
+            icon: const Icon(Icons.history_rounded),
+            onPressed: () => CalibrationHistorySheet.show(context),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+        ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // Step indicator
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              child: Row(
-                children: List.generate(3, (index) {
-                  return Expanded(
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                children: [
+                  _buildIntro(),
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildChecklist(),
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildPatches(),
+                  const SizedBox(height: AppSpacing.lg),
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Icon(Icons.schedule_rounded,
+                            size: 18, color: AppColors.textSecondary),
+                        const SizedBox(width: AppSpacing.md),
                         Expanded(
-                          child: Container(
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: index <= _currentStep
-                                  ? GemEyeColors.primary
-                                  : GemEyeColors.border,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
+                          child: Text(
+                            'Takes about 2 minutes. Valid for this session (8 hours).',
+                            style: AppText.body14.copyWith(
+                                fontSize: 13, color: AppColors.textSecondary),
                           ),
                         ),
-                        if (index < 2) const SizedBox(width: 6),
                       ],
-                    ),
-                  );
-                }),
-              ),
-            ),
-            // Step label
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Step ${_currentStep + 1} of 3',
-                  style: const TextStyle(
-                    fontFamily: GemEyeFonts.body,
-                    fontSize: 13,
-                    color: GemEyeColors.textMuted,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            // Step content
-            Expanded(
-              child: _buildStepContent(),
-            ),
-            // Bottom button
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_currentStep < 2) {
-                      setState(() => _currentStep++);
-                    } else {
-                      _completeCalibration();
-                    }
-                  },
-                  child: Text(
-                    _currentStep < 2 ? 'Next' : 'Complete Calibration',
-                    style: const TextStyle(
-                      fontFamily: GemEyeFonts.heading,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStepContent() {
-    switch (_currentStep) {
-      case 0:
-        return _buildStep1();
-      case 1:
-        return _buildStep2();
-      case 2:
-        return _buildStep3();
-      default:
-        return const SizedBox();
-    }
-  }
-
-  Widget _buildStep1() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: GemEyeColors.primarySurface,
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: const Icon(Icons.grid_view_rounded, size: 48, color: GemEyeColors.primary),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Place CCC Card',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: GemEyeFonts.heading,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: GemEyeColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Place the 6-patch Colour Calibration Card (CCC) on a flat surface under your current lighting conditions. Make sure all 6 colour patches are clean and visible.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: GemEyeFonts.body,
-              fontSize: 14,
-              color: GemEyeColors.textSecondary,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: GemEyeColors.primarySurface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: GemEyeColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'CCC Card Patches:',
-                  style: TextStyle(
-                    fontFamily: GemEyeFonts.body,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    color: GemEyeColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildPatchPreview('White', const Color(0xFFF0F0F0)),
-                    _buildPatchPreview('18% Grey', const Color(0xFF767676)),
-                    _buildPatchPreview('Blue', const Color(0xFF004D8D)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    _buildPatchPreview('Black', const Color(0xFF101010)),
-                    _buildPatchPreview('50% Grey', const Color(0xFFB5B5B5)),
-                    _buildPatchPreview('Red', const Color(0xFF95444F)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStep2() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: GemEyeColors.primarySurface,
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: const Icon(Icons.phone_android_rounded, size: 48, color: GemEyeColors.primary),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Mount Phone on Tripod',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: GemEyeFonts.heading,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: GemEyeColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Mount your phone on the tripod pointing straight down at the CCC card. Attach the Apexel 100mm macro lens and CPL filter. Make sure the phone is stable and all 6 patches are visible in the camera view.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: GemEyeFonts.body,
-              fontSize: 14,
-              color: GemEyeColors.textSecondary,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF8F0),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: GemEyeColors.warning.withValues(alpha: 0.3)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.lightbulb_outline_rounded, size: 20, color: Color(0xFF92400E)),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Tip: Make sure the lighting is even across all patches. Avoid direct sunlight or harsh shadows.',
-                    style: TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 12,
-                      color: Color(0xFF92400E),
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStep3() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: GemEyeColors.primarySurface,
-              borderRadius: BorderRadius.circular(50),
-            ),
-            child: const Icon(Icons.camera_alt_rounded, size: 48, color: GemEyeColors.primary),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Capture CCC Card',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: GemEyeFonts.heading,
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: GemEyeColors.textPrimary,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Take a photo of the CCC card. The system will detect all 6 patches and compute your device\'s colour correction matrix automatically.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontFamily: GemEyeFonts.body,
-              fontSize: 14,
-              color: GemEyeColors.textSecondary,
-              height: 1.5,
-            ),
-          ),
-          const SizedBox(height: 24),
-          // Simulated viewfinder
-          Container(
-            height: 220,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Patch grid preview
-                  SizedBox(
-                    width: 160,
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildViewfinderPatch(const Color(0xFFF0F0F0)),
-                            _buildViewfinderPatch(const Color(0xFF767676)),
-                            _buildViewfinderPatch(const Color(0xFF004D8D)),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            _buildViewfinderPatch(const Color(0xFF101010)),
-                            _buildViewfinderPatch(const Color(0xFFB5B5B5)),
-                            _buildViewfinderPatch(const Color(0xFF95444F)),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Tap "Complete Calibration" to capture',
-                    style: TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 11,
-                      color: Colors.white54,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          // Info box
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: GemEyeColors.primarySurface,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: GemEyeColors.border),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline_rounded, size: 18, color: GemEyeColors.primary),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Calibration is valid for this entire session. Recalibrate if you change lighting or device.',
-                    style: TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 11,
-                      color: GemEyeColors.textSecondary,
-                      height: 1.4,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPatchPreview(String label, Color color) {
-    return Column(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: GemEyeColors.border, width: 0.5),
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            fontFamily: GemEyeFonts.body,
-            fontSize: 9,
-            color: GemEyeColors.textMuted,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildViewfinderPatch(Color color) {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: GemEyeColors.success, width: 1.5),
-      ),
-    );
-  }
-
-  void _completeCalibration() {
-    // TODO: Implement actual camera capture and CCC processing
-    // For now, show success dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: GemEyeColors.success.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(32),
-              ),
-              child: const Icon(Icons.check_circle_rounded, size: 40, color: GemEyeColors.success),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Calibration Complete',
-              style: TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: GemEyeColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Residual ΔE: 1.4 (excellent)\nYour device is ready for grading.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: GemEyeFonts.body,
-                fontSize: 13,
-                color: GemEyeColors.textSecondary,
-                height: 1.4,
+            CalibrationBottomBar(
+              child: PrimaryButton(
+                label: 'Start Calibration',
+                onPressed: () => _start(context),
               ),
             ),
           ],
         ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context); // Close dialog
-                Navigator.pop(context); // Go back to home
-              },
-              child: const Text('Start Grading'),
+      ),
+    );
+  }
+
+  Widget _buildIntro() {
+    return CardContainer(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: const Icon(Icons.palette_rounded,
+                size: 22, color: AppColors.primary),
+          ),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(
+            child: Text(
+              'Your phone changes colours. GemEye measures 6 known colour patches and corrects every photo in this session.',
+              style: AppText.body14.copyWith(height: 1.5),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildChecklist() {
+    const items = [
+      (Icons.wb_incandescent_rounded, 'Same lighting you will grade in'),
+      (Icons.videocam_rounded, 'Phone on tripod'),
+      (Icons.flare_rounded, 'Macro lens + CPL attached'),
+      (Icons.wb_sunny_rounded,
+          'Camera in Pro mode, white balance ‘Daylight’ locked'),
+    ];
+    return CardContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Before you start', style: AppText.sectionHeader),
+          for (final (icon, text) in items) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(icon, size: 20, color: AppColors.primary),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(child: Text(text, style: AppText.body14)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatches() {
+    Widget tile(int i) {
+      final p = kCalibrationPatches[i];
+      return Column(
+        children: [
+          SizedBox(
+            width: 62,
+            height: 62,
+            child: Stack(
+              children: [
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: kPatchColors[i],
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 20,
+                  height: 20,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppColors.card,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text('${i + 1}',
+                      style: AppText.button
+                          .copyWith(fontSize: 11, color: AppColors.primary)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(p.name,
+              style: AppText.body14Medium.copyWith(fontSize: 12),
+              maxLines: 1),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(rgbHex(p.rgb),
+              style: AppText.monoValue
+                  .copyWith(fontSize: 11, color: AppColors.textSecondary)),
+        ],
+      );
+    }
+
+    Widget row(int start) => Row(
+          children: [
+            for (var i = start; i < start + 3; i++)
+              Expanded(child: tile(i)),
+          ],
+        );
+
+    return CardContainer(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('6 patches, in this order', style: AppText.sectionHeader),
+          const SizedBox(height: AppSpacing.xxs),
+          const Text('One photo per patch · patch fills the frame',
+              style: AppText.secondary),
+          const SizedBox(height: AppSpacing.lg),
+          row(0),
+          const SizedBox(height: AppSpacing.lg),
+          row(3),
+        ],
+      ),
+    );
+  }
+}
+
+/// White bottom action area with a top border, shared by the calibration
+/// screens.
+class CalibrationBottomBar extends StatelessWidget {
+  final Widget child;
+
+  const CalibrationBottomBar({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxl),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: child,
     );
   }
 }

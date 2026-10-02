@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Pro Mode Guide</span>
+    <span style="font:400 13px Inter;color:#6B7089">BottomSheetContainer over Grade a Stone · opened from "How to set up Pro mode"</span>
+  </div>
+  <div id="9a" style="display:flex;flex-direction:column;gap:10px;flex:none">
+    <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 7px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">9a</span><span style="font:500 11px Inter;color:#A0A4B8">Open</span></div>
+    <div data-screen-label="Pro Mode Guide" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+      <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none">
+        <span>9:41</span>
+        <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+      </div>
+      <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none">
+        <div style="width:48px;height:48px;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></div>
+        <div style="flex:1;font:600 20px Poppins;color:#fff">Grade a Stone</div>
+      </div>
+      <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px">
+        <div style="height:220px;border:1.5px solid #1B3A8C;border-radius:12px"></div>
+        <div style="height:120px;border:1px solid #E5E7F0;border-radius:12px"></div>
+      </div>
+
+      <a href="Grade Capture.dc.html" style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></a>
+      <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:8px 20px 20px;display:flex;flex-direction:column;gap:16px">
+        <div style="width:36px;height:4px;border-radius:2px;background:#E5E7F0;align-self:center"></div>
+        <div style="display:flex;flex-direction:column;gap:4px"><span style="font:600 16px Poppins;color:#1A1D2E">Set up Pro mode</span><span style="font:400 12px Inter;color:#6B7089">In your phone's own camera app</span></div>
+        <div style="display:flex;flex-direction:column">
+          <sc-for list="{{ steps }}" as="s" hint-placeholder-count="5">
+            <div style="display:flex;gap:12px">
+              <div style="display:flex;flex-direction:column;align-items:center;width:28px;flex:none">
+                <div style="width:28px;height:28px;border-radius:50%;background:#1B3A8C;color:#fff;display:flex;align-items:center;justify-content:center;font:600 12px Poppins;flex:none">{{ s.n }}</div>
+                <sc-if value="{{ s.line }}" hint-placeholder-val="{{ true }}"><div style="width:2px;flex:1;min-height:12px;background:#E5E7F0;margin:4px 0"></div></sc-if>
+              </div>
+              <div style="flex:1;min-width:0;display:flex;gap:12px;align-items:flex-start;padding:2px 0 16px">
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                  <span style="font:600 14px/1.35 Poppins;color:#1A1D2E;text-wrap:pretty">{{ s.title }}</span>
+                  <span style="font:400 12px/1.4 Inter;color:#6B7089;text-wrap:pretty">{{ s.sub }}</span>
+                </div>
+                <div style="width:40px;height:40px;border-radius:10px;background:#EEF1FA;color:#1B3A8C;display:flex;align-items:center;justify-content:center;flex:none"><span style="font-family:'Material Symbols Rounded';font-size:22px">{{ s.icon }}</span></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-start;padding:12px;border:1px solid #E5E7F0;border-radius:12px">
+          <span style="font-family:'Material Symbols Rounded';font-size:18px;color:#1B3A8C">dataset</span>
+          <span style="font:400 13px/1.45 Inter;color:#6B7089;text-wrap:pretty">These are the same settings used to build GemEye's dataset.</span>
+        </div>
+        <a href="Grade Capture.dc.html" style="width:100%;height:48px;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;display:flex;align-items:center;justify-content:center" style-active="background:#3B5FD9">Got it</a>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const S = [
+      ['Open camera → Pro / Manual mode', 'Swipe the mode bar to Pro or Manual', 'photo_camera'],
+      ['Set WB to Daylight', '≈5000–5500 K · keep it locked', 'wb_sunny'],
+      ['Set focus on the stone', 'Use manual focus (MF) until edges are sharp', 'center_focus_strong'],
+      ['Lock exposure on the stone', 'Tap and hold the stone to lock AE', 'exposure'],
+      ['Take photo, then return to GemEye', 'Tap Import from Gallery', 'photo_library'],
+    ];
+    return { steps: S.map(([title, sub, icon], i) => ({ n: i + 1, title, sub, icon, line: i < S.length - 1 })) };
+  }
+}
+</script>
+</body>
+</html>
