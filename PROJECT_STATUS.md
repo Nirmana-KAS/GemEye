@@ -1396,3 +1396,32 @@
   - `~` app/lib/screens/history_screen.dart
 - **Connected edits:** EDIT-070; Claude Design Group EF export (Grading History)
 - **Reason:** History must match the approved design and flag referred stones.
+
+### EDIT-073 | 02 October 2026 13:14 | IST
+- **Topic:** Stone Comparison Redesign
+- **Summary:** Comparison follows the Group E design and uses CIEDE2000 instead of the old CIE76 distance.
+- **What was done:**
+  - Stone A / Stone B pickers with a swap button; history bottom sheet with search, the other stone disabled and tagged, current stone ticked
+  - Photo cards with A/B tags, capture date and a grade chip (swatch, G code, GEMCLOUD name)
+  - Result card: "ΔE₀₀ = x.x" from `ColourMath.deltaE2000`; < 2 green "Visually very similar", 2-5 amber "Noticeable difference", > 5 red "Clearly different"; grade difference
+  - Table L*, a*, b*, C*, Hue (circular difference), Saturation, Brightness with coloured difference text only (green < 1, amber 1-3, red > 3); J and M rows TODO(backend)
+  - "Compare another" reopens the Stone B picker; EmptyState until both stones are chosen
+- **Files changed:**
+  - `~` app/lib/screens/comparison_screen.dart
+- **Connected edits:** EDIT-069; Claude Design Group EF export (Stone Comparison)
+- **Reason:** Comparison must match the approved design and use a standard perceptual colour difference.
+
+### EDIT-074 | 02 October 2026 13:14 | IST
+- **Topic:** Colour Grade Guide Redesign
+- **Summary:** Guide follows the Group E design with a 7-colour strip and expandable grade cards; grade data aligned with the GEMCLOUD standard.
+- **What was done:**
+  - GemAppBar with menu (opens the shell drawer); 7-segment strip (tap opens and scrolls to the card), "Darkest" / "Lightest"
+  - Expandable cards (G3 open by default): swatch, "Grade N · Name", trade name, description, Tone and Saturation tiles, tip box; footer "Based on the GEMCLOUD 7-Grade Standard · GRS · Bellerophon. Works offline."
+  - "Lightness L*" and "Chroma C*" tiles not shown (TODO(dataset): real per-grade median L* and C* from the training set)
+  - colour_grades.json rewritten with the CLAUDE.md names, trade names and hex values plus the design copy (description, tone, saturation, tip); legacy colour ranges removed; swatches use AppColors.grades
+- **Files changed:**
+  - `~` app/lib/screens/guide_screen.dart
+  - `~` app/assets/data/colour_grades.json
+- **Connected edits:** Claude Design Group EF export (Colour Grade Guide)
+- **Reason:** The guide must match the approved design and the 7 GEMCLOUD grades.
+- **Notes:** flutter analyze: 0 errors (11 existing infos in settings_screen.dart); colour_math_test passes; widget_test.dart already failed before Group E. Debug APK built; not installed because the OnePlus Nord 2 was not connected (only an emulator was attached).
