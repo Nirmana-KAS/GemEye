@@ -1195,3 +1195,27 @@
   - `~` app/pubspec.lock
 - **Connected edits:** EDIT-059; Claude Design Group C export (design/exports/groupCD)
 - **Reason:** Grading must run on colour-corrected photos using the same CCM as the training pipeline.
+
+### EDIT-061 | 02 October 2026 08:30 | IST
+- **Topic:** Calibration Flow Screens
+- **Summary:** Replaced the placeholder 3-step calibration wizard with the Group C flow: Start, Patch Capture (x6), Result and the History bottom sheet.
+- **What was done:**
+  - Calibration Start: intro card, "Before you start" checklist, 6 patches in order (swatch, number, hex), 8 h note, "Start Calibration"; history icon in the app bar opens the History sheet
+  - Patch Capture: StepProgress over the 6 patches, reference swatch + instruction, phone guide illustration (dashed centre 50%, corner brackets), "Take Photo" (camera) and "Import from Gallery (Pro mode)"
+  - After capture: photo thumbnail with the measured square, reference vs measured swatches, "Measured RGB r, g, b" in JetBrains Mono, Retake / Next patch (Finish on patch 6)
+  - Non-uniform patch: error state, AppSnackBar "Patch not uniform - shadow or edge detected. Retake." with Retake action, Next disabled
+  - Back with progress: AppDialog "Cancel calibration? Progress will be lost."
+  - Result: residual + verdict chip + note, 6 tiles (reference vs corrected = measured · M, per-patch error), device / session / valid until; Excellent/Acceptable save and open Capture with "Calibrated - residual 0.xx"; Poor disables save (Recalibrate only)
+  - History sheet: newest first, "Current" tag on the valid session, expired sessions muted, EmptyState with "Start Calibration"
+  - New reusable widgets: AppDialog, StepProgress, SecondaryButton, QualityChip
+- **Files changed:**
+  - `~` app/lib/screens/calibration_screen.dart
+  - `+` app/lib/screens/calibration_patch_screen.dart
+  - `+` app/lib/screens/calibration_result_screen.dart
+  - `+` app/lib/widgets/calibration_history_sheet.dart
+  - `+` app/lib/widgets/app_dialog.dart
+  - `+` app/lib/widgets/step_progress.dart
+  - `~` app/lib/widgets/app_buttons.dart
+  - `~` app/macos/Flutter/GeneratedPluginRegistrant.swift
+- **Connected edits:** EDIT-060 (calibration service); Claude Design Group C export (design/exports/groupCD/Calibration Start, Patch Capture, Result, History)
+- **Reason:** Real 6-patch calibration replaces the mock CCC-card wizard.

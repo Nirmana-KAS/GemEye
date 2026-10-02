@@ -151,3 +151,67 @@ class TextLinkButton extends StatelessWidget {
     );
   }
 }
+
+/// Outlined Royal Blue button on white. Pass a null [onPressed] to disable it.
+class SecondaryButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool fullWidth;
+
+  const SecondaryButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.fullWidth = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = ButtonStyle(
+      minimumSize: const WidgetStatePropertyAll(
+          Size(AppSpacing.controlHeight, AppSpacing.controlHeight)),
+      padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: AppSpacing.xl)),
+      shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg))),
+      textStyle: const WidgetStatePropertyAll(AppText.button),
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      side: WidgetStateProperty.resolveWith((states) => BorderSide(
+            color: states.contains(WidgetState.disabled)
+                ? AppColors.border
+                : AppColors.primary,
+            width: 1.5,
+          )),
+      backgroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.pressed)) return AppColors.surface;
+        return AppColors.card;
+      }),
+      foregroundColor: WidgetStateProperty.resolveWith((states) {
+        if (states.contains(WidgetState.disabled)) return AppColors.textMuted;
+        return AppColors.primary;
+      }),
+    );
+
+    return SizedBox(
+      width: fullWidth ? double.infinity : null,
+      height: AppSpacing.controlHeight,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: style,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20),
+              const SizedBox(width: AppSpacing.md),
+            ],
+            Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
+      ),
+    );
+  }
+}
