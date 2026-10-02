@@ -1159,3 +1159,19 @@
   - `~` app/lib/widgets/side_drawer.dart
 - **Connected edits:** EDIT-056 (white logo frame), EDIT-053 (Side Drawer redesign); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
 - **Reason:** A circular frame matches the round logo better than a rounded square.
+
+### EDIT-059 | 02 October 2026 07:45 | IST
+- **Topic:** No Em/En Dash in User-Visible Text
+- **Summary:** Added a CLAUDE.md rule banning the em dash and en dash in user-visible text and replaced the existing ones with a hyphen.
+- **What was done:**
+  - CLAUDE.md "Things to never do" item 16: use a hyphen (-) instead of the em/en dash in user-visible text
+  - Replaced the dashes in 7 user-visible strings (crop fallback snackbar, Home average placeholder, onboarding slide text and sample grade, result save snackbar, share text, grade title)
+  - Code comments left unchanged; no dashes found in assets/data/
+- **Files changed:**
+  - `~` CLAUDE.md
+  - `~` app/lib/screens/capture_screen.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/onboarding_screen.dart
+  - `~` app/lib/screens/result_screen.dart
+- **Connected edits:** EDIT-055 (edit history rule); Group C task brief
+- **Reason:** Consistent typography in the UI; the hyphen is the agreed separator.

@@ -246,6 +246,7 @@ Refer to the full notification table in the development plan for exact messages.
 13. Never use emojis in code comments (use them only in UI where specified)
 14. Never skip error handling on API calls
 15. Never use `print()` for logging — use `debugPrint()` in debug mode
+16. Never use the em dash (—) or en dash (–) in user-visible text; use a hyphen (-) instead.
 
 ---
 

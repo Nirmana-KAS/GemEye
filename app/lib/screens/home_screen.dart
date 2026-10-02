@@ -230,7 +230,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
         Expanded(
           child: StatCard(
             label: 'Avg confidence',
-            value: avg == null ? '—' : '${avg.round()}%',
+            value: avg == null ? '-' : '${avg.round()}%',
             caption: 'today',
           ),
         ),
