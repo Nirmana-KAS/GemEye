@@ -866,3 +866,296 @@
   - `+` dataset/rename_images.py (new — auto-rename script)
 - **Connected edits:** EDIT-040 (dataset folder restructure)
 - **Reason:** Dataset images from different capture sessions had inconsistent mobile camera names, making it difficult to track counts, identify duplicates, and maintain the ML training pipeline. Consistent naming enables reliable train/val/test splitting and grade verification.
+
+### EDIT-042 | 01 October 2026 21:35 | IST
+- **Topic:** UI Redesign A1 — Design Tokens and Group A Widgets
+- **Summary:** Added named design tokens (AppColors, AppText, AppRadius, AppSpacing) to theme.dart and built the reusable Component Sheet widgets used by the Group A screens. Bundled Roboto Medium for the Google sign-in button.
+- **What was done:**
+  - Added `AppColors` (brand, neutrals, status, tints, Google branding, 7 GEMCLOUD grade colours, 6 calibration patch colours), `AppText` (font families + text style scale), `AppRadius`, `AppSpacing`, `AppSystemUi`
+  - Kept `GemEyeColors` / `GemEyeFonts` as aliases of the new tokens so screens not yet redesigned still compile
+  - Created widgets: PrimaryButton, TextLinkButton, GemAppBar, CardContainer, InputField (with FieldLabel / FieldErrorText), PasswordField (live rule checklist), DropdownField (MenuAnchor menu), AppCheckbox, AppSnackBar, LoadingIndicator, GoogleSignInButton, SegmentedToggle, ImagePickerField (JPG/PNG, 5 MB limit)
+  - Added Roboto-Medium.ttf (from the Flutter SDK's bundled Material fonts) and registered it in pubspec.yaml
+- **Files changed:**
+  - `~` app/lib/config/theme.dart
+  - `+` app/lib/widgets/app_buttons.dart
+  - `+` app/lib/widgets/app_checkbox.dart
+  - `+` app/lib/widgets/app_snack_bar.dart
+  - `+` app/lib/widgets/card_container.dart
+  - `+` app/lib/widgets/dropdown_field.dart
+  - `+` app/lib/widgets/gem_app_bar.dart
+  - `+` app/lib/widgets/google_sign_in_button.dart
+  - `+` app/lib/widgets/image_picker_field.dart
+  - `+` app/lib/widgets/input_field.dart
+  - `+` app/lib/widgets/loading_indicator.dart
+  - `+` app/lib/widgets/password_field.dart
+  - `+` app/lib/widgets/segmented_toggle.dart
+  - `+` app/assets/fonts/Roboto-Medium.ttf
+  - `~` app/pubspec.yaml (Roboto font family)
+- **Connected edits:** Claude Design Group A export (design/exports/groupA/Component Sheet.dc.html)
+- **Reason:** The redesign needs one source of truth for colours, fonts, radii and spacing, and shared widgets so every screen matches the Component Sheet.
+
+### EDIT-043 | 01 October 2026 21:35 | IST
+- **Topic:** UI Redesign A2 — Splash
+- **Summary:** Restyled the Splash screen per the design. The existing Lottie animation and 3 s routing were kept.
+- **What was done:**
+  - New centred layout: sapphire_rotate.json Lottie (120 dp), GemEye wordmark (28 Poppins Bold), tagline, version footer
+  - Dark status bar icons on white background
+  - Logo asset used as Lottie error fallback
+- **Files changed:**
+  - `~` app/lib/screens/splash_screen.dart
+- **Connected edits:** EDIT-042; Claude Design Group A export (design/exports/groupA/Splash.dc.html)
+- **Reason:** Apply the approved Splash design without changing the animation asset or startup routing.
+
+### EDIT-044 | 01 October 2026 21:37 | IST
+- **Topic:** UI Redesign A3 — Privacy Agreement and Shared Policy Text
+- **Summary:** Rebuilt the Privacy Agreement screen per the design and replaced privacy_policy.md with the 8 design sections. Agreement and Privacy Policy screens now render the same markdown file.
+- **What was done:**
+  - Agreement: GemAppBar "Before you start", "Your data, in short" summary card, scrollable policy, fixed bottom AppCheckbox + PrimaryButton disabled until ticked
+  - privacy_policy.md rewritten: Data Collection, Data Storage, Data Sharing, Data Retention, Data Deletion, Image Ownership, AI Processing, No Commercial Use (last updated 1 October 2026)
+  - Created PolicyMarkdown widget that loads and styles the markdown
+  - privacy_screen.dart: removed hardcoded strings, now uses PolicyMarkdown
+- **Files changed:**
+  - `~` app/assets/data/privacy_policy.md
+  - `~` app/lib/screens/agreement_screen.dart
+  - `~` app/lib/screens/privacy_screen.dart
+  - `+` app/lib/widgets/policy_markdown.dart
+- **Connected edits:** EDIT-042; Claude Design Group A export (design/exports/groupA/Privacy Agreement.dc.html)
+- **Reason:** The two privacy screens showed different text; one markdown source keeps them consistent with the design.
+
+### EDIT-045 | 01 October 2026 21:39 | IST
+- **Topic:** UI Redesign A4 — Login
+- **Summary:** Rebuilt the Login screen per the design with the real logo, a Google-branded sign-in button and an inline credential error. Existing auth callbacks were kept.
+- **What was done:**
+  - logo.png + GemEye wordmark header
+  - GoogleSignInButton (white, 1 px #747775 border, Roboto Medium 14, official G logo)
+  - "or" divider (new OrDivider widget)
+  - Labelled email/password fields; Firebase credential errors show "Incorrect email or password" inline in red
+  - Separate loading states: "Signing in…" on Google, "Logging in…" on Log In
+  - Friendly AppSnackBar messages instead of raw Firebase error text
+  - "Forgot password?" and "New to GemEye? Register" as TextLinkButtons
+- **Files changed:**
+  - `~` app/lib/screens/login_screen.dart
+  - `+` app/lib/widgets/or_divider.dart
+- **Connected edits:** EDIT-042; Claude Design Group A export (design/exports/groupA/Login.dc.html)
+- **Reason:** Apply the approved Login design and follow Google sign-in branding rules.
+
+### EDIT-046 | 01 October 2026 21:41 | IST
+- **Topic:** UI Redesign A5 — Register
+- **Summary:** Rebuilt the Register screen per the design with Individual/Company account types, full validation, image pickers and a Google profile-completion variant.
+- **What was done:**
+  - SegmentedToggle Individual / Company
+  - Individual fields: profile photo, Full Name, Email, Password, Phone, Country, Role
+  - Company fields: Company details (name, logo, business reg. no, country, industry) and Contact person (name, email, password, phone, address)
+  - Validation messages: "Required", "Enter a valid email address", "Password does not meet the requirements"; password rules 8+ chars, 1 uppercase, 1 number; "N fields need attention" snackbar
+  - Google "Complete your profile" variant: name and email locked with "From Google", no password field (`RegisterScreen(completeGoogleProfile: true)`)
+  - Fixed bottom "Create Account" bar with loading state
+  - Added `TODO(F2)`: company profile, phone, country, role, profile photo and company logo are not persisted yet
+- **Files changed:**
+  - `~` app/lib/screens/register_screen.dart
+- **Connected edits:** EDIT-042; Claude Design Group A export (design/exports/groupA/Register.dc.html)
+- **Reason:** Apply the approved Register design and support users who sign up with Google.
+
+### EDIT-047 | 01 October 2026 21:58 | IST
+- **Topic:** UI Redesign A6 — Onboarding and On-Device Fixes
+- **Summary:** Rebuilt Onboarding as 4 widget-built slides per the design, initially shown once per device after registration. Fixed layout issues found while testing on a OnePlus Nord 2.
+- **What was done:**
+  - Slides: 7-grade ring around a sapphire, kit checklist, calibration card with patch colours White #FFFFFF, Black #000000, 18% Grey #757575, 50% Grey #BABABA, Blue #003F87, Red #AF363C, sample grade report
+  - Skip (hidden on last slide), animated dots, Next / Get Started
+  - Once-per-device flag `onboarding_done` in SharedPreferences (replaced in EDIT-048)
+  - Slide 4 grade card uses solid Grade 3 colour instead of the design's gradient, because CLAUDE.md forbids gradient card backgrounds. No CLAUDE.md exception for a GradeBadgeCard has been added yet.
+  - Added translucent-white overlay tokens to theme.dart
+  - On-device fixes: Splash content centring, SegmentedToggle full 48 dp height, DropdownField 48 dp height, fixed bottom bars moved to `bottomNavigationBar` so snackbars float above them, slide 1 G1 chip clipping; dart format on Group A files
+- **Files changed:**
+  - `~` app/lib/config/constants.dart
+  - `~` app/lib/config/theme.dart
+  - `~` app/lib/screens/onboarding_screen.dart
+  - `~` app/lib/screens/register_screen.dart
+  - `~` app/lib/screens/splash_screen.dart
+  - `~` app/lib/screens/agreement_screen.dart
+  - `~` app/lib/screens/login_screen.dart
+  - `~` app/lib/widgets/ (app_buttons, app_checkbox, app_snack_bar, dropdown_field, gem_app_bar, image_picker_field, input_field, password_field, policy_markdown, segmented_toggle)
+- **Connected edits:** EDIT-042 to EDIT-046; Claude Design Group A export (design/exports/groupA/Onboarding.dc.html)
+- **Reason:** Apply the approved Onboarding design and fix visual defects seen on a real Android device.
+
+### EDIT-048 | 01 October 2026 22:18 | IST
+- **Topic:** Auth Flow Fixes
+- **Summary:** Made logout reliable through one shared helper, made the Privacy Agreement a one-time step per device, showed Onboarding after every successful sign-in, and routed new Google users to profile completion.
+- **What was done:**
+  - Added `AppRoutes.navigatorKey` and set it on MaterialApp
+  - Added `AuthService.endSession()`: closes open dialogs/sheets, runs an optional pre-step, awaits `signOut()`, then `pushAndRemoveUntil(LoginScreen, (_) => false)`; a static guard ignores a second call while one is running
+  - Side drawer Logout, new Settings "Log out" tile and Settings Delete Account all use `endSession()`
+  - Agreement stores `policy_accepted` in SharedPreferences on Accept & Continue; Splash routes logged in → MainShell, not logged in + accepted → LoginScreen, otherwise → AgreementScreen
+  - Email login, Google login (existing users), email registration and Google profile completion now always open OnboardingScreen, then MainShell; removed the `onboarding_done` flag
+  - Login with Google: new users go to `RegisterScreen(completeGoogleProfile: true)`
+  - Added "View app introduction" to Settings (new Help section) and the side drawer; opens `OnboardingScreen(replay: true)`, where Skip / Get Started just pop back
+  - AndroidManifest: `android:enableOnBackInvokedCallback="true"` on `<application>`
+- **Files changed:**
+  - `~` app/android/app/src/main/AndroidManifest.xml
+  - `~` app/lib/config/constants.dart
+  - `~` app/lib/config/routes.dart
+  - `~` app/lib/main.dart
+  - `~` app/lib/services/auth_service.dart
+  - `~` app/lib/screens/agreement_screen.dart
+  - `~` app/lib/screens/login_screen.dart
+  - `~` app/lib/screens/onboarding_screen.dart
+  - `~` app/lib/screens/register_screen.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `~` app/lib/screens/splash_screen.dart
+  - `~` app/lib/widgets/side_drawer.dart
+- **Connected edits:** EDIT-044 (Agreement), EDIT-045 (Login), EDIT-046 (Register), EDIT-047 (Onboarding); Claude Design Group A export (design/exports/groupA)
+- **Reason:** Logout ran twice and could leave stale screens, the policy was shown on every launch, and new Google users from Login skipped profile completion.
+
+### EDIT-049 | 01 October 2026 23:26 | IST
+- **Topic:** UI Redesign B1 — Status Bar Contrast
+- **Summary:** Made status bar icons readable on every screen. The global default is now dark icons on a transparent bar; screens with a dark top set light icons.
+- **What was done:**
+  - main.dart: global `SystemUiOverlayStyle` → `AppSystemUi.darkIcons`
+  - Home and Processing (white tops, no app bar): `AnnotatedRegion(AppSystemUi.darkIcons)`
+  - Guide (dark gradient header under the status bar): `AnnotatedRegion(AppSystemUi.lightIcons)` so MainShell tab switching stays legible
+  - Splash, Login and Onboarding already set dark icons; primary app bars keep light icons through the app bar theme
+- **Files changed:**
+  - `~` app/lib/main.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/processing_screen.dart
+  - `~` app/lib/screens/guide_screen.dart
+- **Connected edits:** EDIT-042 (AppSystemUi tokens); Claude Design Group B export (design/exports/groupB)
+- **Reason:** White-top screens showed white status bar icons on a white background.
+
+### EDIT-050 | 01 October 2026 23:28 | IST
+- **Topic:** UI Redesign B2 — NotificationService
+- **Summary:** Added a local in-app notification store with a live unread count, and wired the first real events.
+- **What was done:**
+  - `AppNotification` model: id, type (success/warning/error/info), title, message, createdAt, read, action (none/openResult/openCalibration/openCapture/openHistory/openPrivacy), payload
+  - `NotificationService`: JSON in SharedPreferences, newest first, max 100; `add`, `markRead`, `markAllRead`, `delete`, `clearAll`, `list`, `ValueNotifier<int> unreadCount`; loaded at startup in main.dart
+  - Events: result saved with confidence < 60 → warning "Stone referred" (openResult with stone ID); certificate PDF saved → success "Certificate saved" (openHistory); password changed → info; email change requested → info
+  - TODO hooks: `TODO(C4)` calibration over 8 h, `TODO(backend)` grading failed (openCapture), `TODO` privacy policy updated
+- **Files changed:**
+  - `+` app/lib/models/app_notification.dart
+  - `+` app/lib/services/notification_service.dart
+  - `~` app/lib/main.dart
+  - `~` app/lib/screens/result_screen.dart
+  - `~` app/lib/screens/certificate_screen.dart
+  - `~` app/lib/screens/settings_screen.dart
+- **Connected edits:** Claude Design Group B export (design/exports/groupB/Notifications.dc.html)
+- **Reason:** The Home bell and Notifications screen need real, persisted notifications.
+
+### EDIT-051 | 01 October 2026 23:30 | IST
+- **Topic:** UI Redesign B3 — Group B Widgets
+- **Summary:** Created the reusable widgets used by Home, the Side Drawer and Notifications.
+- **What was done:**
+  - NotificationBell (40 px round button, red badge, "9+" above 9, hidden at 0, listens to unreadCount)
+  - NotificationTile (tinted type icon, title, one-line message, relative time, unread surface background + blue dot, swipe-left Dismissible delete)
+  - StatCard, StatusBanner (success/warning/error), GradeSwatch, ConfidenceBadge (High ≥ 60, Borderline 40–59, Low < 40), EmptyState (dashed border), RecentGradeTile (with "Referred" chip), QuickGradeCard (gradient, white icon frame with sapphire Lottie, logo fallback)
+  - `formatRelativeTime` / `isSameDay` helpers
+- **Files changed:**
+  - `+` app/lib/widgets/notification_bell.dart
+  - `+` app/lib/widgets/notification_tile.dart
+  - `+` app/lib/widgets/stat_card.dart
+  - `+` app/lib/widgets/status_banner.dart
+  - `+` app/lib/widgets/grade_swatch.dart
+  - `+` app/lib/widgets/confidence_badge.dart
+  - `+` app/lib/widgets/empty_state.dart
+  - `+` app/lib/widgets/recent_grade_tile.dart
+  - `+` app/lib/widgets/quick_grade_card.dart
+  - `+` app/lib/widgets/relative_time.dart
+- **Connected edits:** EDIT-042 (tokens), EDIT-050 (notification model); Claude Design Group B export (design/exports/groupB)
+- **Reason:** Group B screens share these components; building them once keeps the screens consistent.
+
+### EDIT-052 | 01 October 2026 23:32 | IST
+- **Topic:** UI Redesign B4 — Home Dashboard
+- **Summary:** Rebuilt Home per the design using real data from StorageService and NotificationService.
+- **What was done:**
+  - Header: time-of-day greeting + first name, NotificationBell, avatar (photo or initials) opening the right-side drawer
+  - Calibration StatusBanner: red "Not calibrated. Calibrate before grading." → CalibrationScreen (`TODO(C4)` drive from saved calibration)
+  - QuickGradeCard "Grade a Stone" → CaptureScreen (replaces the empty onTap TODO; `TODO(B9)` route to Calibration when not calibrated)
+  - Stats for today: count, average confidence ("—" if none), referred (< 60)
+  - Recent Grades: last 5 RecentGradeTiles → ResultScreen; "See all" → History tab; EmptyState with "Grade a stone"
+  - Refresh on pull, on switching back to the Home tab, and when any route above MainShell pops (`AppRoutes.routeObserver`)
+  - CLAUDE.md: added the QuickGradeCard gradient (`#1B3A8C` → `#3B5FD9`) as an exception to rule 12
+- **Files changed:**
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+  - `~` app/lib/config/routes.dart
+  - `~` app/lib/main.dart
+  - `~` CLAUDE.md
+- **Connected edits:** EDIT-049, EDIT-050, EDIT-051; Claude Design Group B export (design/exports/groupB/Home Dashboard.dc.html)
+- **Reason:** Home showed placeholder stats and a Grade a Stone card that did nothing.
+
+### EDIT-053 | 01 October 2026 23:33 | IST
+- **Topic:** UI Redesign B5 — Side Drawer
+- **Summary:** Rebuilt the right-side drawer per the design with current-page highlighting and the shared logout helper.
+- **What was done:**
+  - Royal Blue header: logo.png, "GemEye", close button, avatar, name, email (tap → Profile); role/company line left as `TODO(F2)`
+  - Items: Home, Grade a Stone, Calibration (new), Grading History, Colour Grade Guide, Stone Comparison, Settings, divider, Feedback, Privacy Policy, About, View app introduction; current MainShell tab highlighted
+  - Footer: red Logout (confirm dialog → `AuthService.endSession()`) and "App v1.0"; server status left as TODO
+  - Light status bar icons while the drawer is open
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` app/lib/screens/main_shell.dart
+- **Connected edits:** EDIT-048 (logout helper, View app introduction), EDIT-052; Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** Apply the approved drawer design and add the missing Calibration entry.
+
+### EDIT-054 | 01 October 2026 23:34 | IST
+- **Topic:** UI Redesign B6 — Notifications Screen
+- **Summary:** Added the Notifications centre per the design, opened from the Home bell.
+- **What was done:**
+  - Surface GemAppBar "Notifications" with back and "Mark all as read" (disabled when nothing is unread)
+  - "TODAY" / "EARLIER" sections of NotificationTiles; tap marks read and runs the action (openResult → ResultScreen for the stone ID, openCalibration, openCapture, openHistory → History tab, openPrivacy); swipe left deletes
+  - EmptyState "You're all caught up"
+  - Built and installed the debug APK on the OnePlus Nord 2; Home checked on device
+- **Files changed:**
+  - `+` app/lib/screens/notifications_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+- **Connected edits:** EDIT-050, EDIT-051, EDIT-052; Claude Design Group B export (design/exports/groupB/Notifications.dc.html)
+- **Reason:** Users need one place to see referrals, certificate saves and account updates.
+
+### EDIT-055 | 01 October 2026 23:52 | IST
+- **Topic:** Mandatory Edit History Rule
+- **Summary:** Added a permanent CLAUDE.md rule that every code or asset change must get a PROJECT_STATUS.md entry, committed together with the change.
+- **What was done:**
+  - Added the "Edit history (mandatory)" section to CLAUDE.md after the mandatory rules
+- **Files changed:**
+  - `~` CLAUDE.md
+- **Connected edits:** CLAUDE.md Rule 1 (always update PROJECT_STATUS.md); Claude Design Group B export (design/exports/groupB)
+- **Reason:** Make sure small fixes are logged too, not only larger features.
+
+### EDIT-056 | 01 October 2026 23:55 | IST
+- **Topic:** Side Drawer Logo Visibility
+- **Summary:** The dark-blue logo was hard to see on the Royal Blue drawer header; it now sits in a white rounded frame.
+- **What was done:**
+  - logo.png placed in a 40×40 white frame (radius AppRadius.md, padding 4, subtle shadow), logo 32×32 BoxFit.contain
+  - "GemEye" text kept beside it, vertically centred
+  - Corrected EDIT-055 "Connected edits" to reference CLAUDE.md Rule 1
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-053 (Side Drawer redesign); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** Logo contrast on the primary-coloured header.
+
+### EDIT-057 | 01 October 2026 23:58 | IST
+- **Topic:** Side Drawer Back Navigation
+- **Summary:** Screens opened from the drawer now return to the open drawer on back; tab items close the drawer and switch tab; back with the drawer open closes it instead of showing the exit dialog.
+- **What was done:**
+  - Calibration, Stone Comparison, Settings, Privacy Policy, About, View app introduction and the profile header push their screen without closing the drawer
+  - Feedback bottom sheet opens over the open drawer; dismissing it leaves the drawer open
+  - Grade a Stone, Grading History and Colour Grade Guide close the drawer, then go through MainShell's `_onNavTap` (Grade opens Capture, same as the bottom nav)
+  - Home item just closes the drawer; Logout unchanged (`AuthService.endSession()`)
+  - MainShell: added a Scaffold key; the PopScope back handler closes an open end-drawer first, then returns non-Home tabs to Home, then shows the exit dialog
+  - Tested on the OnePlus Nord 2: Settings → back → drawer → back → Home; History → back → Home tab; Feedback → dismiss → drawer still open
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` app/lib/screens/main_shell.dart
+- **Connected edits:** EDIT-053 (Side Drawer redesign), EDIT-056 (drawer logo); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** Back from a drawer screen used to land on Home with the drawer closed, and back with the drawer open showed the exit dialog.
+
+### EDIT-058 | 02 October 2026 05:46 | IST
+- **Topic:** Side Drawer Circular Logo Frame
+- **Summary:** Changed the white logo frame in the drawer header from a rounded square to a circle.
+- **What was done:**
+  - Frame: 40×40 white `BoxShape.circle`, same subtle shadow, padding 4
+  - Logo clipped with `ClipOval`, 32×32, BoxFit.contain so it never touches the edge
+  - Checked on the OnePlus Nord 2
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+- **Connected edits:** EDIT-056 (white logo frame), EDIT-053 (Side Drawer redesign); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** A circular frame matches the round logo better than a rounded square.

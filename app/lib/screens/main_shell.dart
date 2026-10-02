@@ -7,6 +7,7 @@ import 'home_screen.dart';
 import 'capture_screen.dart';
 import 'history_screen.dart';
 import 'guide_screen.dart';
+import 'notifications_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -17,17 +18,31 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
+  final GlobalKey<HomeScreenState> _homeKey = GlobalKey<HomeScreenState>();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _onNavTap(int index) {
     if (index == 1) {
       AppRoutes.push(context, const CaptureScreen());
     } else {
-      setState(() => _currentIndex = index);
+      _switchTab(index);
     }
   }
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  void _switchTab(int index) {
+    setState(() => _currentIndex = index);
+    if (index == 0) _homeKey.currentState?.refresh();
+  }
+
+  late final List<Widget> _screens = [
+    HomeScreen(
+      key: _homeKey,
+      onOpenHistory: () => _switchTab(2),
+      onOpenNotifications: () => AppRoutes.push(
+        context,
+        NotificationsScreen(onOpenHistory: () => _switchTab(2)),
+      ),
+    ),
     const _PlaceholderScreen(title: 'Grade', icon: Icons.camera_alt_rounded),
     const HistoryScreen(),
     const GuideScreen(),
@@ -36,8 +51,15 @@ class _MainShellState extends State<MainShell> {
   void _handleBackButton(bool didPop, dynamic result) {
     if (didPop) return;
 
+    // Back with the drawer open closes the drawer first.
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold != null && scaffold.isEndDrawerOpen) {
+      scaffold.closeEndDrawer();
+      return;
+    }
+
     if (_currentIndex != 0) {
-      setState(() => _currentIndex = 0);
+      _switchTab(0);
       return;
     }
 
@@ -84,9 +106,11 @@ class _MainShellState extends State<MainShell> {
       canPop: false,
       onPopInvokedWithResult: _handleBackButton,
       child: Scaffold(
+        key: _scaffoldKey,
         backgroundColor: Colors.white,
         endDrawer: GemEyeSideDrawer(
-          onTabSwitch: (index) => setState(() => _currentIndex = index),
+          currentIndex: _currentIndex,
+          onTabSwitch: _onNavTap,
         ),
         body: IndexedStack(
           index: _currentIndex,

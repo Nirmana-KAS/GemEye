@@ -80,3 +80,7 @@ flutter:
       fonts:
         - asset: assets/fonts/JetBrainsMono-Regular.ttf
           weight: 400
+    - family: Roboto
+      fonts:
+        - asset: assets/fonts/Roboto-Medium.ttf
+          weight: 500

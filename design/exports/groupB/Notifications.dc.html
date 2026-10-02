@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Notifications</span>
+    <span style="font:400 13px Inter;color:#6B7089">Tap an unread tile to mark it read · Mark all as read clears the dots · tap a tile in 3b to reveal swipe-to-delete</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="3">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:10px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 7px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#A0A4B8">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#1A1D2E;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+        <div style="height:56px;background:#fff;border-bottom:1px solid #E5E7F0;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none">
+          <a href="Home Dashboard.dc.html" style="width:48px;height:48px;border-radius:50%;color:#1A1D2E;display:flex;align-items:center;justify-content:center" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></a>
+          <div style="flex:1;font:600 20px Poppins;color:#1A1D2E">Notifications</div>
+          <button onClick="{{ fr.markAll }}" disabled="{{ fr.noUnread }}" style="height:40px;padding:0 10px;border:none;border-radius:8px;background:none;color:{{ fr.markColor }};font:600 13px Poppins;cursor:pointer" style-active="background:#EEF1FA">Mark all as read</button>
+        </div>
+
+        <sc-if value="{{ fr.hasItems }}" hint-placeholder-val="{{ true }}">
+          <div data-scroll="1" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">
+            <sc-for list="{{ fr.sections }}" as="sec" hint-placeholder-count="2">
+              <div style="padding:16px 16px 8px;font:600 12px Inter;letter-spacing:.06em;text-transform:uppercase;color:#6B7089;flex:none">{{ sec.title }}</div>
+              <sc-for list="{{ sec.items }}" as="n" hint-placeholder-count="3">
+                <div style="position:relative;overflow:hidden;background:#EF4444;border-bottom:1px solid #E5E7F0;flex:none">
+                  <button onClick="{{ n.onDelete }}" style="position:absolute;top:0;right:0;bottom:0;width:88px;border:none;background:#EF4444;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:22px">delete</span><span style="font:600 11px Poppins">Delete</span></button>
+                  <div onClick="{{ n.onTap }}" style="position:relative;min-height:72px;padding:14px 16px;display:flex;gap:12px;align-items:flex-start;background:{{ n.bg }};transform:translateX({{ n.shift }});transition:transform .2s ease;cursor:pointer">
+                    <div style="width:40px;height:40px;border-radius:50%;background:{{ n.tint }};color:{{ n.color }};display:flex;align-items:center;justify-content:center;flex:none"><span style="font-family:'Material Symbols Rounded';font-size:22px;font-variation-settings:'FILL' 1">{{ n.icon }}</span></div>
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span style="flex:1;min-width:0;font:600 14px Poppins;color:#1A1D2E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.title }}</span>
+                        <span style="font:400 11px Inter;color:#A0A4B8;white-space:nowrap">{{ n.time }}</span>
+                        <span style="width:8px;height:8px;border-radius:50%;background:#1B3A8C;flex:none;opacity:{{ n.dot }}"></span>
+                      </div>
+                      <span style="font:400 13px Inter;color:#6B7089;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ n.msg }}</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ fr.isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:16px">
+            <div style="width:328px;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;border:1px dashed #E5E7F0;border-radius:12px">
+              <div style="width:64px;height:64px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:32px">notifications_off</span></div>
+              <span style="font:600 16px Poppins;color:#1A1D2E">You're all caught up</span>
+              <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Referrals, calibration reminders and report updates will appear here.</span>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { unread: [[0, 1], [0, 1], []], swiped: [null, 2, null], deleted: [[], [], [0, 1, 2, 3, 4]] };
+  upd(key, i, fn) { this.setState(st => { const a = [...st[key]]; a[i] = fn(a[i]); return { [key]: a }; }); }
+  renderVals() {
+    const s = this.state;
+    const T = {
+      warning: ['warning', '#F59E0B', 'rgba(245,158,11,.14)'],
+      success: ['check_circle', '#10B981', 'rgba(16,185,129,.12)'],
+      error: ['error', '#EF4444', 'rgba(239,68,68,.12)'],
+      info: ['info', '#1B3A8C', '#EEF1FA'],
+    };
+    const N = [
+      ['warning', 'Stone referred', 'GE-STONE-00041 is borderline (52%). Gemologist review recommended.', '18 min ago', 'Today'],
+      ['warning', 'Recalibrate', 'Your calibration is over 8 hours old.', '1 h ago', 'Today'],
+      ['success', 'Certificate saved', 'GE-202610-00042 saved to Downloads.', '2 h ago', 'Today'],
+      ['error', 'Grading failed', 'No connection. Tap to retry.', 'Yesterday', 'Earlier'],
+      ['info', 'Privacy policy updated', 'Review the changes.', '3 days ago', 'Earlier'],
+    ];
+    const caps = ['Default · 2 unread', 'Swipe-to-delete · Certificate saved', 'Empty'];
+    const frames = caps.map((caption, f) => {
+      const unread = s.unread[f], del = s.deleted[f];
+      const list = N.map((n, k) => ({ n, k })).filter(x => !del.includes(x.k));
+      const mk = ({ n: [type, title, msg, time], k }) => {
+        const [icon, color, tint] = T[type], u = unread.includes(k), sw = s.swiped[f] === k;
+        return {
+          icon, color, tint, title, msg, time, dot: u ? 1 : 0, bg: u ? '#EEF1FA' : '#fff', shift: sw ? '-88px' : '0px',
+          onTap: () => f === 1 ? this.upd('swiped', f, v => v === k ? null : k) : this.upd('unread', f, a => a.filter(x => x !== k)),
+          onDelete: () => { this.upd('deleted', f, a => [...a, k]); this.upd('swiped', f, () => null); this.upd('unread', f, a => a.filter(x => x !== k)); },
+        };
+      };
+      const sections = ['Today', 'Earlier'].map(title => ({ title, items: list.filter(x => x.n[4] === title).map(mk) })).filter(x => x.items.length);
+      const noUnread = unread.length === 0;
+      return {
+        id: '3' + 'abc'[f], caption, label: `Notifications · ${'abc'[f]}`, sections,
+        hasItems: list.length > 0, isEmpty: list.length === 0,
+        noUnread, markColor: noUnread ? '#A0A4B8' : '#1B3A8C',
+        markAll: () => this.upd('unread', f, () => []),
+      };
+    });
+    return { frames };
+  }
+}
+</script>
+</body>
+</html>

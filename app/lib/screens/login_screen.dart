@@ -1,10 +1,18 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
+import '../widgets/app_buttons.dart';
+import '../widgets/app_snack_bar.dart';
+import '../widgets/google_sign_in_button.dart';
+import '../widgets/input_field.dart';
+import '../widgets/or_divider.dart';
+import '../widgets/password_field.dart';
 import 'register_screen.dart';
-import 'main_shell.dart';
+import 'onboarding_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -14,11 +22,22 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  static const Set<String> _credentialErrorCodes = {
+    'invalid-credential',
+    'wrong-password',
+    'user-not-found',
+    'invalid-email',
+    'INVALID_LOGIN_CREDENTIALS',
+  };
+
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
-  bool _obscurePassword = true;
-  bool _isLoading = false;
+  bool _isEmailLoading = false;
+  bool _isGoogleLoading = false;
+  bool _credentialError = false;
+
+  bool get _isBusy => _isEmailLoading || _isGoogleLoading;
 
   @override
   void dispose() {
@@ -27,334 +46,215 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  void _clearCredentialError(String _) {
+    if (_credentialError) setState(() => _credentialError = false);
+  }
+
   Future<void> _signInWithGoogle() async {
-    setState(() => _isLoading = true);
+    setState(() => _isGoogleLoading = true);
     try {
       final result = await _authService.signInWithGoogle();
-      if (result != null && mounted) {
-        AppRoutes.pushReplacement(context, const MainShell());
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Google sign-in failed')),
-        );
+      if (result == null || !mounted) return;
+      if (result.additionalUserInfo?.isNewUser ?? false) {
+        AppRoutes.pushReplacement(
+            context, const RegisterScreen(completeGoogleProfile: true));
+      } else {
+        AppRoutes.pushReplacement(context, const OnboardingScreen());
       }
     } catch (e) {
+      if (kDebugMode) debugPrint('Google sign-in failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Google sign-in failed. Please try again.')),
-        );
+        AppSnackBar.show(context,
+            message: 'Google sign-in failed. Please try again.',
+            type: AppSnackBarType.error);
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isGoogleLoading = false);
     }
   }
 
   Future<void> _signInWithEmail() async {
+    FocusScope.of(context).unfocus();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
 
     if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter email and password')),
-      );
+      AppSnackBar.show(context,
+          message: 'Please enter email and password',
+          type: AppSnackBarType.error);
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isEmailLoading = true;
+      _credentialError = false;
+    });
     try {
       await _authService.signInWithEmail(email, password);
       if (mounted) {
-        AppRoutes.pushReplacement(context, const MainShell());
+        AppRoutes.pushReplacement(context, const OnboardingScreen());
       }
     } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Sign-in failed')),
-        );
+      if (kDebugMode) debugPrint('Email sign-in failed: ${e.code}');
+      if (!mounted) return;
+      if (_credentialErrorCodes.contains(e.code)) {
+        setState(() => _credentialError = true);
+      } else if (e.code == 'too-many-requests') {
+        AppSnackBar.show(context,
+            message: 'Too many attempts. Please try again later.',
+            type: AppSnackBarType.error);
+      } else if (e.code == 'network-request-failed') {
+        AppSnackBar.show(context,
+            message: 'No connection. Check your internet and try again.',
+            type: AppSnackBarType.error);
+      } else {
+        AppSnackBar.show(context,
+            message: 'Sign-in failed. Please try again.',
+            type: AppSnackBarType.error);
       }
     } catch (e) {
+      if (kDebugMode) debugPrint('Email sign-in failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign-in failed. Please try again.')),
-        );
+        AppSnackBar.show(context,
+            message: 'Sign-in failed. Please try again.',
+            type: AppSnackBarType.error);
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _isEmailLoading = false);
     }
   }
 
   Future<void> _resetPassword() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your email first')),
-      );
+      AppSnackBar.show(context,
+          message: 'Enter your email first', type: AppSnackBarType.info);
       return;
     }
     try {
       await _authService.resetPassword(email);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset email sent')),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Failed to send reset email')),
-        );
+        AppSnackBar.show(context,
+            message: 'Password reset email sent',
+            type: AppSnackBarType.success);
       }
     } catch (e) {
+      if (kDebugMode) debugPrint('Password reset failed: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Failed to send reset email. Please try again.')),
-        );
+        AppSnackBar.show(context,
+            message: 'Failed to send reset email. Please try again.',
+            type: AppSnackBarType.error);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: GemEyeColors.background,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 60),
-                    const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.diamond_rounded,
-                            size: 48, color: GemEyeColors.primary),
-                        SizedBox(width: 10),
-                        Text(
-                          'GemEye',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.heading,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w700,
-                            color: GemEyeColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Automated Blue Sapphire Colour Grading',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                        color: GemEyeColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 48),
-                    const Text(
-                      'Welcome Back',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.heading,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        color: GemEyeColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Sign in to continue grading',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: GemEyeColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton(
-                        onPressed: _isLoading ? null : _signInWithGoogle,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: GemEyeColors.border),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Image.asset('assets/images/google_logo.png', width: 22, height: 22),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Continue with Google',
-                              style: TextStyle(
-                                fontFamily: GemEyeFonts.body,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                color: GemEyeColors.textPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: GemEyeColors.border,
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'or',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.body,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: GemEyeColors.textMuted,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: GemEyeColors.border,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 14,
-                        color: GemEyeColors.textPrimary,
-                      ),
-                      decoration: const InputDecoration(
-                        hintText: 'Email address',
-                        prefixIcon: Icon(Icons.mail_outline_rounded,
-                            color: GemEyeColors.textMuted),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      style: const TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 14,
-                        color: GemEyeColors.textPrimary,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline_rounded,
-                            color: GemEyeColors.textMuted),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: GemEyeColors.textMuted,
-                          ),
-                          onPressed: () {
-                            setState(
-                                () => _obscurePassword = !_obscurePassword);
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: _resetPassword,
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.body,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: GemEyeColors.primary,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: _isLoading ? null : _signInWithEmail,
-                        child: const Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.heading,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          "Don't have an account?",
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.body,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w400,
-                            color: GemEyeColors.textSecondary,
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            AppRoutes.push(
-                                context, const RegisterScreen());
-                          },
-                          child: const Text(
-                            'Register',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.heading,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: GemEyeColors.primary,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.darkIcons,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(child: _buildContent()),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent() {
+    return AutofillGroup(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(
+                top: AppSpacing.massive, bottom: AppSpacing.huge),
+            child: Column(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
+                  child: Image.asset('assets/images/logo.png',
+                      width: 64, height: 64),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                const Text('GemEye', style: AppText.display),
+              ],
+            ),
+          ),
+          GoogleSignInButton(
+            isLoading: _isGoogleLoading,
+            onPressed: _isEmailLoading ? null : _signInWithGoogle,
+          ),
+          const OrDivider(),
+          InputField(
+            label: 'Email',
+            controller: _emailController,
+            hintText: 'name@company.com',
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.next,
+            autofillHints: const [AutofillHints.email],
+            errorText: _credentialError ? '' : null,
+            onChanged: _clearCredentialError,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          PasswordField(
+            controller: _passwordController,
+            textInputAction: TextInputAction.done,
+            autofillHints: const [AutofillHints.password],
+            errorText: _credentialError ? 'Incorrect email or password' : null,
+            showErrorIcon: true,
+            onChanged: _clearCredentialError,
+            onSubmitted: (_) => _isBusy ? null : _signInWithEmail(),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+                top: AppSpacing.xs, bottom: AppSpacing.lg),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Transform.translate(
+                offset: const Offset(AppSpacing.md, 0),
+                child: TextLinkButton(
+                  label: 'Forgot password?',
+                  onPressed: _isBusy ? null : _resetPassword,
                 ),
               ),
             ),
-            if (_isLoading)
-              Container(
-                color: Colors.white.withValues(alpha: 0.7),
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    color: GemEyeColors.primary,
-                  ),
+          ),
+          PrimaryButton(
+            label: 'Log In',
+            loadingLabel: 'Logging in…',
+            isLoading: _isEmailLoading,
+            onPressed: _isGoogleLoading ? null : _signInWithEmail,
+          ),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.only(
+                top: AppSpacing.xxxl, bottom: AppSpacing.huge),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('New to GemEye?',
+                    style: AppText.body14
+                        .copyWith(color: AppColors.textSecondary)),
+                TextLinkButton(
+                  label: 'Register',
+                  onPressed: _isBusy
+                      ? null
+                      : () => AppRoutes.push(context, const RegisterScreen()),
                 ),
-              ),
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

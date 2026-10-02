@@ -1,5 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../config/routes.dart';
+import '../screens/login_screen.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -56,6 +60,35 @@ class AuthService {
   Future<void> signOut() async {
     await _googleSignIn.signOut();
     await _auth.signOut();
+  }
+
+  static bool _isEndingSession = false;
+
+  /// The single logout path for the app. Closes any open dialog or sheet,
+  /// runs [beforeSignOut] (e.g. account deletion), signs out, then clears the
+  /// navigation stack to LoginScreen. Re-entrant calls are ignored.
+  /// Returns false if [beforeSignOut] or sign-out failed (nothing navigates).
+  static Future<bool> endSession({
+    Future<void> Function()? beforeSignOut,
+  }) async {
+    if (_isEndingSession) return false;
+    _isEndingSession = true;
+    try {
+      final nav = AppRoutes.navigatorKey.currentState;
+      nav?.popUntil((route) => route is! PopupRoute);
+      if (beforeSignOut != null) await beforeSignOut();
+      await AuthService().signOut();
+      AppRoutes.navigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('endSession failed: $e');
+      return false;
+    } finally {
+      _isEndingSession = false;
+    }
   }
 
   Future<void> resetPassword(String email) async {

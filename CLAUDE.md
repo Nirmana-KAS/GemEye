@@ -242,7 +242,7 @@ Refer to the full notification table in the development plan for exact messages.
 9. Never generate a new certificate number for a previously exported stone
 10. Never use localStorage or SharedPreferences for sensitive data — use flutter_secure_storage
 11. Never allow the app to proceed without privacy policy acceptance
-12. Never use glossy/gradient backgrounds on cards
+12. Never use glossy/gradient backgrounds on cards. **Exception:** the Home `QuickGradeCard` ("Grade a Stone") uses a `#1B3A8C` → `#3B5FD9` gradient, per the approved Group B design
 13. Never use emojis in code comments (use them only in UI where specified)
 14. Never skip error handling on API calls
 15. Never use `print()` for logging — use `debugPrint()` in debug mode
@@ -302,6 +302,12 @@ Never skip this. Never forget this. Do it as the LAST step of every task.
 
 ### Rule 2 — Always run flutter analyze after code changes
 After modifying ANY Dart file, always run "flutter analyze" from the app/ directory and confirm zero issues before reporting completion. If issues are found, fix them before reporting.
+
+---
+
+## Edit history (mandatory)
+
+After EVERY code or asset change, append an entry to PROJECT_STATUS.md using the existing EDIT-0NN format (date, IST, Topic, Summary, What was done, Files changed with +/~/-, Connected edits, Reason), then commit it with the change. Never skip this, even for small fixes.
 
 ---
 

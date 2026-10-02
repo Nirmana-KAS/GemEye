@@ -1,8 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/constants.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
+import '../widgets/app_buttons.dart';
+import '../widgets/app_checkbox.dart';
+import '../widgets/gem_app_bar.dart';
+import '../widgets/policy_markdown.dart';
 import 'login_screen.dart';
 
 class AgreementScreen extends StatefulWidget {
@@ -16,204 +21,109 @@ class _AgreementScreenState extends State<AgreementScreen> {
   bool _accepted = false;
 
   static const List<String> _summaryPoints = [
-    'Your data is used only for colour grading analysis within this app.',
-    'Your gemstone images are stored securely and never shared with third parties.',
-    'You can delete your data at any time from Settings.',
-    'We do not sell, transfer, or use your images for any purpose outside this app.',
+    'Your data is used only for colour grading.',
+    'Images are stored securely and never shared.',
+    'Delete your data anytime in Settings.',
+    'Images are never sold or used outside the app.',
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GemEyeColors.background,
-      body: SafeArea(
+      backgroundColor: AppColors.background,
+      appBar: const GemAppBar(title: 'Before you start'),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.screen,
+            AppSpacing.screen, AppSpacing.xxxl),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 24),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            _buildSummary(),
+            const SizedBox(height: AppSpacing.xxxl),
+            const PolicyMarkdown(),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomBar(),
+    );
+  }
+
+  Future<void> _accept() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.policyAcceptedKey, true);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Policy flag write failed: $e');
+    }
+    if (!mounted) return;
+    AppRoutes.pushReplacement(context, const LoginScreen());
+  }
+
+  Widget _buildSummary() {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Your data, in short', style: AppText.sectionHeader),
+          for (final point in _summaryPoints) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(
-                  Icons.diamond_rounded,
-                  size: 40,
-                  color: GemEyeColors.primary,
-                ),
-                SizedBox(width: 10),
-                Text(
-                  'GemEye',
-                  style: TextStyle(
-                    fontFamily: GemEyeFonts.heading,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: GemEyeColors.primary,
-                  ),
-                ),
+                const Icon(Icons.check_circle_rounded,
+                    size: 20, color: AppColors.primary),
+                const SizedBox(width: 10),
+                Expanded(child: Text(point, style: AppText.body14)),
               ],
             ),
-            const SizedBox(height: 16),
-            const Text(
-              'Privacy Policy & Terms of Use',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: GemEyeColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: GemEyeColors.primarySurface,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                children: _summaryPoints
-                    .map((point) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.check_circle_outline,
-                                size: 18,
-                                color: GemEyeColors.primary,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  point,
-                                  style: const TextStyle(
-                                    fontFamily: GemEyeFonts.body,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w400,
-                                    color: GemEyeColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 20),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: GemEyeColors.border,
-                      width: 1,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: FutureBuilder<String>(
-                    future:
-                        rootBundle.loadString('assets/data/privacy_policy.md'),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(32),
-                            child: CircularProgressIndicator(
-                              color: GemEyeColors.primary,
-                            ),
-                          ),
-                        );
-                      }
-
-                      if (snapshot.hasError) {
-                        return const Text(
-                          'Unable to load privacy policy.',
-                          style: TextStyle(
-                            fontFamily: GemEyeFonts.body,
-                            fontSize: 13,
-                            color: GemEyeColors.textSecondary,
-                          ),
-                        );
-                      }
-
-                      return MarkdownBody(
-                        data: snapshot.data ?? '',
-                        styleSheet: MarkdownStyleSheet(
-                          p: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Color(0xFF6B7089), height: 1.6),
-                          h1: const TextStyle(fontFamily: 'Poppins', fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
-                          h2: const TextStyle(fontFamily: 'Poppins', fontSize: 16, fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
-                          h3: const TextStyle(fontFamily: 'Poppins', fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
-                          strong: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, color: Color(0xFF1A1D2E)),
-                          listBullet: const TextStyle(fontFamily: 'Inter', fontSize: 13, color: Color(0xFF6B7089)),
-                          horizontalRuleDecoration: const BoxDecoration(border: Border(top: BorderSide(color: Color(0xFFE5E7F0), width: 1))),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _accepted,
-                        activeColor: GemEyeColors.primary,
-                        onChanged: (value) {
-                          setState(() {
-                            _accepted = value ?? false;
-                          });
-                        },
-                      ),
-                      Flexible(
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _accepted = !_accepted;
-                            });
-                          },
-                          child: const Text(
-                            'I have read and agree to the Privacy Policy and Terms of Use',
-                            style: TextStyle(
-                              fontFamily: GemEyeFonts.body,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w400,
-                              color: GemEyeColors.textPrimary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _accepted
-                          ? () {
-                              AppRoutes.pushReplacement(
-                                  context, const LoginScreen());
-                            }
-                          : null,
-                      child: const Text(
-                        'Accept & Continue',
-                        style: TextStyle(
-                          fontFamily: GemEyeFonts.heading,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    const linkStyle = TextStyle(
+      color: AppColors.primary,
+      fontWeight: FontWeight.w500,
+    );
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.lg,
+              AppSpacing.screen, AppSpacing.xxxl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppCheckbox(
+                value: _accepted,
+                onChanged: (value) => setState(() => _accepted = value),
+                label: const Text.rich(TextSpan(
+                  text: 'I have read and agree to the ',
+                  children: [
+                    TextSpan(text: 'Privacy Policy', style: linkStyle),
+                    TextSpan(text: ' and '),
+                    TextSpan(text: 'Terms of Use', style: linkStyle),
+                  ],
+                )),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              PrimaryButton(
+                label: 'Accept & Continue',
+                onPressed: _accepted ? _accept : null,
+              ),
+            ],
+          ),
         ),
       ),
     );

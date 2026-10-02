@@ -12,6 +12,9 @@ class AppConstants {
   static const String developerName = 'Nirmana K.A.S.';
   static const String studentNo = '28973';
 
+  // Preferences
+  static const String policyAcceptedKey = 'policy_accepted';
+
   // Certificate
   static const String defaultCertificatePrefix = 'GE';
 

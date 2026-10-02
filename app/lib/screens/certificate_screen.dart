@@ -6,6 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
 import '../services/certificate_service.dart';
+import '../models/app_notification.dart';
+import '../services/notification_service.dart';
 
 class CertificateScreen extends StatefulWidget {
   final GradeResult result;
@@ -77,6 +79,12 @@ class _CertificateScreenState extends State<CertificateScreen> {
 
       final file = File('${saveDir.path}/$certNum.pdf');
       await file.writeAsBytes(_pdfBytes!);
+      await NotificationService.add(
+        type: AppNotificationType.success,
+        title: 'Certificate saved',
+        message: '$certNum saved to Downloads.',
+        action: AppNotificationAction.openHistory,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

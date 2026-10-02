@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lottie/lottie.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
@@ -84,7 +85,9 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.darkIcons,
+      child: Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SizedBox.expand(
@@ -190,6 +193,7 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

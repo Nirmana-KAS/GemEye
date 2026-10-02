@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/theme.dart';
 import '../config/constants.dart';
 import '../config/routes.dart';
 import '../services/auth_service.dart';
 import 'agreement_screen.dart';
+import 'login_screen.dart';
 import 'main_shell.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -19,102 +23,90 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      final authService = AuthService();
-      if (authService.isLoggedIn) {
-        AppRoutes.pushReplacement(context, const MainShell());
-      } else {
-        AppRoutes.pushReplacement(context, const AgreementScreen());
-      }
-    });
+    Timer(const Duration(seconds: 3), _route);
+  }
+
+  Future<void> _route() async {
+    if (!mounted) return;
+    if (AuthService().isLoggedIn) {
+      AppRoutes.pushReplacement(context, const MainShell());
+      return;
+    }
+    var accepted = false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      accepted = prefs.getBool(AppConstants.policyAcceptedKey) ?? false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Policy flag read failed: $e');
+    }
+    if (!mounted) return;
+    AppRoutes.pushReplacement(
+      context,
+      accepted ? const LoginScreen() : const AgreementScreen(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SizedBox(
-          width: double.infinity,
-          height: double.infinity,
-          child: Column(
-            children: [
-              const Spacer(flex: 3),
-              Center(
-                child: SizedBox(
-                  width: 160,
-                  height: 160,
-                  child: Lottie.asset(
-                    'assets/animations/sapphire_rotate.json',
-                    repeat: true,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: GemEyeColors.primarySurface,
-                          borderRadius: BorderRadius.circular(60),
-                          border: Border.all(
-                            color: GemEyeColors.primary.withValues(alpha: 0.3),
-                            width: 2,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppSystemUi.darkIcons,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: SizedBox(
+            width: double.infinity,
+            child: Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.screen),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          height: 120,
+                          child: Lottie.asset(
+                            'assets/animations/sapphire_rotate.json',
+                            repeat: true,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return ClipRRect(
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.logo),
+                                child: Image.asset('assets/images/logo.png'),
+                              );
+                            },
                           ),
                         ),
-                        child: const Icon(
-                          Icons.diamond_rounded,
-                          size: 56,
-                          color: GemEyeColors.primary,
+                        const SizedBox(height: AppSpacing.xxxl),
+                        const Text(
+                          AppConstants.appName,
+                          textAlign: TextAlign.center,
+                          style: AppText.display,
                         ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
-              const Center(
-                child: Text(
-                  AppConstants.appName,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: GemEyeFonts.heading,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: GemEyeColors.primary,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Center(
-                child: Text(
-                  AppConstants.appTagline,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: GemEyeFonts.body,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                    color: GemEyeColors.textMuted,
-                  ),
-                ),
-              ),
-              const Spacer(flex: 4),
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: 24),
-                  child: Text(
-                    'v${AppConstants.appVersion} · ${AppConstants.appYear}',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w400,
-                      color: GemEyeColors.textMuted,
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          AppConstants.appTagline,
+                          textAlign: TextAlign.center,
+                          style: AppText.secondary
+                              .copyWith(color: AppColors.textMuted),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.huge),
+                  child: Text(
+                    'v${AppConstants.appVersion} · ${AppConstants.appYear}',
+                    textAlign: TextAlign.center,
+                    style: AppText.caption.copyWith(fontSize: 10),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
