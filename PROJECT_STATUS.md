@@ -1219,3 +1219,22 @@
   - `~` app/macos/Flutter/GeneratedPluginRegistrant.swift
 - **Connected edits:** EDIT-060 (calibration service); Claude Design Group C export (design/exports/groupCD/Calibration Start, Patch Capture, Result, History)
 - **Reason:** Real 6-patch calibration replaces the mock CCC-card wizard.
+
+### EDIT-062 | 02 October 2026 08:55 | IST
+- **Topic:** Calibration State Wired Through the App
+- **Summary:** Home banner, grade entry points, Settings and notifications now use the saved calibration session (resolves C4, C6, B9).
+- **What was done:**
+  - Home StatusBanner listens to `CalibrationService.session`: green "Calibrated · <device> · Session N · today HH:mm", amber "Calibration is over 8 hours old. Recalibrate for best accuracy.", red when none; removed TODO(C4)
+  - Home QuickGradeCard, empty-state action, bottom-nav Grade tab and drawer "Grade a Stone" go through `CalibrationScreen.openGrading`: Capture when the calibration is valid, otherwise Calibration Start with an info snackbar; removed TODO(B9)
+  - Calibration session loaded at app start (`main.dart`); Home load sends one "Recalibrate - Your calibration is over 8 hours old." warning notification per expired session (action openCalibration); removed the TODO(C4) note in NotificationService
+  - Settings: calibration status from the saved session; Calibration History opens the shared History sheet
+  - Debug APK built and installed on the OnePlus Nord 2 (installed from a copy outside OneDrive; the in-place install failed with a signature digest error)
+  - Note: test/widget_test.dart was already failing before this task (Firebase not initialised in tests); calibration unit tests pass
+- **Files changed:**
+  - `~` app/lib/main.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `~` app/lib/services/notification_service.dart
+- **Connected edits:** EDIT-060 (calibration service), EDIT-061 (calibration screens); Claude Design Group C export (design/exports/groupCD)
+- **Reason:** Grading must not start without a valid calibration, and users need to see calibration status at a glance.

@@ -1,10 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
 import '../models/grade_result.dart';
 import '../services/auth_service.dart';
+import '../services/calibration_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/app_buttons.dart';
@@ -17,7 +19,6 @@ import '../widgets/relative_time.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/status_banner.dart';
 import 'calibration_screen.dart';
-import 'capture_screen.dart';
 import 'result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -70,6 +71,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   Future<void> refresh() async {
     try {
       final history = await StorageService.getGradeHistory();
+      await CalibrationService.remindIfExpired();
       await NotificationService.list();
       final now = DateTime.now();
       final today = history.where((r) => isSameDay(r.capturedAt, now)).toList();
@@ -117,9 +119,36 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
     return letters.toUpperCase();
   }
 
-  void _openCapture() {
-    // TODO(B9): route to Calibration when not calibrated (after C4).
-    AppRoutes.push(context, const CaptureScreen());
+  void _openCapture() => CalibrationScreen.openGrading(context);
+
+  Widget _buildCalibrationBanner() {
+    return ValueListenableBuilder<CalibrationSession?>(
+      valueListenable: CalibrationService.session,
+      builder: (context, s, _) {
+        final StatusBannerType type;
+        final String message;
+        if (s == null) {
+          type = StatusBannerType.error;
+          message = 'Not calibrated. Calibrate before grading.';
+        } else if (!s.isValid) {
+          type = StatusBannerType.warning;
+          message =
+              'Calibration is over 8 hours old. Recalibrate for best accuracy.';
+        } else {
+          final when = isSameDay(s.createdAt, DateTime.now())
+              ? 'today ${DateFormat('HH:mm').format(s.createdAt)}'
+              : DateFormat('d MMM HH:mm').format(s.createdAt);
+          type = StatusBannerType.success;
+          message =
+              'Calibrated · ${s.deviceModel} · Session ${s.dayNumber} · $when';
+        }
+        return StatusBanner(
+          type: type,
+          message: message,
+          onTap: () => AppRoutes.push(context, const CalibrationScreen()),
+        );
+      },
+    );
   }
 
   void _openResult(GradeResult result) {
@@ -146,13 +175,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
               children: [
                 _buildHeader(context),
                 const SizedBox(height: AppSpacing.xl),
-                // TODO(C4): drive green/amber/red from saved calibration.
-                StatusBanner(
-                  type: StatusBannerType.error,
-                  message: 'Not calibrated. Calibrate before grading.',
-                  onTap: () =>
-                      AppRoutes.push(context, const CalibrationScreen()),
-                ),
+                _buildCalibrationBanner(),
                 const SizedBox(height: AppSpacing.xl),
                 QuickGradeCard(onTap: _openCapture),
                 const SizedBox(height: AppSpacing.xl),
