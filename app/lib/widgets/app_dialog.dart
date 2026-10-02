@@ -13,6 +13,7 @@ class AppDialog {
     String confirmLabel = 'Confirm',
     String cancelLabel = 'Cancel',
     AppDialogType type = AppDialogType.warning,
+    IconData? icon,
   }) async {
     final result = await showDialog<bool>(
       context: context,
@@ -23,9 +24,36 @@ class AppDialog {
         confirmLabel: confirmLabel,
         cancelLabel: cancelLabel,
         type: type,
+        icon: icon,
       ),
     );
     return result ?? false;
+  }
+
+  /// Single-action dialog. Completes when the action is pressed or the
+  /// dialog is dismissed.
+  static Future<void> alert(
+    BuildContext context, {
+    required String title,
+    required String message,
+    String actionLabel = 'OK',
+    AppDialogType type = AppDialogType.info,
+    IconData? icon,
+    bool barrierDismissible = true,
+  }) async {
+    await showDialog<bool>(
+      context: context,
+      barrierColor: AppColors.scrim,
+      barrierDismissible: barrierDismissible,
+      builder: (ctx) => _AppDialogContent(
+        title: title,
+        message: message,
+        confirmLabel: actionLabel,
+        cancelLabel: null,
+        type: type,
+        icon: icon,
+      ),
+    );
   }
 }
 
@@ -33,8 +61,9 @@ class _AppDialogContent extends StatelessWidget {
   final String title;
   final String message;
   final String confirmLabel;
-  final String cancelLabel;
+  final String? cancelLabel;
   final AppDialogType type;
+  final IconData? icon;
 
   const _AppDialogContent({
     required this.title,
@@ -42,11 +71,12 @@ class _AppDialogContent extends StatelessWidget {
     required this.confirmLabel,
     required this.cancelLabel,
     required this.type,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
-    final (IconData icon, Color color, Color tint) = switch (type) {
+    final (IconData defaultIcon, Color color, Color tint) = switch (type) {
       AppDialogType.info => (
           Icons.info_rounded,
           AppColors.primary,
@@ -83,7 +113,7 @@ class _AppDialogContent extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-              child: Icon(icon, size: 22, color: color),
+              child: Icon(icon ?? defaultIcon, size: 22, color: color),
             ),
             const SizedBox(height: AppSpacing.lg),
             Padding(
@@ -101,12 +131,14 @@ class _AppDialogContent extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _DialogButton(
-                  label: cancelLabel,
-                  color: AppColors.textSecondary,
-                  onPressed: () => Navigator.of(context).pop(false),
-                ),
-                const SizedBox(width: AppSpacing.xs),
+                if (cancelLabel != null) ...[
+                  _DialogButton(
+                    label: cancelLabel!,
+                    color: AppColors.textSecondary,
+                    onPressed: () => Navigator.of(context).pop(false),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                ],
                 _DialogButton(
                   label: confirmLabel,
                   color: confirmColor,

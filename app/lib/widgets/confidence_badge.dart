@@ -9,7 +9,11 @@ class ConfidenceBadge extends StatelessWidget {
 
   final double confidence;
 
-  const ConfidenceBadge({super.key, required this.confidence});
+  /// White text on a translucent pill, for gradient grade cards.
+  final bool onDark;
+
+  const ConfidenceBadge(
+      {super.key, required this.confidence, this.onDark = false});
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +27,7 @@ class ConfidenceBadge extends StatelessWidget {
       height: 24,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: tint,
+        color: onDark ? AppColors.onPrimaryFaint : tint,
         borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
@@ -37,7 +41,8 @@ class ConfidenceBadge extends StatelessWidget {
           const SizedBox(width: AppSpacing.sm),
           Text(
             '$level · ${confidence.round()}%',
-            style: AppText.titleSmall.copyWith(fontSize: 11),
+            style: AppText.titleSmall.copyWith(
+                fontSize: 11, color: onDark ? AppColors.onPrimary : null),
           ),
         ],
       ),
