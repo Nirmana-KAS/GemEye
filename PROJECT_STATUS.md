@@ -1147,3 +1147,15 @@
   - `~` app/lib/screens/main_shell.dart
 - **Connected edits:** EDIT-053 (Side Drawer redesign), EDIT-056 (drawer logo); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
 - **Reason:** Back from a drawer screen used to land on Home with the drawer closed, and back with the drawer open showed the exit dialog.
+
+### EDIT-058 | 02 October 2026 05:46 | IST
+- **Topic:** Side Drawer Circular Logo Frame
+- **Summary:** Changed the white logo frame in the drawer header from a rounded square to a circle.
+- **What was done:**
+  - Frame: 40×40 white `BoxShape.circle`, same subtle shadow, padding 4
+  - Logo clipped with `ClipOval`, 32×32, BoxFit.contain so it never touches the edge
+  - Checked on the OnePlus Nord 2
+- **Files changed:**
+  - `~` app/lib/widgets/side_drawer.dart
+- **Connected edits:** EDIT-056 (white logo frame), EDIT-053 (Side Drawer redesign); Claude Design Group B export (design/exports/groupB/Side Drawer.dc.html)
+- **Reason:** A circular frame matches the round logo better than a rounded square.

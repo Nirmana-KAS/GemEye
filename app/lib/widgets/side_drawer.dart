@@ -209,10 +209,10 @@ class _Header extends StatelessWidget {
                 width: 40,
                 height: 40,
                 padding: const EdgeInsets.all(AppSpacing.xs),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.background,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  boxShadow: const [
+                  shape: BoxShape.circle,
+                  boxShadow: [
                     BoxShadow(
                       color: AppColors.shadow,
                       blurRadius: 8,
@@ -220,11 +220,13 @@ class _Header extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  width: 32,
-                  height: 32,
-                  fit: BoxFit.contain,
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    width: 32,
+                    height: 32,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               const SizedBox(width: AppSpacing.lg),
