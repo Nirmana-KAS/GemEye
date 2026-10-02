@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:56px;background:#fff;width:1640px">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font:700 28px Poppins;color:#1B3A8C">System States</span>
+    <span style="font:400 14px Inter;color:#6B7089">Feedback, blocking, offline, loading and empty states used across GemEye · 360 dp device width</span>
+  </div>
+
+  <section style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#6B7089">01</span><span style="font:600 20px Poppins;color:#1A1D2E">AppSnackBar</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,328px);gap:24px 32px">
+      <sc-for list="{{ snacks }}" as="s" hint-placeholder-count="8">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font:500 11px Inter;color:#6B7089">{{ s.where }}</span>
+          <div style="width:328px;min-height:52px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:2px 4px 2px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(26,29,46,.10)">
+            <span style="width:28px;height:28px;border-radius:50%;background:{{ s.tint }};color:{{ s.color }};display:flex;align-items:center;justify-content:center;flex:none;font-family:'Material Symbols Rounded';font-size:18px;font-variation-settings:'FILL' 1">{{ s.icon }}</span>
+            <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E;padding:8px 0">{{ s.text }}</span>
+            <sc-if value="{{ s.hasAction }}" hint-placeholder-val="{{ true }}"><button style="height:48px;padding:0 12px;border:none;border-radius:8px;background:none;font:600 13px Poppins;color:#1B3A8C;cursor:pointer;flex:none" style-active="background:#EEF1FA">{{ s.action }}</button></sc-if>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#6B7089">02</span><span style="font:600 20px Poppins;color:#1A1D2E">AppDialog</span><span style="font:400 13px Inter;color:#6B7089">Every dialog used in the app · blocking dialogs have no dismiss and a darker scrim</span></div>
+    <div style="display:grid;grid-template-columns:repeat(4,328px);gap:24px 32px">
+      <sc-for list="{{ dialogs }}" as="d" hint-placeholder-count="7">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font:500 11px Inter;color:#6B7089">{{ d.where }}</span>
+          <div style="width:328px;padding:16px;border-radius:14px;background:{{ d.scrim }};display:flex;justify-content:center">
+            <div style="width:296px;background:#fff;border-radius:14px;padding:24px 20px 16px;display:flex;flex-direction:column;gap:12px">
+              <div style="width:40px;height:40px;border-radius:50%;background:{{ d.iconTint }};color:{{ d.iconColor }};display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">{{ d.icon }}</span></div>
+              <span style="font:600 16px/1.35 Poppins;color:#1A1D2E;text-wrap:pretty">{{ d.title }}</span>
+              <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">{{ d.body }}</span>
+              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+                <sc-if value="{{ d.hasCancel }}" hint-placeholder-val="{{ true }}"><button style="height:48px;padding:0 16px;border:none;border-radius:10px;background:none;color:#6B7089;font:600 14px Poppins;cursor:pointer" style-active="background:#EEF1FA">{{ d.cancel }}</button></sc-if>
+                <button style="height:48px;padding:0 20px;border:none;border-radius:10px;background:{{ d.actBg }};color:#fff;font:600 14px Poppins;cursor:pointer" style-active="filter:brightness(1.1)">{{ d.action }}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#6B7089">03</span><span style="font:600 20px Poppins;color:#1A1D2E">Offline banner</span><span style="font:400 13px Inter;color:#6B7089">StatusBanner · pinned under the app bar on Home and Grade a Stone · capture buttons disabled while shown</span></div>
+    <div style="display:flex;gap:32px;align-items:flex-start">
+      <div style="width:328px;min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;gap:12px">
+        <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#DC2626">wifi_off</span>
+        <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">You're offline - grading needs a connection</span>
+      </div>
+      <div style="width:328px;min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:4px 4px 4px 16px;display:flex;align-items:center;gap:12px">
+        <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#DC2626">wifi_off</span>
+        <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">You're offline - grading needs a connection</span>
+        <button style="height:48px;padding:0 12px;border:none;border-radius:8px;background:none;font:600 13px Poppins;color:#1B3A8C;cursor:pointer" style-active="background:#EEF1FA">Retry</button>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#6B7089">04</span><span style="font:600 20px Poppins;color:#1A1D2E">Loading skeletons</span><span style="font:400 13px Inter;color:#6B7089">Static blocks in Primary Surface #EEF1FA · real content replaces them in place</span></div>
+    <div style="display:flex;gap:40px;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font:500 11px Inter;color:#6B7089">Home Dashboard · loading</span>
+        <div data-screen-label="Skeleton · Home" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column">
+          <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#1A1D2E;flex:none"><span>9:41</span><div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div></div>
+          <div style="flex:1;min-height:0;overflow:hidden;padding:16px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:center;gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div style="width:96px;height:12px;border-radius:6px;background:#EEF1FA"></div><div style="width:140px;height:20px;border-radius:8px;background:#EEF1FA"></div></div><div style="width:40px;height:40px;border-radius:50%;background:#EEF1FA"></div><div style="width:40px;height:40px;border-radius:50%;background:#EEF1FA"></div></div>
+            <div style="height:48px;border-radius:12px;background:#EEF1FA"></div>
+            <div style="height:152px;border-radius:16px;background:#EEF1FA"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div style="height:88px;border-radius:12px;background:#EEF1FA"></div><div style="height:88px;border-radius:12px;background:#EEF1FA"></div><div style="height:88px;border-radius:12px;background:#EEF1FA"></div><div style="height:88px;border-radius:12px;background:#EEF1FA"></div></div>
+            <div style="width:120px;height:16px;border-radius:8px;background:#EEF1FA;margin-top:4px"></div>
+            <sc-for list="{{ rows3 }}" as="r" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:12px"><div style="width:40px;height:40px;border-radius:10px;background:#EEF1FA;flex:none"></div><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div style="width:{{ r.w1 }};height:12px;border-radius:6px;background:#EEF1FA"></div><div style="width:{{ r.w2 }};height:10px;border-radius:5px;background:#EEF1FA"></div></div></div>
+            </sc-for>
+          </div>
+          <div style="height:64px;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;justify-items:center;flex:none"><sc-for list="{{ navDots }}" as="n" hint-placeholder-count="4"><div style="width:32px;height:32px;border-radius:8px;background:#EEF1FA"></div></sc-for></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <span style="font:500 11px Inter;color:#6B7089">Grading History · loading</span>
+        <div data-screen-label="Skeleton · History" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column">
+          <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none"><span>9:41</span><div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div></div>
+          <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none"><div style="width:48px;height:48px;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></div><div style="flex:1;font:600 20px Poppins;color:#fff">Grading History</div></div>
+          <div style="padding:12px 16px 8px;flex:none"><div style="height:48px;border-radius:12px;background:#EEF1FA"></div></div>
+          <div style="padding:0 16px 12px;display:flex;gap:8px;flex:none"><div style="width:48px;height:32px;border-radius:16px;background:#EEF1FA"></div><div style="width:48px;height:32px;border-radius:16px;background:#EEF1FA"></div><div style="width:48px;height:32px;border-radius:16px;background:#EEF1FA"></div><div style="width:48px;height:32px;border-radius:16px;background:#EEF1FA"></div><div style="width:72px;height:32px;border-radius:16px;background:#EEF1FA"></div></div>
+          <div style="flex:1;display:flex;flex-direction:column;border-top:1px solid #E5E7F0">
+            <sc-for list="{{ rows7 }}" as="r" hint-placeholder-count="7">
+              <div style="height:80px;padding:12px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #E5E7F0"><div style="width:40px;height:40px;border-radius:10px;background:#EEF1FA;flex:none"></div><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div style="width:{{ r.w1 }};height:12px;border-radius:6px;background:#EEF1FA"></div><div style="width:{{ r.w2 }};height:10px;border-radius:5px;background:#EEF1FA"></div><div style="width:{{ r.w3 }};height:10px;border-radius:5px;background:#EEF1FA"></div></div></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#6B7089">05</span><span style="font:600 20px Poppins;color:#1A1D2E">EmptyState</span></div>
+    <div style="display:flex;gap:32px;align-items:flex-start">
+      <sc-for list="{{ empties }}" as="e" hint-placeholder-count="3">
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <span style="font:500 11px Inter;color:#6B7089">{{ e.where }}</span>
+          <div style="width:328px;padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;border:1px dashed #E5E7F0;border-radius:12px">
+            <div style="width:64px;height:64px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:32px">{{ e.icon }}</span></div>
+            <span style="font:600 16px Poppins;color:#1A1D2E">{{ e.title }}</span>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">{{ e.body }}</span>
+            <a href="{{ e.href }}" style="margin-top:4px;height:48px;padding:0 24px;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;display:flex;align-items:center" style-active="background:#3B5FD9">{{ e.action }}</a>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:20px;padding-top:8px;border-top:1px solid #E5E7F0">
+    <div style="display:flex;align-items:baseline;gap:12px"><span style="font:600 12px Poppins;color:#6B7089">06</span><span style="font:600 20px Poppins;color:#1A1D2E">Consistency review · fixes applied to all 29 files</span></div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px">
+      <sc-for list="{{ fixes }}" as="f" hint-placeholder-count="9">
+        <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:{{ f.color }};font-variation-settings:'FILL' 1">{{ f.icon }}</span><span style="font:600 14px Poppins;color:#1A1D2E">{{ f.title }}</span></div>
+          <span style="font:400 13px/1.55 Inter;color:#6B7089;text-wrap:pretty">{{ f.body }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const ok = ['check_circle', '#059669', 'rgba(16,185,129,.12)'], warn = ['warning', '#B45309', 'rgba(245,158,11,.14)'], bad = ['error', '#DC2626', 'rgba(239,68,68,.12)'], inf = ['info', '#1B3A8C', '#EEF1FA'];
+    const S = [
+      [ok, 'Stone saved - GE-STONE-00042', 'View', 'Success · Grade Result › Save'],
+      [ok, 'Certificate saved to Downloads', 'Open', 'Success · Certificate Preview'],
+      [warn, 'Low light - results may be less accurate', 'Dismiss', 'Warning · Photo Check'],
+      [bad, 'Image is blurry - recapture', 'Retake', 'Error · Photo Check'],
+      [ok, 'Calibrated - residual 0.08', 'OK', 'Success · Calibration Result'],
+      [bad, 'Patch not uniform - shadow or edge detected. Retake.', 'Retake', 'Error · Calibration Patch Capture'],
+      [ok, 'Profile saved', 'OK', 'Success · Profile'],
+      [inf, 'Verification link sent to your new email', null, 'Info · Change Email'],
+    ];
+    const snacks = S.map(([t, text, action, where]) => ({ icon: t[0], color: t[1], tint: t[2], text, action, hasAction: !!action, where }));
+    const E = ['rgba(239,68,68,.12)', '#DC2626'], W = ['rgba(245,158,11,.14)', '#B45309'], I = ['#EEF1FA', '#1B3A8C'];
+    const D = [
+      ['Processing · no connection', 'wifi_off', E, 'No connection', 'Check your internet connection and try again. Your photo is kept.', 'Cancel', 'Retry', '#1B3A8C', false],
+      ['Processing · timeout', 'hourglass_top', W, 'Server is taking too long', 'The grading server did not respond in time.', null, 'Retry', '#1B3A8C', false],
+      ['Processing · generic error', 'error', E, 'Something went wrong', 'Please try again later.', null, 'OK', '#1B3A8C', false],
+      ['Settings · danger', 'person_remove', E, 'Delete account permanently?', 'This cannot be undone. Your profile, grading history and certificates will be removed.', 'Cancel', 'Delete', '#DC2626', false],
+      ['Settings · danger', 'delete_sweep', E, 'Clear all history?', 'All graded stones and their photos will be deleted. Exported certificates are not affected.', 'Cancel', 'Clear', '#DC2626', false],
+      ['Global · blocking', 'lock_clock', W, 'Session expired', 'Please log in again.', null, 'Log in', '#1B3A8C', true],
+      ['Global · blocking', 'policy', I, 'Privacy policy updated', 'Review and accept the updated policy to keep using GemEye.', 'Log out', 'Review', '#1B3A8C', true],
+    ];
+    const dialogs = D.map(([where, icon, t, title, body, cancel, action, actBg, block]) => ({ where, icon, iconTint: t[0], iconColor: t[1], title, body, cancel, hasCancel: !!cancel, action, actBg, scrim: block ? 'rgba(26,29,46,.6)' : 'rgba(26,29,46,.42)' }));
+    const W3 = [['70%', '45%'], ['60%', '50%'], ['75%', '40%']];
+    const rows3 = W3.map(([w1, w2]) => ({ w1, w2 }));
+    const rows7 = Array.from({ length: 7 }, (_, i) => ({ w1: ['56%', '52%', '60%'][i % 3], w2: ['40%', '36%', '44%'][i % 3], w3: ['48%', '30%', '38%'][i % 3] }));
+    const empties = [
+      { where: 'Grading History', icon: 'diamond', title: 'No stones graded yet', body: 'Grade your first sapphire and the report will appear here.', action: 'Grade a stone', href: 'Grade Capture.dc.html' },
+      { where: 'Stone Comparison', icon: 'compare', title: 'Nothing to compare yet', body: 'Grade at least two stones to compare their colour side by side.', action: 'Grade a stone', href: 'Grade Capture.dc.html' },
+      { where: 'Calibration History', icon: 'palette', title: 'No calibrations yet', body: 'Calibrate once per session before grading. Past sessions will appear here.', action: 'Start Calibration', href: 'Calibration Start.dc.html' },
+    ];
+    const done = ['check_circle', '#059669'], note = ['info', '#1B3A8C'];
+    const F = [
+      [done, 'Dash rule', '30 long dashes replaced with "-" across 12 files, including Component Sheet labels (G1-G7, 40-59%) and result copy such as "Vivid - Royal Blue".'],
+      [done, 'Muted text contrast', 'Caption and footer text in #A0A4B8 (2.5:1) changed to #6B7089 (4.9:1) in 229 places. #A0A4B8 now only appears on disabled controls and decorative icons.'],
+      [done, 'Status text contrast', 'Red text #EF4444 (3.8:1) changed to #DC2626 (4.8:1); green text #10B981 changed to #047857; pending step labels darkened.'],
+      [done, 'DangerButton', 'Fill changed from #EF4444 to #DC2626 so white labels pass 4.5:1. Pressed state is now #B91C1C. Applies to badges, swipe-delete and dialogs.'],
+      [done, 'Success fills', 'Green circles with white check icons changed to #059669 (3.8:1, passes 3:1 for UI icons).'],
+      [done, 'Touch targets', 'Text buttons, dialog actions, snackbar actions, segmented toggles, social buttons and checkbox rows raised from 36 to 44 dp to 48 dp. Snackbar padding reduced so its height stays compact.'],
+      [done, '4-pt spacing grid', '562 gap, padding and margin values snapped to multiples of 4 (6 to 8, 10 to 12, 14 to 16, 18 to 20). Component sizes were not changed.'],
+      [note, 'Kept as is', 'FilterChip (32 dp) and NotificationBell (40 dp) keep their visual size; build with a 48 dp minimum touch area (Compose minimumInteractiveComponentSize). Swap button on Stone Comparison is 36 dp visual for the same reason.'],
+      [note, 'Component usage', 'All screens use the Component Sheet set. The 3-option SegmentedToggle (History filters, Settings export format) is the only variant not yet on the sheet.'],
+    ];
+    const fixes = F.map(([t, title, body]) => ({ icon: t[0], color: t[1], title, body }));
+    return { snacks, dialogs, rows3, rows7, navDots: [1, 2, 3, 4], empties, fixes };
+  }
+}
+</script>
+</body>
+</html>

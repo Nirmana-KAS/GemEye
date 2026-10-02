@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Security dialogs</span>
+    <span style="font:400 13px Inter;color:#6B7089">21a biometric sheet · 21b Change Password (type to see rules) · 21c Change Email · 21d to 21g AppDialogs</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap;max-width:1720px">
+
+    <div id="21a" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 8px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">21a</span><span style="font:500 11px Inter;color:#6B7089">Biometric prompt · BottomSheetContainer</span></div>
+      <div data-screen-label="Verify it's you" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none"><span>9:41</span><div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div></div>
+        <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none"><div style="width:48px;height:48px;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></div><div style="flex:1;font:600 20px Poppins;color:#fff">Settings</div></div>
+        <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px"><div style="height:72px;border:1px solid #E5E7F0;border-radius:12px"></div><div style="height:170px;border:1px solid #E5E7F0;border-radius:12px"></div><div style="height:200px;border:1px solid #E5E7F0;border-radius:12px"></div></div>
+        <div style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+        <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:8px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center">
+          <div style="width:36px;height:4px;border-radius:2px;background:#E5E7F0"></div>
+          <span style="font:600 16px Poppins;color:#1A1D2E;margin-top:8px">Verify it's you</span>
+          <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Confirm your identity to change your password.</span>
+          <button onClick="{{ scan }}" aria-label="Fingerprint" style="width:80px;height:80px;border-radius:50%;border:none;background:{{ fpBg }};color:{{ fpColor }};display:flex;align-items:center;justify-content:center;margin:12px 0 4px;cursor:pointer;transition:background .2s"><span style="font-family:'Material Symbols Rounded';font-size:44px">{{ fpIcon }}</span></button>
+          <span style="font:500 13px Inter;color:{{ fpTextColor }}">{{ fpText }}</span>
+          <div style="align-self:stretch;display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <a href="#21b" style="height:48px;padding:0 8px;margin-left:-8px;border-radius:8px;color:#6B7089;font:600 14px Poppins;display:flex;align-items:center" style-active="background:#EEF1FA">Cancel</a>
+            <button style="height:48px;padding:0 8px;margin-right:-8px;border:none;border-radius:8px;background:none;color:#1B3A8C;font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;gap:8px" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:18px">pin</span>Use PIN instead</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="21b" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 8px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">21b</span><span style="font:500 11px Inter;color:#6B7089">Change Password · interactive</span></div>
+      <div data-screen-label="Change Password" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none"><span>9:41</span><div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div></div>
+        <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none"><a href="Settings.dc.html" style="width:48px;height:48px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></a><div style="flex:1;font:600 20px Poppins;color:#fff">Change Password</div></div>
+        <div data-scroll="1" style="flex:1;min-height:0;overflow-y:auto;padding:20px 16px;display:flex;flex-direction:column;gap:16px">
+          <sc-for list="{{ pwFields }}" as="f" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label style="font:500 12px Inter;color:{{ f.labelColor }}">{{ f.label }}</label>
+              <div style="height:48px;padding:0 4px 0 16px;border-radius:12px;border:1.5px solid {{ f.border }};background:{{ f.bg }};display:flex;align-items:center;gap:8px">
+                <input type="{{ f.type }}" value="{{ f.value }}" onChange="{{ f.onChange }}" placeholder="{{ f.ph }}" style="flex:1;min-width:0;border:none;background:none;outline:none;font:400 14px Inter;color:#1A1D2E"></input>
+                <button onClick="{{ f.onEye }}" aria-label="Show password" style="width:40px;height:40px;border:none;border-radius:50%;background:none;color:#6B7089;display:flex;align-items:center;justify-content:center;cursor:pointer"><span style="font-family:'Material Symbols Rounded';font-size:20px">{{ f.eye }}</span></button>
+              </div>
+              <sc-if value="{{ f.hasError }}" hint-placeholder-val="{{ false }}"><span style="font:400 11px Inter;color:#DC2626">{{ f.error }}</span></sc-if>
+            </div>
+          </sc-for>
+          <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+            <span style="font:600 12px Poppins;color:#1A1D2E">Password must have</span>
+            <sc-for list="{{ rules }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Material Symbols Rounded';font-size:18px;color:{{ r.color }};font-variation-settings:'FILL' 1">{{ r.icon }}</span><span style="font:400 13px Inter;color:{{ r.text }}">{{ r.label }}</span></div>
+            </sc-for>
+          </div>
+          <button style="align-self:flex-start;height:48px;padding:0 8px;margin-left:-8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;cursor:pointer">Forgot current password?</button>
+        </div>
+        <div style="padding:12px 16px 20px;border-top:1px solid #E5E7F0;background:#fff;flex:none">
+          <button disabled="{{ pwBlocked }}" style="width:100%;height:48px;border:none;border-radius:12px;background:{{ pwBg }};color:{{ pwColor }};font:600 14px Poppins;cursor:pointer" style-active="filter:brightness(1.15)">Update password</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="21c" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 8px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">21c</span><span style="font:500 11px Inter;color:#6B7089">Change Email · interactive</span></div>
+      <div data-screen-label="Change Email" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none"><span>9:41</span><div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div></div>
+        <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none"><a href="Profile.dc.html" style="width:48px;height:48px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></a><div style="flex:1;font:600 20px Poppins;color:#fff">Change Email</div></div>
+        <div style="flex:1;min-height:0;padding:20px 16px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label style="font:500 12px Inter;color:#6B7089">Current email</label>
+            <div style="height:48px;padding:0 16px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#6B7089">s.perera@gemlab.lk<span style="font-family:'Material Symbols Rounded';font-size:18px;color:#A0A4B8">lock</span></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <label style="font:500 12px Inter;color:{{ em.labelColor }}">New email</label>
+            <input type="email" value="{{ em.value }}" onChange="{{ em.onChange }}" placeholder="name@example.com" style="height:48px;padding:0 16px;border-radius:12px;border:1.5px solid {{ em.border }};background:{{ em.bg }};font:400 14px Inter;color:#1A1D2E;outline:none" style-focus="border-color:#1B3A8C;background:#fff"></input>
+            <sc-if value="{{ em.hasError }}" hint-placeholder-val="{{ false }}"><span style="font:400 11px Inter;color:#DC2626">Enter a valid email address</span></sc-if>
+          </div>
+          <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 16px;display:flex;gap:12px;align-items:flex-start">
+            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C">mark_email_unread</span>
+            <span style="flex:1;font:400 13px/1.5 Inter;color:#6B7089;text-wrap:pretty">We'll send a verification link to the new address. Your current email stays active until you confirm it.</span>
+          </div>
+        </div>
+        <div style="padding:12px 16px 20px;border-top:1px solid #E5E7F0;background:#fff;flex:none">
+          <button disabled="{{ em.blocked }}" style="width:100%;height:48px;border:none;border-radius:12px;background:{{ em.pBg }};color:{{ em.pColor }};font:600 14px Poppins;cursor:pointer" style-active="filter:brightness(1.15)">Send verification link</button>
+        </div>
+      </div>
+    </div>
+
+    <sc-for list="{{ dialogs }}" as="d" hint-placeholder-count="4">
+      <div id="{{ d.id }}" style="display:flex;flex-direction:column;gap:12px;flex:none">
+        <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 8px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ d.id }}</span><span style="font:500 11px Inter;color:#6B7089">{{ d.caption }}</span></div>
+        <div data-screen-label="{{ d.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+          <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none"><span>9:41</span><div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div></div>
+          <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none"><div style="width:48px;height:48px;color:#fff;display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></div><div style="flex:1;font:600 20px Poppins;color:#fff">{{ d.bgTitle }}</div></div>
+          <div style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px"><div style="height:72px;border:1px solid #E5E7F0;border-radius:12px"></div><div style="height:170px;border:1px solid #E5E7F0;border-radius:12px"></div><div style="height:200px;border:1px solid #E5E7F0;border-radius:12px"></div></div>
+          <div style="position:absolute;inset:0;background:{{ d.scrim }};display:flex;align-items:center;justify-content:center;padding:16px">
+            <div style="width:296px;background:#fff;border-radius:14px;padding:24px 20px 16px;display:flex;flex-direction:column;gap:12px">
+              <div style="width:40px;height:40px;border-radius:50%;background:{{ d.iconTint }};color:{{ d.iconColor }};display:flex;align-items:center;justify-content:center"><span style="font-family:'Material Symbols Rounded';font-size:22px">{{ d.icon }}</span></div>
+              <span style="font:600 16px/1.35 Poppins;color:#1A1D2E;text-wrap:pretty">{{ d.title }}</span>
+              <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">{{ d.body }}</span>
+              <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:4px">
+                <sc-if value="{{ d.hasCancel }}" hint-placeholder-val="{{ true }}"><button style="height:48px;padding:0 16px;border:none;border-radius:10px;background:none;color:#6B7089;font:600 14px Poppins;cursor:pointer" style-active="background:#EEF1FA">{{ d.cancel }}</button></sc-if>
+                <a href="{{ d.href }}" style="height:48px;padding:0 20px;border-radius:10px;background:{{ d.actBg }};color:#fff;font:600 14px Poppins;display:flex;align-items:center" style-active="filter:brightness(1.1)">{{ d.action }}</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { fp: 0, cur: '', nw: 'Sapphire1', cf: 'Sapphire', show: [false, false, false], email: '' };
+  renderVals() {
+    const s = this.state;
+    const FP = [['fingerprint', '#EEF1FA', '#1B3A8C', 'Touch the fingerprint sensor', '#6B7089'], ['fingerprint', 'rgba(239,68,68,.12)', '#EF4444', 'Not recognised. Try again.', '#EF4444'], ['check', 'rgba(16,185,129,.14)', '#10B981', 'Verified', '#047857']][s.fp];
+    const rules = [
+      ['At least 8 characters', s.nw.length >= 8],
+      ['Upper and lower case letters', /[a-z]/.test(s.nw) && /[A-Z]/.test(s.nw)],
+      ['At least one number', /\d/.test(s.nw)],
+      ['At least one symbol', /[^A-Za-z0-9]/.test(s.nw)],
+    ].map(([label, ok]) => ({ label, icon: ok ? 'check_circle' : 'radio_button_unchecked', color: ok ? '#10B981' : '#A0A4B8', text: ok ? '#1A1D2E' : '#6B7089', ok }));
+    const mismatch = s.cf.length > 0 && s.cf !== s.nw;
+    const mk = (i, label, key, ph, err) => ({
+      label, ph, value: s[key], type: s.show[i] ? 'text' : 'password', eye: s.show[i] ? 'visibility_off' : 'visibility',
+      onChange: e => this.setState({ [key]: e.target.value }),
+      onEye: () => this.setState(st => { const sh = [...st.show]; sh[i] = !sh[i]; return { show: sh }; }),
+      hasError: !!err, error: err, border: err ? '#EF4444' : 'transparent', bg: err ? '#fff' : '#EEF1FA', labelColor: err ? '#EF4444' : '#6B7089',
+    });
+    const pwFields = [mk(0, 'Current password', 'cur', 'Enter current password'), mk(1, 'New password', 'nw', 'Create a new password'), mk(2, 'Confirm new password', 'cf', 'Repeat new password', mismatch ? 'Passwords do not match' : '')];
+    const pwOk = s.cur.length > 0 && rules.every(r => r.ok) && s.cf === s.nw;
+    const emBad = s.email.length > 0 && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s.email);
+    const emOk = s.email.length > 0 && !emBad;
+    const em = { value: s.email, onChange: e => this.setState({ email: e.target.value }), hasError: emBad, border: emBad ? '#EF4444' : 'transparent', bg: emBad ? '#fff' : '#EEF1FA', labelColor: emBad ? '#EF4444' : '#6B7089',
+      blocked: !emOk, pBg: emOk ? '#1B3A8C' : '#E5E7F0', pColor: emOk ? '#fff' : '#A0A4B8' };
+    const err = ['rgba(239,68,68,.12)', '#EF4444'], info = ['#EEF1FA', '#1B3A8C'], warn = ['rgba(245,158,11,.14)', '#B45309'];
+    const dialogs = [
+      { id: '21d', caption: 'Danger · Delete account', bgTitle: 'Settings', icon: 'person_remove', iconTint: err[0], iconColor: err[1], title: 'Delete account permanently?', body: 'This cannot be undone. Your profile, grading history and certificates will be removed.', hasCancel: true, cancel: 'Cancel', action: 'Delete', actBg: '#DC2626', href: '#', scrim: 'rgba(26,29,46,.42)' },
+      { id: '21e', caption: 'Danger · Clear history', bgTitle: 'Settings', icon: 'delete_sweep', iconTint: err[0], iconColor: err[1], title: 'Clear all history?', body: 'All 42 graded stones and their photos will be deleted from this device and your account. Exported certificates are not affected.', hasCancel: true, cancel: 'Cancel', action: 'Clear', actBg: '#DC2626', href: '#', scrim: 'rgba(26,29,46,.42)' },
+      { id: '21f', caption: 'Blocking · Session expired', bgTitle: 'Home', icon: 'lock_clock', iconTint: warn[0], iconColor: warn[1], title: 'Session expired', body: 'Please log in again.', hasCancel: false, action: 'Log in', actBg: '#1B3A8C', href: 'Login.dc.html', scrim: 'rgba(26,29,46,.6)' },
+      { id: '21g', caption: 'Blocking · Privacy policy updated', bgTitle: 'Home', icon: 'policy', iconTint: info[0], iconColor: info[1], title: 'Privacy policy updated', body: 'Review and accept the updated policy to keep using GemEye.', hasCancel: true, cancel: 'Log out', action: 'Review', actBg: '#1B3A8C', href: 'Privacy Agreement.dc.html', scrim: 'rgba(26,29,46,.6)' },
+    ].map(d => ({ ...d, label: 'Dialog · ' + d.caption }));
+    return {
+      fpIcon: FP[0], fpBg: FP[1], fpColor: FP[2], fpText: FP[3], fpTextColor: FP[4],
+      scan: () => this.setState(st => ({ fp: (st.fp + 1) % 3 })),
+      pwFields, rules, pwBlocked: !pwOk, pwBg: pwOk ? '#1B3A8C' : '#E5E7F0', pwColor: pwOk ? '#fff' : '#A0A4B8', em, dialogs,
+    };
+  }
+}
+</script>
+</body>
+</html>

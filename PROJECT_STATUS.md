@@ -1338,3 +1338,31 @@
   - `+` app/lib/screens/repeatability_summary_screen.dart
 - **Connected edits:** EDIT-063, EDIT-064, EDIT-065, EDIT-067; Claude Design Group D export (Repeatability Mode)
 - **Reason:** Repeat captures show whether a grade is stable before it is saved.
+
+### EDIT-069 | 02 October 2026 13:00 | IST
+- **Topic:** CIEDE2000 Colour Difference
+- **Summary:** Added a standard CIEDE2000 (ΔE₀₀) implementation with unit tests against published reference pairs.
+- **What was done:**
+  - `ColourMath.deltaE2000(Lab, Lab)` with kL = kC = kH = 1 (Sharma, Wu and Dalal 2005), `Lab` value class, shared label "Delta E (ΔE₀₀)"
+  - Unit test with Sharma et al. (2005) pairs 1 (2.0425) and 17 (27.1492), plus identical colours = 0; all pass
+- **Files changed:**
+  - `+` app/lib/utils/colour_math.dart
+  - `+` app/test/colour_math_test.dart
+- **Connected edits:** EDIT-067
+- **Reason:** Stone Comparison and the certificate need a standard perceptual colour difference.
+
+### EDIT-070 | 02 October 2026 13:05 | IST
+- **Topic:** Certificate PDF Redesign
+- **Summary:** Certificate PDF follows the Group E design with embedded app fonts and theme colours.
+- **What was done:**
+  - Royal Blue header with logo.png on a white rounded frame, "Colour Grading Certificate", certificate number
+  - Stone photo card + gradient grade block (Grade N, GEMCLOUD name, trade name, grade swatch + hex, confidence and uncertainty pills)
+  - Colour data in 3 columns: CIELAB, HSB, CIECAM02 ("-", TODO(backend)); Delta E (ΔE₀₀) to typical grade and measured hex below
+  - Details grid: stone ID, capture date/time, session, device + calibration residual (from CalibrationService history when the session matches, else "-"), model version ("-", TODO(backend)), issued to (display name), company (only when set in Profile)
+  - QR content unchanged, caption "Scan to view certificate data" (TODO(backend) verification URL); statement, disclaimer, footer
+  - Amber "Borderline - reviewed by gemologist: ______" block when confidence is below the referral threshold
+  - Numbering, prefix setting and Downloads saving unchanged; Grad-CAM panel removed from the PDF (not in the design; still on Grade Result)
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart
+- **Connected edits:** EDIT-067, EDIT-069; Claude Design Group EF export (Certificate PDF)
+- **Reason:** The exported certificate must match the approved design.
