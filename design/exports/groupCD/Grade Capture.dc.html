@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Grade Stone – Capture</span>
+    <span style="font:400 13px Inter;color:#6B7089">Capture buttons unlock when all 4 checks are ticked and the session is calibrated · checkboxes and toggle are interactive</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="3">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:10px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 7px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#A0A4B8">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+        <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 12px 0 4px;flex:none">
+          <a href="Side Drawer.dc.html" style="width:48px;height:48px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;flex:none" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></a>
+          <div style="flex:1;min-width:0;font:600 20px Poppins;color:#fff;white-space:nowrap">Grade a Stone</div>
+          <a href="{{ fr.chipHref }}" style="height:28px;padding:0 10px 0 8px;border-radius:14px;background:#fff;display:inline-flex;align-items:center;gap:4px;font:600 11px Poppins;color:#1A1D2E;white-space:nowrap;flex:none"><span style="font-family:'Material Symbols Rounded';font-size:16px;color:{{ fr.chipColor }};font-variation-settings:'FILL' 1">{{ fr.chipIcon }}</span>{{ fr.chipText }}</a>
+        </div>
+
+        <div data-scroll="1" style="flex:1;min-height:0;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <sc-if value="{{ fr.notCal }}" hint-placeholder-val="{{ false }}">
+            <a href="Calibration Start.dc.html" style="min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;gap:12px;flex:none" style-active="background:#EEF1FA">
+              <span style="width:8px;height:8px;border-radius:50%;background:#EF4444;flex:none;box-shadow:0 0 0 4px rgba(239,68,68,.15)"></span>
+              <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">Not calibrated · Calibrate before grading</span>
+              <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#A0A4B8">chevron_right</span>
+            </a>
+          </sc-if>
+
+          <div style="background:#fff;border:1.5px solid #1B3A8C;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;flex:none">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C;font-variation-settings:'FILL' 1">verified</span><span style="font:600 16px Poppins;color:#1A1D2E">Recommended (most accurate)</span></div>
+            <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Capture in your camera's Pro mode with white balance 'Daylight' locked, then import.</span>
+            <a href="Pro Mode Guide.dc.html" style="height:40px;padding:0 8px;margin-left:-8px;align-self:flex-start;border-radius:8px;color:#1B3A8C;font:600 14px Poppins;display:flex;align-items:center;gap:4px" style-active="background:#EEF1FA">How to set up Pro mode<span style="font-family:'Material Symbols Rounded';font-size:18px">chevron_right</span></a>
+            <button disabled="{{ fr.locked }}" style="width:100%;height:48px;border:none;border-radius:12px;background:{{ fr.pBg }};color:{{ fr.pColor }};font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" style-active="filter:brightness(1.15)"><span style="font-family:'Material Symbols Rounded';font-size:20px">photo_library</span>Import from Gallery</button>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;flex:none">
+            <span style="font:600 16px Poppins;color:#1A1D2E">Quick capture</span>
+            <button disabled="{{ fr.locked }}" style="width:100%;height:48px;border:1.5px solid {{ fr.sBorder }};border-radius:12px;background:#fff;color:{{ fr.sColor }};font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:20px">photo_camera</span>Take Photo</button>
+            <span style="font:400 12px Inter;color:#A0A4B8;display:flex;align-items:center;gap:6px"><span style="font-family:'Material Symbols Rounded';font-size:16px">info</span>Less colour-consistent</span>
+          </div>
+
+          <sc-if value="{{ fr.showHint }}" hint-placeholder-val="{{ false }}">
+            <span style="font:500 12px Inter;color:#6B7089;display:flex;align-items:center;gap:6px;padding:0 4px"><span style="font-family:'Material Symbols Rounded';font-size:16px;color:#1B3A8C">arrow_downward</span>{{ fr.hint }}</span>
+          </sc-if>
+
+          <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;gap:16px;align-items:center;flex:none">
+            <div style="width:112px;height:112px;border-radius:12px;background:#fff;border:1px solid #E5E7F0;box-shadow:inset 0 0 0 6px #F6F7FB;display:flex;align-items:center;justify-content:center;flex:none;position:relative">
+              <div style="width:70%;height:70%;border-radius:50%;border:2px dashed #1B3A8C;display:flex;align-items:center;justify-content:center">
+                <div style="width:86%;height:86%;border-radius:50%;background:#2A408C"></div>
+              </div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+              <span style="font:600 14px Poppins;color:#1A1D2E">Framing</span>
+              <span style="font:400 13px/1.45 Inter;color:#6B7089;text-wrap:pretty">Stone should fill about 70% of the frame</span>
+            </div>
+          </div>
+
+          <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:8px 16px;display:flex;flex-direction:column;flex:none">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0 2px"><span style="font:600 14px Poppins;color:#1A1D2E">Before you capture</span><span style="font:500 12px Inter;color:{{ fr.countColor }}">{{ fr.count }}</span></div>
+            <sc-for list="{{ fr.checks }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.onTap }}" style="min-height:44px;border:none;background:none;padding:0;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+                <span style="width:20px;height:20px;border-radius:6px;border:2px solid {{ c.border }};background:{{ c.bg }};display:flex;align-items:center;justify-content:center;flex:none;color:#fff;font-family:'Material Symbols Rounded';font-size:16px;font-weight:700">{{ c.mark }}</span>
+                <span style="font:400 14px/1.4 Inter;color:#1A1D2E">{{ c.label }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <button onClick="{{ fr.onToggle }}" style="width:100%;min-height:56px;border:none;background:none;padding:8px 4px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;flex:none">
+            <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:500 14px Inter;color:#1A1D2E">Repeatability mode</span><span style="font:400 12px Inter;color:#6B7089">3 captures of the same stone</span></div>
+            <span style="width:44px;height:24px;border-radius:12px;background:{{ fr.track }};position:relative;flex:none;transition:background .2s"><span style="position:absolute;top:2px;left:{{ fr.knob }};width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(26,29,46,.25);transition:left .2s"></span></span>
+          </button>
+        </div>
+
+        <div style="height:64px;background:#fff;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(4,1fr);flex:none">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+            <a href="{{ t.href }}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:{{ t.color }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:24px;font-variation-settings:{{ t.fill }}">{{ t.icon }}</span>
+              <span style="font:{{ t.font }};font-size:11px">{{ t.label }}</span>
+              <span style="width:4px;height:4px;border-radius:50%;background:#1B3A8C;opacity:{{ t.dot }}"></span>
+            </a>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { checks: [[true, true, false, false], [true, true, true, true], [true, true, true, true]], rep: [false, true, false] };
+  renderVals() {
+    const s = this.state;
+    const L = ['Macro lens attached', 'CPL filter on', 'Stone face-up on white tray', 'Even daylight, no direct sun'];
+    const caps = ['Calibrated · 2 of 4 checks', 'Calibrated · ready', 'Not calibrated'];
+    const frames = caps.map((caption, f) => {
+      const cal = f !== 2, ch = s.checks[f], n = ch.filter(Boolean).length, all = n === 4, locked = !(cal && all), on = s.rep[f];
+      return {
+        id: '8' + 'abc'[f], caption, label: `Grade Capture · ${'abc'[f]}`,
+        chipText: cal ? 'Calibrated' : 'Not calibrated', chipIcon: cal ? 'check_circle' : 'cancel', chipColor: cal ? '#10B981' : '#EF4444',
+        chipHref: cal ? '#' : 'Calibration Start.dc.html', notCal: !cal,
+        locked, pBg: locked ? '#E5E7F0' : '#1B3A8C', pColor: locked ? '#A0A4B8' : '#fff',
+        sBorder: locked ? '#E5E7F0' : '#1B3A8C', sColor: locked ? '#A0A4B8' : '#1B3A8C',
+        showHint: cal && !all, hint: `Tick ${4 - n} more check${4 - n === 1 ? '' : 's'} below to capture`,
+        count: `${n} of 4`, countColor: all ? '#10B981' : '#6B7089',
+        checks: L.map((label, k) => ({
+          label, mark: ch[k] ? 'check' : '', bg: ch[k] ? '#1B3A8C' : '#fff', border: ch[k] ? '#1B3A8C' : '#A0A4B8',
+          onTap: () => this.setState(st => { const c = st.checks.map(a => [...a]); c[f][k] = !c[f][k]; return { checks: c }; }),
+        })),
+        track: on ? '#1B3A8C' : '#E5E7F0', knob: on ? '22px' : '2px',
+        onToggle: () => this.setState(st => { const r = [...st.rep]; r[f] = !r[f]; return { rep: r }; }),
+      };
+    });
+    const T = [['home', 'Home', 'Home Dashboard.dc.html'], ['center_focus_strong', 'Grade', '#'], ['history', 'History', '#'], ['menu_book', 'Guide', '#']];
+    const tabs = T.map(([icon, label, href], i) => { const a = i === 1; return { icon, label, href, color: a ? '#1B3A8C' : '#6B7089', fill: a ? "'FILL' 1" : "'FILL' 0", font: a ? '600 11px Poppins' : '500 11px Inter', dot: a ? 1 : 0 }; });
+    return { frames, tabs };
+  }
+}
+</script>
+</body>
+</html>
