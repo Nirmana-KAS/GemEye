@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:uuid/uuid.dart';
 
 class GradeResult {
@@ -92,6 +93,54 @@ class GradeResult {
         capturedAt: DateTime.parse(json['capturedAt'] as String),
         sessionId: json['sessionId'] as String,
       );
+
+  /// Copy with a new stone ID (all other values unchanged).
+  GradeResult withStoneId(String newStoneId) => GradeResult(
+        id: id,
+        stoneId: newStoneId,
+        gradeNumber: gradeNumber,
+        gradeName: gradeName,
+        tradeName: tradeName,
+        confidence: confidence,
+        uncertaintyRange: uncertaintyRange,
+        labL: labL,
+        labA: labA,
+        labB: labB,
+        labC: labC,
+        hue: hue,
+        saturation: saturation,
+        brightness: brightness,
+        deltaE: deltaE,
+        capturedImagePath: capturedImagePath,
+        gradcamImagePath: gradcamImagePath,
+        certificateNumber: certificateNumber,
+        capturedAt: capturedAt,
+        sessionId: sessionId,
+      );
+
+  /// Measured colour as sRGB [r, g, b] (0-255), from CIELAB (D65).
+  List<int> get measuredRgb {
+    final fy = (labL + 16) / 116;
+    final fx = fy + labA / 500;
+    final fz = fy - labB / 200;
+    double inv(double t) => t * t * t > 0.008856 ? t * t * t : (t - 16 / 116) / 7.787;
+    final x = 0.95047 * inv(fx);
+    final y = 1.0 * inv(fy);
+    final z = 1.08883 * inv(fz);
+    final lin = [
+      3.2406 * x - 1.5372 * y - 0.4986 * z,
+      -0.9689 * x + 1.8758 * y + 0.0415 * z,
+      0.0557 * x - 0.2040 * y + 1.0570 * z,
+    ];
+    return lin.map((c) {
+      final v = c <= 0.0031308 ? 12.92 * c : 1.055 * math.pow(c, 1 / 2.4) - 0.055;
+      return (v * 255).round().clamp(0, 255);
+    }).toList();
+  }
+
+  /// Measured colour as "#RRGGBB".
+  String get measuredHex =>
+      '#${measuredRgb.map((v) => v.toRadixString(16).padLeft(2, '0')).join().toUpperCase()}';
 
   String get confidenceLevel {
     if (confidence >= 80) return 'HIGH';

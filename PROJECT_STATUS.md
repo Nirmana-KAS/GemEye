@@ -1238,3 +1238,103 @@
   - `~` app/lib/services/notification_service.dart
 - **Connected edits:** EDIT-060 (calibration service), EDIT-061 (calibration screens); Claude Design Group C export (design/exports/groupCD)
 - **Reason:** Grading must not start without a valid calibration, and users need to see calibration status at a glance.
+
+### EDIT-063 | 02 October 2026 10:15 | IST
+- **Topic:** Grade Capture Redesign
+- **Summary:** Rebuilt Capture per the Group D design with calibration gating, the Pro mode guide, a 4-item checklist and the Repeatability toggle; the image_cropper step is unchanged.
+- **What was done:**
+  - App bar chip "Calibrated" (green) / "Not calibrated" (red, opens Calibration Start); red StatusBanner when not calibrated (live from `CalibrationService.session`)
+  - "Recommended (most accurate)" card with "How to set up Pro mode" (new Pro Mode Guide bottom sheet, 5 steps, "Got it") and "Import from Gallery"; "Quick capture" card with "Take Photo" and "Less colour-consistent"
+  - Framing card (dashed circle), "Before you capture" checklist (4 AppCheckbox items, "n of 4"); both capture buttons disabled until calibrated and all 4 ticked, with "Tick N more checks below to capture"
+  - ToggleRow "Repeatability mode"
+  - Picker + cropper moved to `StoneCaptureService` with identical crop/rotate/zoom settings (colours from AppColors); friendly snackbars replace raw error text
+  - Capture is now a named route (`CaptureScreen.route()`, `popTo`); Calibration Start opened from Capture returns to it (`popOnSave`)
+  - New widgets: ToggleRow, DashedBorderPainter, ProModeGuideSheet
+- **Files changed:**
+  - `~` app/lib/screens/capture_screen.dart
+  - `~` app/lib/screens/calibration_screen.dart
+  - `~` app/lib/screens/notifications_screen.dart
+  - `+` app/lib/services/stone_capture_service.dart
+  - `+` app/lib/widgets/toggle_row.dart
+  - `+` app/lib/widgets/dashed_border.dart
+  - `+` app/lib/widgets/pro_mode_guide_sheet.dart
+- **Connected edits:** EDIT-060, EDIT-061, EDIT-062; Claude Design Group D export (Grade Capture, Pro Mode Guide)
+- **Reason:** Grading must only start from a calibrated session with the capture setup confirmed.
+
+### EDIT-064 | 02 October 2026 10:22 | IST
+- **Topic:** Photo Check Screen
+- **Summary:** New screen after the cropper that blocks grading on a blurry photo, a missing stone or a missing/expired calibration.
+- **What was done:**
+  - `PhotoCheckService` (isolate via `compute()`): downscale to 512 px, Laplacian variance of the central 50% (grayscale), blurry below `kMinBlurVariance` = 50 (TODO calibrate on dataset); stone in frame when the non-near-white share (all channels >= 200) of the central 70% is between 5% and 95%
+  - Preview card + 3 check rows (pending / pass / fail); blurry shows "Refocus and recapture" and AppSnackBar "Image is blurry - please recapture" with Retake; stone fail "Stone not found - recentre"; calibration row shows the session ID or fails when none/expired
+  - "Grade This Stone" enabled only when all checks pass, "Retake" returns to Capture
+- **Files changed:**
+  - `+` app/lib/screens/photo_check_screen.dart
+  - `+` app/lib/services/photo_check_service.dart
+- **Connected edits:** EDIT-063; Claude Design Group D export (Photo Check)
+- **Reason:** Catch unusable photos on the device before they reach the grading server.
+
+### EDIT-065 | 02 October 2026 10:30 | IST
+- **Topic:** Processing Screen Redesign and Grading Errors
+- **Summary:** Processing now shows the sapphire Lottie in a white circle, a vertical 6-step progress and AppDialogs for connection, timeout and generic errors.
+- **What was done:**
+  - White 80 px circle frame with subtle shadow around `sapphire_rotate.json` (errorBuilder → logo.png), title "Grading your stone", "Usually 2-5 seconds"
+  - New `VerticalStepProgress` widget with the 6 design steps; demo timing kept (400 ms per step + 500 ms)
+  - `GradingService.grade()` returns the existing demo result (TODO(backend) HTTP call); exceptions `GradingNoConnectionException`, `GradingTimeoutException`, `GradingRejectedException(RejectionReason)`, `GradingException`
+  - Dialogs: "No connection" (Cancel / Retry), "Server is taking too long" (Retry), "Something went wrong" (OK); `AppDialog.alert()` and a custom `icon` added to AppDialog
+  - Success opens Grade Result (or Repeatability Summary); rejection opens Not Accepted; Photo Check and Processing are removed from the stack; stone ID kept across retries
+- **Files changed:**
+  - `~` app/lib/screens/processing_screen.dart
+  - `~` app/lib/widgets/step_progress.dart
+  - `~` app/lib/widgets/app_dialog.dart
+  - `+` app/lib/services/grading_service.dart
+- **Connected edits:** EDIT-064; Claude Design Group D export (Processing)
+- **Reason:** Clear progress and recoverable error states for the upcoming grading backend.
+
+### EDIT-066 | 02 October 2026 10:36 | IST
+- **Topic:** Not Accepted Screen
+- **Summary:** New result template for rejected photos with the no_stone, not_blue and not_recognised variants.
+- **What was done:**
+  - Warning icon, title and explanation per variant; "Your photo" card with the real photo and session ID; not_blue shows a measured hue swatch and value when the server sends it
+  - "Why was this rejected?" AppDialog explaining the 3 checks; "Retake" back to Capture; footer disclaimer
+  - Reachable via `RejectionReason` / `RejectionReason.fromStatus()`; TODO(backend) to route from the server response
+- **Files changed:**
+  - `+` app/lib/screens/not_accepted_screen.dart
+- **Connected edits:** EDIT-065; Claude Design Group D export (Not Accepted)
+- **Reason:** Rejected photos must explain why no grade was given.
+
+### EDIT-067 | 02 October 2026 10:44 | IST
+- **Topic:** Grade Result Redesign
+- **Summary:** Result screen follows the Group D layout while keeping the existing Colour values and Grad-CAM sections unchanged.
+- **What was done:**
+  - App bar "Colour Grading Report" with share; borderline banner (confidence < 60) "Borderline - gemologist review recommended" (second grade named only when probabilities exist)
+  - Stone photo card with a measured-colour chip (sRGB from the stored CIELAB values)
+  - New GradeBadgeCard (gradient), UncertaintyPill and on-dark ConfidenceBadge
+  - New ProbabilityBarCard, hidden until GradeResult carries probabilities (TODO(backend))
+  - Colour values and Grad-CAM heatmap kept exactly, Grad-CAM directly after colour values; TODO(backend) for CIECAM02 tiles
+  - Buttons: "Save & Grade Next" / "Export Certificate", or "Save as Referred" / "Retake" when borderline; footer with stone, session and date (model version TODO(backend))
+  - Save/export logic moved to `GradeRecordService` (same behaviour, certificate number reused on re-export); `GradeResult.withStoneId`, `measuredRgb`, `measuredHex` helpers
+- **Files changed:**
+  - `~` app/lib/screens/result_screen.dart
+  - `~` app/lib/models/grade_result.dart
+  - `~` app/lib/widgets/confidence_badge.dart
+  - `+` app/lib/services/grade_record_service.dart
+  - `+` app/lib/widgets/grade_badge_card.dart
+  - `+` app/lib/widgets/probability_bar.dart
+- **Connected edits:** EDIT-065; Claude Design Group D export (Grade Result)
+- **Reason:** Result screen must match the approved design and flag borderline stones for review.
+
+### EDIT-068 | 02 October 2026 10:51 | IST
+- **Topic:** Repeatability Mode
+- **Summary:** With the toggle on, the stone is captured 3 times (each through crop and Photo Check) and graded into a summary.
+- **What was done:**
+  - Repeatability capture screen for captures 2 and 3: progress dots, "Capture n of 3", thumbnails (done / now / pending), "Lift and replace the stone" card, Import from Gallery / Take Photo
+  - Photo Check labels the intermediate button "Use This Photo" and "Grade This Stone" on capture 3
+  - Summary: inconsistent banner, 3 capture tiles (odd one amber), Agreement n/3, ΔE₀₀ row ("-", TODO(backend)), final grade card with "Agreed / Majority n of 3" and confidence; buttons "Save & Grade Next" / "Export Certificate" or "Save as Referred" / "Retake all 3"
+  - Final grade = majority (TODO(backend) from server); with demo data all captures agree, so only the UI is shown
+  - Debug APK built and installed on the OnePlus Nord 2 (copy re-signed outside OneDrive, same digest issue as EDIT-062)
+- **Files changed:**
+  - `+` app/lib/screens/repeatability_capture_screen.dart
+  - `+` app/lib/screens/repeatability_summary_screen.dart
+- **Connected edits:** EDIT-063, EDIT-064, EDIT-065, EDIT-067; Claude Design Group D export (Repeatability Mode)
+- **Reason:** Repeat captures show whether a grade is stable before it is saved.

@@ -70,7 +70,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       case AppNotificationAction.openCalibration:
         AppRoutes.push(context, const CalibrationScreen());
       case AppNotificationAction.openCapture:
-        AppRoutes.push(context, const CaptureScreen());
+        Navigator.of(context).push(CaptureScreen.route());
       case AppNotificationAction.openHistory:
         Navigator.of(context).pop();
         widget.onOpenHistory?.call();

@@ -26,12 +26,16 @@ String rgbHex(List<int> rgb) =>
 
 /// Colour Calibration start: explains the 6-patch flow and starts it.
 class CalibrationScreen extends StatelessWidget {
-  const CalibrationScreen({super.key});
+  /// When true, a saved calibration returns to the previous screen
+  /// (Capture) instead of opening a new Capture.
+  final bool popOnSave;
+
+  const CalibrationScreen({super.key, this.popOnSave = false});
 
   /// Opens Capture when the calibration is valid, otherwise Calibration.
   static void openGrading(BuildContext context) {
     if (CalibrationService.isValidNow) {
-      AppRoutes.push(context, const CaptureScreen());
+      Navigator.of(context).push(CaptureScreen.route());
       return;
     }
     AppSnackBar.show(context,
@@ -45,7 +49,11 @@ class CalibrationScreen extends StatelessWidget {
       MaterialPageRoute(builder: (_) => const CalibrationPatchScreen()),
     );
     if (saved == true && context.mounted) {
-      AppRoutes.pushReplacement(context, const CaptureScreen());
+      if (popOnSave) {
+        Navigator.of(context).pop();
+      } else {
+        Navigator.of(context).pushReplacement(CaptureScreen.route());
+      }
     }
   }
 
