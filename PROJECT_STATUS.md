@@ -1175,3 +1175,23 @@
   - `~` app/lib/screens/result_screen.dart
 - **Connected edits:** EDIT-055 (edit history rule); Group C task brief
 - **Reason:** Consistent typography in the UI; the hyphen is the agreed separator.
+
+### EDIT-060 | 02 October 2026 08:05 | IST
+- **Topic:** Calibration Service (6-patch CCM)
+- **Summary:** Added the real colour calibration engine: patch measurement, least-squares 3x3 colour correction matrix, quality verdict and session storage.
+- **What was done:**
+  - Added `image` (pure Dart decoding) and `device_info_plus` packages
+  - Reference patches in training order: White, Black, 18% Grey (117), 50% Grey (186), Blue (0,63,135), Red (175,54,60)
+  - `measurePatch(File)`: decode + EXIF orientation, central 50% region, mean RGB and per-channel std dev, run in an isolate via `compute()`; uniform when every std dev <= `kPatchMaxStd` (0.06 x 255, to be tuned)
+  - `computeCcm`: normalised 0-1, normal equations M = (CᵀC)⁻¹CᵀR (same as numpy lstsq, no offset), RMS residual and per-patch Euclidean error
+  - Quality: Excellent <= 0.30, Acceptable <= 0.45, Poor above (provisional; training residual 0.2548)
+  - `CalibrationSession` (id S-YYYY-MM-DD-NN, 8 h validity, device model, ccm, residual, quality, measured, per-patch error) stored as JSON in flutter_secure_storage: current + history (max 50), live `ValueNotifier`
+  - `applyCcm(r,g,b)` helper for grading; `remindIfExpired()` for the recalibrate notification
+  - Unit tests: identity case (residual 0), uniform gain recovery, quality thresholds
+- **Files changed:**
+  - `+` app/lib/services/calibration_service.dart
+  - `+` app/test/calibration_service_test.dart
+  - `~` app/pubspec.yaml
+  - `~` app/pubspec.lock
+- **Connected edits:** EDIT-059; Claude Design Group C export (design/exports/groupCD)
+- **Reason:** Grading must run on colour-corrected photos using the same CCM as the training pipeline.
