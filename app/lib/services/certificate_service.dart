@@ -13,6 +13,8 @@ import '../models/grade_result.dart';
 import '../utils/colour_math.dart';
 import '../widgets/confidence_badge.dart';
 import 'calibration_service.dart';
+import 'profile_service.dart';
+import 'settings_service.dart';
 
 /// GemEye Certificate PDF generator (Group E design).
 ///
@@ -43,7 +45,8 @@ class CertificateService {
   // Page constants
   static const double _pad = 30;
 
-  /// Generate next sequential certificate number
+  /// Generate next sequential certificate number, using the prefix set in
+  /// Settings (default GE).
   static Future<String> generateCertificateNumber() async {
     final prefs = await SharedPreferences.getInstance();
     int counter = prefs.getInt('certificate_counter') ?? 0;
@@ -51,7 +54,10 @@ class CertificateService {
     await prefs.setInt('certificate_counter', counter);
     final now = DateTime.now();
     final ym = '${now.year}${now.month.toString().padLeft(2, '0')}';
-    return 'GE-$ym-${counter.toString().padLeft(5, '0')}';
+    final prefix = SettingsService.certificatePrefix.value.trim().isEmpty
+        ? AppConstants.defaultCertificatePrefix
+        : SettingsService.certificatePrefix.value.trim();
+    return '$prefix-$ym-${counter.toString().padLeft(5, '0')}';
   }
 
   static Future<pw.Font?> _font(String asset) async {
@@ -128,9 +134,8 @@ class CertificateService {
 
     String? company;
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final c = prefs.getString('company_name')?.trim();
-      if (c != null && c.isNotEmpty) company = c;
+      final c = (await ProfileService.load()).companyName.trim();
+      if (c.isNotEmpty) company = c;
     } catch (e) {
       debugPrint('Certificate company lookup failed: $e');
     }

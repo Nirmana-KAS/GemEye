@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
 import '../services/calibration_service.dart';
+import '../services/connectivity_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_checkbox.dart';
 import '../widgets/card_container.dart';
@@ -30,8 +31,8 @@ class CaptureScreen extends StatefulWidget {
   /// Pops back to Capture, or to the first route when Capture is not in
   /// the stack.
   static void popTo(BuildContext context) {
-    Navigator.of(context).popUntil(
-        (r) => r.settings.name == routeName || r.isFirst);
+    Navigator.of(context)
+        .popUntil((r) => r.settings.name == routeName || r.isFirst);
   }
 
   @override
@@ -68,82 +69,89 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<CalibrationSession?>(
-      valueListenable: CalibrationService.session,
-      builder: (context, session, _) {
-        final calibrated = session?.isValid ?? false;
-        final allTicked = _ticked == _checkLabels.length;
-        final unlocked = calibrated && allTicked && _busySource == null;
-        final remaining = _checkLabels.length - _ticked;
+    return ValueListenableBuilder<bool>(
+      valueListenable: ConnectivityService.online,
+      builder: (context, online, _) =>
+          ValueListenableBuilder<CalibrationSession?>(
+        valueListenable: CalibrationService.session,
+        builder: (context, session, _) {
+          final calibrated = session?.isValid ?? false;
+          final allTicked = _ticked == _checkLabels.length;
+          final unlocked =
+              online && calibrated && allTicked && _busySource == null;
+          final remaining = _checkLabels.length - _ticked;
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: GemAppBar(
-            title: 'Grade a Stone',
-            leading: GemAppBarLeading.back,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: AppSpacing.lg),
-                child: Center(
-                  child: _CalibrationChip(
-                    calibrated: calibrated,
-                    onTap: calibrated ? null : _openCalibration,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              children: [
-                if (!calibrated) ...[
-                  StatusBanner(
-                    type: StatusBannerType.error,
-                    message: 'Not calibrated · Calibrate before grading',
-                    onTap: _openCalibration,
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
-                ],
-                _buildRecommendedCard(unlocked),
-                const SizedBox(height: AppSpacing.lg),
-                _buildQuickCard(unlocked),
-                if (calibrated && !allTicked) ...[
-                  const SizedBox(height: AppSpacing.lg),
-                  Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.arrow_downward_rounded,
-                            size: 16, color: AppColors.primary),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          'Tick $remaining more check${remaining == 1 ? '' : 's'} below to capture',
-                          style: AppText.secondary.copyWith(
-                              fontWeight: FontWeight.w500,
-                              color: AppColors.textSecondary),
-                        ),
-                      ],
+          return Scaffold(
+            backgroundColor: AppColors.background,
+            appBar: GemAppBar(
+              title: 'Grade a Stone',
+              leading: GemAppBarLeading.back,
+              actions: [
+                Padding(
+                  padding: const EdgeInsets.only(right: AppSpacing.lg),
+                  child: Center(
+                    child: _CalibrationChip(
+                      calibrated: calibrated,
+                      onTap: calibrated ? null : _openCalibration,
                     ),
                   ),
-                ],
-                const SizedBox(height: AppSpacing.lg),
-                _buildFramingCard(),
-                const SizedBox(height: AppSpacing.lg),
-                _buildChecklist(allTicked),
-                const SizedBox(height: AppSpacing.lg),
-                ToggleRow(
-                  title: 'Repeatability mode',
-                  subtitle: '3 captures of the same stone',
-                  value: _repeatability,
-                  onChanged: (v) => setState(() => _repeatability = v),
                 ),
               ],
             ),
-          ),
-        );
-      },
+            body: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                children: [
+                  const OfflineBanner(
+                      padding: EdgeInsets.only(bottom: AppSpacing.lg)),
+                  if (!calibrated) ...[
+                    StatusBanner(
+                      type: StatusBannerType.error,
+                      message: 'Not calibrated · Calibrate before grading',
+                      onTap: _openCalibration,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
+                  _buildRecommendedCard(unlocked),
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildQuickCard(unlocked),
+                  if (calibrated && !allTicked) ...[
+                    const SizedBox(height: AppSpacing.lg),
+                    Padding(
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.arrow_downward_rounded,
+                              size: 16, color: AppColors.primary),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            'Tick $remaining more check${remaining == 1 ? '' : 's'} below to capture',
+                            style: AppText.secondary.copyWith(
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildFramingCard(),
+                  const SizedBox(height: AppSpacing.lg),
+                  _buildChecklist(allTicked),
+                  const SizedBox(height: AppSpacing.lg),
+                  ToggleRow(
+                    title: 'Repeatability mode',
+                    subtitle: '3 captures of the same stone',
+                    value: _repeatability,
+                    onChanged: (v) => setState(() => _repeatability = v),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -282,15 +290,14 @@ class _CaptureScreenState extends State<CaptureScreen> {
             child: Row(
               children: [
                 const Expanded(
-                    child: Text('Before you capture',
-                        style: AppText.titleSmall)),
+                    child:
+                        Text('Before you capture', style: AppText.titleSmall)),
                 Text(
                   '$_ticked of ${_checkLabels.length}',
                   style: AppText.secondary.copyWith(
                     fontWeight: FontWeight.w500,
-                    color: allTicked
-                        ? AppColors.success
-                        : AppColors.textSecondary,
+                    color:
+                        allTicked ? AppColors.success : AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -327,8 +334,7 @@ class _CalibrationChip extends StatelessWidget {
         splashColor: Colors.transparent,
         child: Container(
           height: 28,
-          padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md, 0, 10, 0),
+          padding: const EdgeInsets.fromLTRB(AppSpacing.md, 0, 10, 0),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -340,8 +346,8 @@ class _CalibrationChip extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Text(
                 calibrated ? 'Calibrated' : 'Not calibrated',
-                style: AppText.button.copyWith(
-                    fontSize: 11, color: AppColors.textPrimary),
+                style: AppText.button
+                    .copyWith(fontSize: 11, color: AppColors.textPrimary),
               ),
             ],
           ),

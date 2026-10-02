@@ -43,7 +43,10 @@ class _GuideGrade {
 }
 
 class GuideScreen extends StatefulWidget {
-  const GuideScreen({super.key});
+  /// Pushed on its own (e.g. from Settings): back arrow instead of menu.
+  final bool showBack;
+
+  const GuideScreen({super.key, this.showBack = false});
 
   @override
   State<GuideScreen> createState() => _GuideScreenState();
@@ -95,9 +98,12 @@ class _GuideScreenState extends State<GuideScreen> {
       backgroundColor: AppColors.background,
       appBar: GemAppBar(
         title: 'Colour Grade Guide',
-        leading: GemAppBarLeading.menu,
+        leading:
+            widget.showBack ? GemAppBarLeading.back : GemAppBarLeading.menu,
         // The drawer belongs to MainShell's Scaffold, above this one.
-        onLeadingPressed: () => Scaffold.maybeOf(context)?.openEndDrawer(),
+        onLeadingPressed: widget.showBack
+            ? null
+            : () => Scaffold.maybeOf(context)?.openEndDrawer(),
       ),
       body: _failed
           ? Center(

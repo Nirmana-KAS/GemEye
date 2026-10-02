@@ -1425,3 +1425,130 @@
 - **Connected edits:** Claude Design Group EF export (Colour Grade Guide)
 - **Reason:** The guide must match the approved design and the 7 GEMCLOUD grades.
 - **Notes:** flutter analyze: 0 errors (11 existing infos in settings_screen.dart); colour_math_test passes; widget_test.dart already failed before Group E. Debug APK built; not installed because the OnePlus Nord 2 was not connected (only an emulator was attached).
+
+### EDIT-075 | 02 October 2026 16:05 | IST
+- **Topic:** Status Text Tokens and System State Components
+- **Summary:** Added darker status text tokens and aligned AppSnackBar, AppDialog, EmptyState and StatusBanner with the System States page.
+- **What was done:**
+  - `AppColors.successText` #059669, `warningText` #B45309, `errorText` #DC2626 for text and icons on light tints; `scrimBlocking` for blocking dialogs; main status colours unchanged
+  - AppSnackBar: status icons use the text tokens, compact padding, 48 dp action
+  - AppDialog: filled confirm button (Royal Blue, or #DC2626 for danger), text cancel, 296 dp width, new `blocking` option (darker scrim, no tap-outside or back dismiss)
+  - EmptyState icon 32; StatusBanner gains an optional icon and text action; new `OfflineBanner` and `SkeletonBox` / `SkeletonRow`
+- **Files changed:**
+  - `~` app/lib/config/theme.dart
+  - `~` app/lib/widgets/app_snack_bar.dart
+  - `~` app/lib/widgets/app_dialog.dart
+  - `~` app/lib/widgets/empty_state.dart
+  - `~` app/lib/widgets/status_banner.dart
+  - `+` app/lib/widgets/skeleton.dart
+- **Connected edits:** EDIT-065; Claude Design Group EF export (System States)
+- **Reason:** Status text on tints must pass contrast, and shared components must match the approved states.
+
+### EDIT-076 | 02 October 2026 16:10 | IST
+- **Topic:** Settings Redesign and Single Referral Threshold
+- **Summary:** Settings follows the Group F design with every row wired, and the referral threshold is now one saved setting used everywhere.
+- **What was done:**
+  - New `SettingsService` (SharedPreferences, loaded at startup): referral threshold 40-90 (default 60), export format, certificate prefix, auto-save, 3 notification toggles
+  - `ConfidenceBadge.referThreshold` now reads the setting, so Home "Referred", Result borderline, History chips (live), certificates, repeatability and referral notifications all follow it
+  - CertificateService uses the saved prefix for new numbers; existing numbers unchanged
+  - NotificationService skips categories switched off (calibration reminders, referral alerts, certificate updates)
+  - Sections: Profile card, Calibration status (green / amber under 30 min / red) + Recalibrate + History sheet, Grading (slider, PDF / Image / Both, prefix dialog, auto-save TODO), Security (biometric first; Change Password hidden for Google-only accounts with a note), Notifications, Help (app introduction, Colour Grade Guide, feedback), Connection ("Server status: Not connected", TODO(backend) health check), Data, Account
+  - Export all data: CSV of every stone saved to Downloads/GemEye and opened in the share sheet (fixes F7)
+  - Clear history: danger dialog, deletes records and photos
+  - Delete account: danger dialog, re-authenticate (password prompt or Google), delete the Firebase user, wipe all local data (history, photos, calibration, notifications, profile, prefs), Login; TODO(backend) server data
+  - All use_build_context_synchronously infos fixed (analyzer now reports no issues)
+  - GuideScreen gets a back-arrow mode for opening from Settings
+- **Files changed:**
+  - `+` app/lib/services/settings_service.dart
+  - `+` app/lib/services/account_service.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `~` app/lib/screens/guide_screen.dart
+  - `~` app/lib/widgets/confidence_badge.dart
+  - `~` app/lib/services/notification_service.dart
+  - `~` app/lib/services/calibration_service.dart
+  - `~` app/lib/services/grade_record_service.dart
+  - `~` app/lib/services/certificate_service.dart
+  - `~` app/lib/services/storage_service.dart
+  - `~` app/lib/screens/certificate_screen.dart
+  - `~` app/lib/screens/history_screen.dart
+  - `~` app/lib/main.dart
+- **Connected edits:** EDIT-062, EDIT-067, EDIT-070, EDIT-072; Claude Design Group EF export (Settings)
+- **Reason:** Settings must work end to end, and one threshold must decide what is referred.
+
+### EDIT-077 | 02 October 2026 16:12 | IST
+- **Topic:** Profile Redesign and Local Profile Store
+- **Summary:** Profile follows the Group F design with real stats; profile details are kept on the device in secure storage.
+- **What was done:**
+  - New `ProfileService` (flutter_secure_storage): account type, phone, role, country, company name, contact person, industry, photo and logo paths; migrates the old SharedPreferences keys
+  - Registration now saves these details locally (TODO(F2) backend sync; business reg. no and address still not stored)
+  - Profile: 96 dp avatar (photo, Google photo or initials; tap to pick), name, type pill, stats Total graded / Referred / Certificates from StorageService
+  - Individual: full name, email locked + Change, phone, role, country; Company: logo (ImagePickerField), company name, contact person, email, phone, industry, country
+  - "Save changes" enabled only after an edit; "Profile saved" snackbar; certificates read the company name from the profile
+  - `ImagePickerField.pickImage` made reusable
+- **Files changed:**
+  - `+` app/lib/services/profile_service.dart
+  - `~` app/lib/screens/profile_screen.dart
+  - `~` app/lib/screens/register_screen.dart
+  - `~` app/lib/widgets/image_picker_field.dart
+  - `~` app/lib/services/certificate_service.dart
+- **Connected edits:** EDIT-076; Claude Design Group EF export (Profile)
+- **Reason:** Profile must match the design and show real data without exposing personal data in plain prefs.
+
+### EDIT-078 | 02 October 2026 16:15 | IST
+- **Topic:** Security Flows and Blocking Dialogs
+- **Summary:** Added the biometric check, Change Password and Change Email screens, and the Session expired and Privacy policy updated dialogs.
+- **What was done:**
+  - `BiometricSheet` (local_auth): fingerprint / face first, "Use PIN instead" uses the device credential; verified / not recognised states; devices without a screen lock pass through
+  - MainActivity switched to FlutterFragmentActivity (required by local_auth); NSFaceIDUsageDescription added for iOS
+  - Change Password: re-authenticate with the current password, 4-rule list, updatePassword, "Forgot current password?" reset link
+  - Change Email: current email locked, verifyBeforeUpdateEmail, info text; both send an info notification on success
+  - AuthService: hasPassword / isGoogleOnly, re-authentication helpers, blocking "Session expired" dialog then logout on user-token-expired / user-disabled (checked at startup and in auth calls)
+  - Privacy policy version (`AppConstants.privacyPolicyVersion`); acceptance stores the version; a newer version shows the blocking dialog (Log out / Review) and the Privacy Agreement in re-accept mode
+- **Files changed:**
+  - `+` app/lib/widgets/biometric_sheet.dart
+  - `+` app/lib/screens/change_password_screen.dart
+  - `+` app/lib/screens/change_email_screen.dart
+  - `+` app/lib/services/policy_service.dart
+  - `~` app/lib/services/auth_service.dart
+  - `~` app/lib/screens/agreement_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+  - `~` app/lib/config/constants.dart
+  - `~` app/android/app/src/main/kotlin/com/gemeye/gemeye/MainActivity.kt
+  - `~` app/ios/Runner/Info.plist
+- **Connected edits:** EDIT-075, EDIT-076; Claude Design Group EF export (Security Dialogs)
+- **Reason:** Sensitive changes need a device check and re-authentication, and expired sessions or policy updates must block the app.
+
+### EDIT-079 | 02 October 2026 16:18 | IST
+- **Topic:** About and Feedback Redesign
+- **Summary:** About and the Feedback sheet follow the Group F design; Privacy Policy keeps PolicyMarkdown.
+- **What was done:**
+  - About: logo on a white frame, GemEye, tagline, version pill; Developer card (assets/images/about/developer.jpg or "NK"), link buttons only for non-empty AppConstants links; Special thanks cards for NSBM Green University and Orava (Pvt) Ltd. (logos from assets/images/about/ when present, no team member placeholders); feedback and privacy rows; "Made in Sri Lanka · © 2026"
+  - assets/images/about/ folder registered (empty until the photos and logos are added)
+  - Feedback sheet: 5-star rating with label, category chips (Accuracy, App, Calibration, Other), comment with 500 limit and counter, Send enabled after rating; stored locally; success snackbar; TODO(backend) send; one `FeedbackSheet.show` used by the drawer, About and Settings
+- **Files changed:**
+  - `~` app/lib/screens/about_screen.dart
+  - `~` app/lib/screens/feedback_sheet.dart
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` app/pubspec.yaml
+  - `+` app/assets/images/about/.gitkeep
+- **Connected edits:** EDIT-075; Claude Design Group EF export (About Privacy Feedback)
+- **Reason:** About and Feedback must match the approved design without placeholder names.
+
+### EDIT-080 | 02 October 2026 16:22 | IST
+- **Topic:** Offline Banner and Loading Skeletons
+- **Summary:** Home and Grade a Stone show an offline banner with Retry and disable capture while offline; Home and History show loading skeletons.
+- **What was done:**
+  - Added connectivity_plus; `ConnectivityService` keeps a live online flag (Retry re-checks)
+  - "You're offline - grading needs a connection" banner on Home and Grade a Stone; QuickGradeCard and the Import / Take Photo buttons disabled while offline
+  - Home and History skeletons in Primary Surface replace the content until data loads
+  - flutter analyze: no issues; unit tests pass (widget_test.dart already failing before Group E); debug APK built, not installed because the OnePlus Nord 2 was not connected
+- **Files changed:**
+  - `+` app/lib/services/connectivity_service.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/capture_screen.dart
+  - `~` app/lib/screens/history_screen.dart
+  - `~` app/lib/widgets/quick_grade_card.dart
+  - `~` app/lib/main.dart
+  - `~` app/pubspec.yaml, app/pubspec.lock (+ generated plugin registrants)
+- **Connected edits:** EDIT-075; Claude Design Group EF export (System States)
+- **Reason:** Grading needs a connection, and loading should not show empty screens.

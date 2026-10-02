@@ -7,7 +7,9 @@ import 'config/theme.dart';
 import 'config/routes.dart';
 import 'screens/splash_screen.dart';
 import 'services/calibration_service.dart';
+import 'services/connectivity_service.dart';
 import 'services/notification_service.dart';
+import 'services/settings_service.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -20,8 +22,10 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   SystemChrome.setSystemUIOverlayStyle(AppSystemUi.darkIcons);
+  await SettingsService.init();
   await NotificationService.init();
   await CalibrationService.init();
+  await ConnectivityService.init();
   FlutterNativeSplash.remove();
   runApp(const GemEyeApp());
 }

@@ -15,6 +15,10 @@ class AppConstants {
   // Preferences
   static const String policyAcceptedKey = 'policy_accepted';
 
+  /// Bump when assets/data/privacy_policy.md changes; signed-in users
+  /// who accepted an older version must review and accept again.
+  static const int privacyPolicyVersion = 1;
+
   // Certificate
   static const String defaultCertificatePrefix = 'GE';
 

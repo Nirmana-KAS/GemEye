@@ -1,10 +1,21 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:intl/intl.dart';
 import '../config/theme.dart';
+import '../services/auth_service.dart';
+import '../services/profile_service.dart';
+import '../services/settings_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/app_buttons.dart';
+import '../widgets/app_snack_bar.dart';
+import '../widgets/dropdown_field.dart';
+import '../widgets/gem_app_bar.dart';
+import '../widgets/image_picker_field.dart';
+import '../widgets/input_field.dart';
+import 'change_email_screen.dart';
 
+/// Profile (20a individual / 20b company). Name lives in Firebase Auth;
+/// the rest is kept on this device by [ProfileService].
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -13,370 +24,405 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final _auth = AuthService();
   final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _companyController = TextEditingController();
-  final _designationController = TextEditingController();
+  final _phoneController = TextEditingController();
 
-  int _totalCount = 0;
-  int _certCount = 0;
-  int _monthCount = 0;
-  String _originalName = '';
+  LocalProfile _saved = const LocalProfile();
+  String _savedName = '';
+  String? _role;
+  String? _country;
+  String? _industry;
+  File? _newPhoto;
+  File? _logo;
+  bool _logoChanged = false;
+  bool _loaded = false;
+  bool _saving = false;
+
+  int _total = 0;
+  int _referred = 0;
+  int _certificates = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
-    _loadStats();
+    for (final c in [_nameController, _companyController, _phoneController]) {
+      c.addListener(_refresh);
+    }
+    _load();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _phoneController.dispose();
     _companyController.dispose();
-    _designationController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadProfile() async {
-    final user = FirebaseAuth.instance.currentUser;
-    final prefs = await SharedPreferences.getInstance();
-    _originalName = user?.displayName ?? '';
-    _nameController.text = _originalName;
-    _phoneController.text = prefs.getString('profile_phone') ?? '';
-    _companyController.text = prefs.getString('company_name') ?? '';
-    _designationController.text = prefs.getString('profile_designation') ?? '';
-  }
+  void _refresh() => setState(() {});
 
-  Future<void> _loadStats() async {
-    final history = await StorageService.getGradeHistory();
-    final now = DateTime.now();
-    setState(() {
-      _totalCount = history.length;
-      _certCount = history.where((r) => r.certificateNumber != null).length;
-      _monthCount = history
-          .where((r) =>
-              r.capturedAt.year == now.year && r.capturedAt.month == now.month)
-          .length;
-    });
-  }
-
-  Future<void> _saveProfile() async {
+  Future<void> _load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final name = _nameController.text.trim();
-      if (name.isNotEmpty && name != _originalName) {
-        await FirebaseAuth.instance.currentUser?.updateDisplayName(name);
-      }
-      await prefs.setString('profile_phone', _phoneController.text.trim());
-      await prefs.setString('company_name', _companyController.text.trim());
-      await prefs.setString(
-          'profile_designation', _designationController.text.trim());
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-        Navigator.pop(context);
-      }
+      final profile = await ProfileService.load();
+      final history = await StorageService.getGradeHistory();
+      if (!mounted) return;
+      setState(() {
+        _saved = profile;
+        _savedName = _auth.currentUser?.displayName ?? '';
+        _nameController.text = _savedName;
+        _companyController.text = profile.companyName;
+        _phoneController.text = profile.phone;
+        _role = profile.role;
+        _country = profile.country;
+        _industry = profile.industry;
+        _logo = profile.logoPath == null ? null : File(profile.logoPath!);
+        _total = history.length;
+        _referred =
+            history.where((r) => SettingsService.isReferred(r.confidence)).length;
+        _certificates =
+            history.where((r) => r.certificateNumber != null).length;
+        _loaded = true;
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update profile')),
-        );
-      }
+      if (kDebugMode) debugPrint('Profile load failed: $e');
+      if (mounted) setState(() => _loaded = true);
     }
   }
 
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'N/A';
-    return DateFormat('dd MMM yyyy').format(date);
+  bool get _isCompany => _saved.isCompany;
+
+  bool get _dirty =>
+      _nameController.text.trim() != _savedName ||
+      _companyController.text.trim() != _saved.companyName ||
+      _phoneController.text.trim() != _saved.phone ||
+      _role != _saved.role ||
+      _country != _saved.country ||
+      _industry != _saved.industry ||
+      _newPhoto != null ||
+      _logoChanged;
+
+  Future<void> _pickPhoto() async {
+    final file = await ImagePickerField.pickImage(context);
+    if (file != null && mounted) setState(() => _newPhoto = file);
+  }
+
+  Future<void> _save() async {
+    FocusScope.of(context).unfocus();
+    setState(() => _saving = true);
+    try {
+      final name = _nameController.text.trim();
+      if (name.isNotEmpty && name != _savedName) {
+        await _auth.updateDisplayName(name);
+      }
+      var profile = _saved.copyWith(
+        companyName: _companyController.text.trim(),
+        contactPerson: _isCompany ? name : _saved.contactPerson,
+        phone: _phoneController.text.trim(),
+        role: _role,
+        country: _country,
+        industry: _industry,
+      );
+      if (_newPhoto != null) {
+        profile = profile.copyWith(
+            photoPath: await ProfileService.storeImage(_newPhoto!, 'photo'));
+      }
+      if (_logoChanged) {
+        profile = _logo == null
+            ? profile.copyWith(clearLogo: true)
+            : profile.copyWith(
+                logoPath: await ProfileService.storeImage(_logo!, 'logo'));
+      }
+      // TODO(F2): sync the profile and company details with the backend.
+      await ProfileService.save(profile);
+      if (!mounted) return;
+      setState(() {
+        _saved = profile;
+        _savedName = name.isNotEmpty ? name : _savedName;
+        _newPhoto = null;
+        _logoChanged = false;
+      });
+      AppSnackBar.show(context,
+          message: 'Profile saved',
+          type: AppSnackBarType.success,
+          actionLabel: 'OK',
+          onAction: () {});
+    } catch (e) {
+      if (kDebugMode) debugPrint('Profile save failed: $e');
+      if (AuthService.handleSessionError(e) || !mounted) return;
+      AppSnackBar.show(context,
+          message: 'Could not save your profile. Try again.',
+          type: AppSnackBarType.error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  String get _displayName {
+    if (_isCompany && _companyController.text.trim().isNotEmpty) {
+      return _companyController.text.trim();
+    }
+    final n = _nameController.text.trim();
+    return n.isEmpty ? (_auth.currentUser?.email ?? 'User') : n;
+  }
+
+  String get _initials {
+    final parts = _displayName
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty && RegExp(r'[A-Za-z]').hasMatch(w[0]))
+        .toList();
+    if (parts.isEmpty) return '?';
+    return parts.take(2).map((w) => w[0].toUpperCase()).join();
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
     return Scaffold(
-      backgroundColor: GemEyeColors.background,
-      appBar: AppBar(
-        title: const Text('Profile'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 20),
-            Center(
-              child: Column(
+      backgroundColor: AppColors.background,
+      appBar: const GemAppBar(title: 'Profile', leading: GemAppBarLeading.back),
+      body: SafeArea(
+        top: false,
+        child: !_loaded
+            ? const SizedBox.shrink()
+            : Column(
                 children: [
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: const Color(0xFFF5F7FA),
-                        backgroundImage: user?.photoURL != null
-                            ? NetworkImage(user!.photoURL!)
-                            : null,
-                        child: user?.photoURL == null
-                            ? const Icon(Icons.person,
-                                size: 50, color: Color(0xFF6B7280))
-                            : null,
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: GemEyeColors.primary,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl,
+                          AppSpacing.xxxl, AppSpacing.xl, AppSpacing.xl),
+                      children: [
+                        _buildHeader(),
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildStats(),
+                        const SizedBox(height: AppSpacing.xl),
+                        if (_isCompany) ...[
+                          ImagePickerField(
+                            label: 'Company Logo',
+                            shape: ImagePickerShape.roundedSquare,
+                            image: _logo,
+                            pickLabel: 'Replace',
+                            pickIcon: Icons.upload_rounded,
+                            onChanged: (f) => setState(() {
+                              _logo = f;
+                              _logoChanged = true;
+                            }),
                           ),
-                          child: const Icon(Icons.camera_alt,
-                              size: 16, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    user?.displayName ?? 'User',
-                    style: const TextStyle(
-                      fontFamily: GemEyeFonts.heading,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: GemEyeColors.textPrimary,
+                          const SizedBox(height: AppSpacing.xl),
+                        ],
+                        ..._buildFields(),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user?.email ?? '',
-                    style: const TextStyle(
-                      fontFamily: GemEyeFonts.body,
-                      fontSize: 14,
-                      color: GemEyeColors.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(12),
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.xl,
+                        AppSpacing.lg, AppSpacing.xl, AppSpacing.xxl),
+                    decoration: const BoxDecoration(
+                      border: Border(top: BorderSide(color: AppColors.border)),
                     ),
-                    child: const Text(
-                      'Individual Account',
-                      style: TextStyle(
-                        fontFamily: GemEyeFonts.body,
-                        fontSize: 11,
-                        color: GemEyeColors.textSecondary,
+                    child: PrimaryButton(
+                      label: 'Save changes',
+                      isLoading: _saving,
+                      onPressed: _dirty ? _save : null,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    final radius = _isCompany ? 24.0 : 48.0;
+    final photoUrl = _auth.currentUser?.photoURL;
+    final localPath = _saved.photoPath;
+    ImageProvider? image;
+    if (_newPhoto != null) {
+      image = FileImage(_newPhoto!);
+    } else if (localPath != null && File(localPath).existsSync()) {
+      image = FileImage(File(localPath));
+    } else if (photoUrl != null) {
+      image = NetworkImage(photoUrl);
+    }
+
+    return Column(
+      children: [
+        Semantics(
+          button: true,
+          label: 'Change photo',
+          child: GestureDetector(
+            onTap: _pickPhoto,
+            child: SizedBox(
+              width: 96,
+              height: 96,
+              child: Stack(
+                children: [
+                  Container(
+                    width: 96,
+                    height: 96,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(radius),
+                      image: image == null
+                          ? null
+                          : DecorationImage(image: image, fit: BoxFit.cover),
+                    ),
+                    child: image == null
+                        ? Text(_initials,
+                            style: AppText.screenTitle.copyWith(
+                                fontSize: 32, color: AppColors.onPrimary))
+                        : null,
+                  ),
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border:
+                            Border.all(color: AppColors.background, width: 3),
                       ),
+                      child: const Icon(Icons.photo_camera_rounded,
+                          size: 16, color: AppColors.onPrimary),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text(
-              'Personal Information',
-              style: TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: GemEyeColors.primary,
-              ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        Text(_displayName,
+            textAlign: TextAlign.center, style: AppText.screenTitle),
+        const SizedBox(height: AppSpacing.xs),
+        Container(
+          height: 24,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(_isCompany ? Icons.business_rounded : Icons.person_rounded,
+                  size: 14, color: AppColors.primary),
+              const SizedBox(width: AppSpacing.xs),
+              Text(_isCompany ? 'Company' : 'Individual',
+                  style: AppText.titleSmall
+                      .copyWith(fontSize: 11, color: AppColors.primary)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStats() {
+    Widget stat(String value, String label, Color colour) => Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.border),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _nameController,
-              decoration: InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon:
-                    const Icon(Icons.person_outline, color: GemEyeColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              style:
-                  const TextStyle(fontFamily: GemEyeFonts.body, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Phone Number',
-                prefixIcon:
-                    const Icon(Icons.phone_outlined, color: GemEyeColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              style:
-                  const TextStyle(fontFamily: GemEyeFonts.body, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _companyController,
-              decoration: InputDecoration(
-                labelText: 'Company (Optional)',
-                prefixIcon: const Icon(Icons.business_outlined,
-                    color: GemEyeColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              style:
-                  const TextStyle(fontFamily: GemEyeFonts.body, fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _designationController,
-              decoration: InputDecoration(
-                labelText: 'Designation (Optional)',
-                prefixIcon:
-                    const Icon(Icons.work_outline, color: GemEyeColors.textMuted),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              style:
-                  const TextStyle(fontFamily: GemEyeFonts.body, fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text(
-              'Grading Statistics',
-              style: TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: GemEyeColors.primary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _statCard('Total Graded', _totalCount.toString(),
-                    Icons.diamond_outlined),
-                const SizedBox(width: 8),
-                _statCard('Certificates', _certCount.toString(),
-                    Icons.description_outlined),
-                const SizedBox(width: 8),
-                _statCard('This Month', _monthCount.toString(),
-                    Icons.calendar_today_outlined),
+                Text(value,
+                    style: AppText.screenTitle.copyWith(
+                        fontSize: 22,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
+                        color: colour)),
+                const SizedBox(height: AppSpacing.xs),
+                Text(label,
+                    style: AppText.caption
+                        .copyWith(color: AppColors.textSecondary)),
               ],
             ),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-            const Text(
-              'Account Information',
-              style: TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: GemEyeColors.primary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _infoRow('Email', user?.email ?? ''),
-            _infoRow(
-                'Account Created', _formatDate(user?.metadata.creationTime)),
-            _infoRow(
-                'Last Sign In', _formatDate(user?.metadata.lastSignInTime)),
-            _infoRow(
-              'Auth Provider',
-              user?.providerData.isNotEmpty == true
-                  ? user!.providerData.first.providerId
-                  : 'email',
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _saveProfile,
-                child: const Text(
-                  'Save Changes',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-        ),
-      ),
+          ),
+        );
+    return Row(
+      children: [
+        stat('$_total', 'Total graded', AppColors.textPrimary),
+        const SizedBox(width: AppSpacing.md),
+        stat('$_referred', 'Referred', AppColors.warningText),
+        const SizedBox(width: AppSpacing.md),
+        stat('$_certificates', 'Certificates', AppColors.textPrimary),
+      ],
     );
   }
 
-  Widget _statCard(String label, String value, IconData icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF5F7FA),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
+  List<Widget> _buildFields() {
+    const gap = SizedBox(height: AppSpacing.xl);
+    final email = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           children: [
-            Icon(icon, color: GemEyeColors.primary, size: 24),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: const TextStyle(
-                fontFamily: GemEyeFonts.heading,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: GemEyeColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: GemEyeFonts.body,
-                fontSize: 10,
-                color: GemEyeColors.textSecondary,
-              ),
+            const Expanded(child: FieldLabel(text: 'Email')),
+            TextLinkButton(
+              label: 'Change',
+              onPressed: () => ChangeEmailScreen.open(context),
             ),
           ],
         ),
-      ),
+        LockedValue(value: _auth.currentUser?.email ?? '-'),
+      ],
     );
-  }
+    final phone = InputField(
+      label: 'Phone',
+      controller: _phoneController,
+      hintText: '+94 77 123 4567',
+      keyboardType: TextInputType.phone,
+    );
+    final country = DropdownField<String>(
+      label: 'Country',
+      items: ProfileService.countries,
+      value: _country,
+      onChanged: (v) => setState(() => _country = v),
+    );
 
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: GemEyeFonts.body,
-              fontSize: 13,
-              color: GemEyeColors.textSecondary,
-            ),
-          ),
-          Flexible(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontFamily: GemEyeFonts.body,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: GemEyeColors.textPrimary,
-              ),
-              textAlign: TextAlign.end,
-            ),
-          ),
-        ],
+    if (_isCompany) {
+      return [
+        InputField(label: 'Company name', controller: _companyController),
+        gap,
+        InputField(label: 'Contact person', controller: _nameController),
+        gap,
+        email,
+        gap,
+        phone,
+        gap,
+        DropdownField<String>(
+          label: 'Industry',
+          items: ProfileService.industries,
+          value: _industry,
+          onChanged: (v) => setState(() => _industry = v),
+        ),
+        gap,
+        country,
+      ];
+    }
+    return [
+      InputField(label: 'Full name', controller: _nameController),
+      gap,
+      email,
+      gap,
+      phone,
+      gap,
+      DropdownField<String>(
+        label: 'Role',
+        items: ProfileService.roles,
+        value: _role,
+        onChanged: (v) => setState(() => _role = v),
       ),
-    );
+      gap,
+      country,
+    ];
   }
 }

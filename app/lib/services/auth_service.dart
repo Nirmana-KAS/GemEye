@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../config/routes.dart';
 import '../screens/login_screen.dart';
+import '../widgets/app_dialog.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -88,6 +89,97 @@ class AuthService {
       return false;
     } finally {
       _isEndingSession = false;
+    }
+  }
+
+  /// True when the account has an email/password credential.
+  bool get hasPassword =>
+      currentUser?.providerData.any((p) => p.providerId == 'password') ??
+      false;
+
+  /// True when the account signs in with Google only (no password to change).
+  bool get isGoogleOnly =>
+      !hasPassword &&
+      (currentUser?.providerData.any((p) => p.providerId == 'google.com') ??
+          false);
+
+  /// Re-authenticates an email/password account (required before
+  /// sensitive changes such as a new password or account deletion).
+  Future<void> reauthenticateWithPassword(String password) async {
+    final user = currentUser;
+    if (user == null || user.email == null) {
+      throw FirebaseAuthException(code: 'no-current-user');
+    }
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: user.email!, password: password),
+    );
+  }
+
+  /// Re-authenticates a Google account. Returns false if the user cancelled.
+  Future<bool> reauthenticateWithGoogle() async {
+    final user = currentUser;
+    if (user == null) throw FirebaseAuthException(code: 'no-current-user');
+    final googleUser = await _googleSignIn.signIn();
+    if (googleUser == null) return false;
+    final googleAuth = await googleUser.authentication;
+    await user.reauthenticateWithCredential(GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    ));
+    return true;
+  }
+
+  // Session expiry
+
+  static const Set<String> _sessionErrorCodes = {
+    'user-token-expired',
+    'user-disabled',
+  };
+
+  static bool _sessionDialogOpen = false;
+
+  /// True for FirebaseAuth errors that mean the user must log in again.
+  static bool isSessionError(Object e) =>
+      e is FirebaseAuthException && _sessionErrorCodes.contains(e.code);
+
+  /// Shows the blocking "Session expired" dialog and logs out when [e] is a
+  /// session error. Returns true when it handled [e].
+  static bool handleSessionError(Object e) {
+    if (!isSessionError(e)) return false;
+    showSessionExpired();
+    return true;
+  }
+
+  /// Blocking "Session expired" dialog, then the single logout path.
+  static Future<void> showSessionExpired() async {
+    final context = AppRoutes.navigatorKey.currentContext;
+    if (context == null || _sessionDialogOpen) return;
+    _sessionDialogOpen = true;
+    try {
+      await AppDialog.alert(
+        context,
+        title: 'Session expired',
+        message: 'Please log in again.',
+        actionLabel: 'Log in',
+        type: AppDialogType.warning,
+        icon: Icons.lock_clock_rounded,
+        blocking: true,
+      );
+    } finally {
+      _sessionDialogOpen = false;
+    }
+    await endSession();
+  }
+
+  /// Reloads the signed-in user; an expired or disabled account shows the
+  /// "Session expired" dialog. Other errors (e.g. offline) are ignored.
+  static Future<void> verifySession() async {
+    try {
+      await FirebaseAuth.instance.currentUser?.reload();
+    } catch (e) {
+      if (!handleSessionError(e) && kDebugMode) {
+        debugPrint('verifySession: $e');
+      }
     }
   }
 

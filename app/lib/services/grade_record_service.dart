@@ -3,6 +3,7 @@ import '../models/grade_result.dart';
 import '../widgets/confidence_badge.dart';
 import 'certificate_service.dart';
 import 'notification_service.dart';
+import 'settings_service.dart';
 import 'storage_service.dart';
 
 /// Saving graded stones and preparing them for certificate export.
@@ -28,6 +29,7 @@ class GradeRecordService {
             '(${result.confidence.round()}%). Gemologist review recommended.',
         action: AppNotificationAction.openResult,
         payload: result.stoneId,
+        category: NotificationCategory.referral,
       );
     }
     return result;

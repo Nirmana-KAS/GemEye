@@ -7,6 +7,7 @@ import '../config/theme.dart';
 import '../models/grade_result.dart';
 import '../services/storage_service.dart';
 import '../services/certificate_service.dart';
+import '../services/settings_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_snack_bar.dart';
@@ -14,6 +15,7 @@ import '../widgets/confidence_badge.dart';
 import '../widgets/dropdown_field.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/gem_app_bar.dart';
+import '../widgets/skeleton.dart';
 import 'calibration_screen.dart';
 import 'result_screen.dart';
 
@@ -47,6 +49,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   static const String _allSessions = 'All sessions';
 
   List<GradeResult> _allHistory = [];
+  bool _loaded = false;
   List<GradeResult> _filteredHistory = [];
   final TextEditingController _searchController = TextEditingController();
 
@@ -66,8 +69,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final Set<String> _selectedIds = {};
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
@@ -75,10 +88,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     super.initState();
     _loadHistory();
     _searchController.addListener(_applyFilters);
+    // Referred follows the threshold set in Settings.
+    SettingsService.referralThreshold.addListener(_applyFilters);
   }
 
   @override
   void dispose() {
+    SettingsService.referralThreshold.removeListener(_applyFilters);
     _searchController.dispose();
     super.dispose();
   }
@@ -89,10 +105,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
       if (!mounted) return;
       setState(() {
         _allHistory = history;
+        _loaded = true;
         _applyFilters();
       });
     } catch (e) {
       debugPrint('History load failed: $e');
+      if (mounted) setState(() => _loaded = true);
     }
   }
 
@@ -107,8 +125,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final query = _searchController.text.trim().toLowerCase();
 
     if (query.isNotEmpty) {
-      results =
-          results.where((r) => r.stoneId.toLowerCase().contains(query)).toList();
+      results = results
+          .where((r) => r.stoneId.toLowerCase().contains(query))
+          .toList();
     }
 
     if (_chip >= 1 && _chip <= 7) {
@@ -314,7 +333,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (mounted) {
       AppSnackBar.show(context,
           message: '$generated certificate${generated == 1 ? '' : 's'} saved',
-          type: generated > 0 ? AppSnackBarType.success : AppSnackBarType.error);
+          type:
+              generated > 0 ? AppSnackBarType.success : AppSnackBarType.error);
     }
   }
 
@@ -569,7 +589,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Row(
                       children: [
                         const Expanded(
-                            child: Text('Filters', style: AppText.sectionHeader)),
+                            child:
+                                Text('Filters', style: AppText.sectionHeader)),
                         TextLinkButton(
                           label: 'Reset',
                           onPressed: () => setSheet(() {
@@ -673,65 +694,119 @@ class _HistoryScreenState extends State<HistoryScreen> {
             _isSelectionMode ? _buildSelectionAppBar() : _buildNormalAppBar(),
         body: SafeArea(
           top: false,
-          child: Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.lg),
-                child: TextField(
-                  controller: _searchController,
-                  style: AppText.body14,
-                  decoration: const InputDecoration(
-                    hintText: 'Search by stone ID',
-                    prefixIcon: Icon(Icons.search_rounded,
-                        color: AppColors.textSecondary),
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 44,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+          child: !_loaded
+              ? _buildSkeleton()
+              : Column(
                   children: [
-                    for (int i = 0; i <= 8; i++) _buildChip(i),
-                  ],
-                ),
-              ),
-              Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(_countText,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppText.label),
-                    ),
-                    Text(
-                        '${_sort.group} · ${_sort.label.toLowerCase()}',
-                        style: AppText.secondary),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _filteredHistory.isEmpty
-                    ? _buildEmptyState()
-                    : ListView.builder(
-                        itemCount: _filteredHistory.length,
-                        itemBuilder: (context, index) =>
-                            _buildHistoryItem(_filteredHistory[index]),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl,
+                          AppSpacing.lg, AppSpacing.xl, AppSpacing.lg),
+                      child: TextField(
+                        controller: _searchController,
+                        style: AppText.body14,
+                        decoration: const InputDecoration(
+                          hintText: 'Search by stone ID',
+                          prefixIcon: Icon(Icons.search_rounded,
+                              color: AppColors.textSecondary),
+                        ),
                       ),
-              ),
-              if (_isSelectionMode) _buildBatchActionBar(),
+                    ),
+                    SizedBox(
+                      height: 44,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(
+                            AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+                        children: [
+                          for (int i = 0; i <= 8; i++) _buildChip(i),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      height: 32,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                      decoration: const BoxDecoration(
+                        border:
+                            Border(bottom: BorderSide(color: AppColors.border)),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(_countText,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppText.label),
+                          ),
+                          Text('${_sort.group} · ${_sort.label.toLowerCase()}',
+                              style: AppText.secondary),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: _filteredHistory.isEmpty
+                          ? _buildEmptyState()
+                          : ListView.builder(
+                              itemCount: _filteredHistory.length,
+                              itemBuilder: (context, index) =>
+                                  _buildHistoryItem(_filteredHistory[index]),
+                            ),
+                    ),
+                    if (_isSelectionMode) _buildBatchActionBar(),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  /// Loading skeleton (System States): search, chips and seven rows.
+  Widget _buildSkeleton() {
+    const widths = [
+      [0.56, 0.40, 0.48],
+      [0.52, 0.36, 0.30],
+      [0.60, 0.44, 0.38],
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(
+              AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.md),
+          child: SkeletonBox(height: 48, radius: AppRadius.lg),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+          child: Row(
+            children: [
+              for (final w in const [48.0, 48.0, 48.0, 48.0, 72.0]) ...[
+                SkeletonBox(width: w, height: 32, radius: 16),
+                const SizedBox(width: AppSpacing.md),
+              ],
             ],
           ),
         ),
-      ),
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: AppColors.border)),
+            ),
+            child: ListView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: 7,
+              itemBuilder: (context, i) => Container(
+                height: 80,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
+                child: SkeletonRow(lines: widths[i % 3]),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -838,8 +913,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
           side: BorderSide(color: on ? AppColors.primary : AppColors.border),
         ),
         child: InkWell(
-          customBorder: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+          customBorder:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           onTap: () {
             setState(() => _chip = index);
             _applyFilters();
@@ -871,9 +946,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 ],
                 Text(label,
                     style: AppText.label.copyWith(
-                        color: on
-                            ? AppColors.onPrimary
-                            : AppColors.textPrimary)),
+                        color:
+                            on ? AppColors.onPrimary : AppColors.textPrimary)),
               ],
             ),
           ),
@@ -922,9 +996,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     _isSelectionMode = true;
                     _selectedIds.add(result.id);
                   }),
-          onTap: () => _isSelectionMode
-              ? _toggleSelected(result)
-              : _openResult(result),
+          onTap: () =>
+              _isSelectionMode ? _toggleSelected(result) : _openResult(result),
           child: Container(
             constraints: const BoxConstraints(minHeight: 80),
             padding: const EdgeInsets.symmetric(
@@ -942,7 +1015,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.grades[(result.gradeNumber - 1).clamp(0, 6)],
+                    color:
+                        AppColors.grades[(result.gradeNumber - 1).clamp(0, 6)],
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     border: Border.all(color: AppColors.swatchOutline),
                   ),
@@ -963,8 +1037,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.xs),
-                      Text(
-                          'Grade ${result.gradeNumber} · ${result.gradeName}',
+                      Text('Grade ${result.gradeNumber} · ${result.gradeName}',
                           style: AppText.label
                               .copyWith(color: AppColors.textPrimary)),
                       const SizedBox(height: AppSpacing.xs),
@@ -1003,8 +1076,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Icon(icon, size: 24, color: colour),
               const SizedBox(height: AppSpacing.xs),
               Text(label,
-                  style: AppText.titleSmall
-                      .copyWith(fontSize: 11, color: colour)),
+                  style:
+                      AppText.titleSmall.copyWith(fontSize: 11, color: colour)),
             ],
           ),
         ),
@@ -1019,8 +1092,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
       child: Row(
         children: [
-          action(Icons.workspace_premium_rounded, 'Export Batch',
-              _exportSelected),
+          action(
+              Icons.workspace_premium_rounded, 'Export Batch', _exportSelected),
           action(Icons.share_rounded, 'Share', _shareSelected),
           action(Icons.delete_rounded, 'Delete', _deleteSelected, danger: true),
         ],
@@ -1082,7 +1155,8 @@ class _SelectBox extends StatelessWidget {
             color: checked ? AppColors.primary : AppColors.textMuted, width: 2),
       ),
       child: checked
-          ? const Icon(Icons.check_rounded, size: 14, color: AppColors.onPrimary)
+          ? const Icon(Icons.check_rounded,
+              size: 14, color: AppColors.onPrimary)
           : null,
     );
   }
@@ -1169,7 +1243,8 @@ class _SegmentRow<T> extends StatelessWidget {
             if (i > 0) const SizedBox(width: AppSpacing.xs),
             Expanded(
               child: Material(
-                color: e.key == selected ? AppColors.primary : AppColors.surface,
+                color:
+                    e.key == selected ? AppColors.primary : AppColors.surface,
                 borderRadius: BorderRadius.horizontal(
                   left: Radius.circular(i == 0 ? AppRadius.lg : 0),
                   right: Radius.circular(
@@ -1190,8 +1265,7 @@ class _SegmentRow<T> extends StatelessWidget {
                               ? AppText.button.copyWith(
                                   fontSize: 13, color: AppColors.onPrimary)
                               : AppText.body14Medium.copyWith(
-                                  fontSize: 13,
-                                  color: AppColors.textSecondary),
+                                  fontSize: 13, color: AppColors.textSecondary),
                         ),
                       ),
                     ),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/app_notification.dart';
+import 'settings_service.dart';
 
 // Local in-app notification store (SharedPreferences, newest first, max 100).
 //
@@ -61,7 +62,10 @@ class NotificationService {
     required String message,
     AppNotificationAction action = AppNotificationAction.none,
     String? payload,
+    NotificationCategory? category,
   }) async {
+    // Categories switched off in Settings are not recorded.
+    if (category != null && !SettingsService.isEnabled(category)) return;
     final items = await list();
     items.insert(
       0,

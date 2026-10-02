@@ -8,6 +8,7 @@ import '../models/grade_result.dart';
 import '../services/certificate_service.dart';
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
+import '../services/settings_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/gem_app_bar.dart';
@@ -98,6 +99,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
         title: 'Certificate saved',
         message: '$certNum saved to Downloads.',
         action: AppNotificationAction.openHistory,
+        category: NotificationCategory.certificate,
       );
       if (mounted) {
         AppSnackBar.show(context,

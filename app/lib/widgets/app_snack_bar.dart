@@ -58,7 +58,7 @@ class _AppSnackBarContent extends StatelessWidget {
     final (IconData icon, Color color, Color tint) = switch (type) {
       AppSnackBarType.success => (
           Icons.check_circle_rounded,
-          AppColors.success,
+          AppColors.successText,
           AppColors.successTint
         ),
       AppSnackBarType.info => (
@@ -68,12 +68,12 @@ class _AppSnackBarContent extends StatelessWidget {
         ),
       AppSnackBarType.warning => (
           Icons.warning_rounded,
-          AppColors.warning,
+          AppColors.warningText,
           AppColors.warningTint
         ),
       AppSnackBarType.error => (
           Icons.error_rounded,
-          AppColors.error,
+          AppColors.errorText,
           AppColors.errorTint
         ),
     };
@@ -81,7 +81,7 @@ class _AppSnackBarContent extends StatelessWidget {
     return Container(
       constraints: const BoxConstraints(minHeight: 52),
       padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg, AppSpacing.md, AppSpacing.md, AppSpacing.md),
+          AppSpacing.lg, AppSpacing.xxs, AppSpacing.xs, AppSpacing.xxs),
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -101,9 +101,12 @@ class _AppSnackBarContent extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.lg),
           Expanded(
-            child: Text(
-              message,
-              style: AppText.body14Medium.copyWith(height: 1.35),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+              child: Text(
+                message,
+                style: AppText.body14Medium.copyWith(height: 1.35),
+              ),
             ),
           ),
           if (actionLabel != null)
@@ -111,8 +114,9 @@ class _AppSnackBarContent extends StatelessWidget {
               onPressed: onAction,
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primary,
-                minimumSize: const Size(AppSpacing.touchTarget, 36),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                minimumSize:
+                    const Size(AppSpacing.touchTarget, AppSpacing.touchTarget),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
                 textStyle: AppText.button.copyWith(fontSize: 13),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(AppRadius.sm)),

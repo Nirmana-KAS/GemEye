@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
 import '../widgets/bottom_nav.dart';
+import '../services/auth_service.dart';
+import '../services/policy_service.dart';
 import '../widgets/side_drawer.dart';
 import 'home_screen.dart';
 import 'calibration_screen.dart';
@@ -32,6 +34,16 @@ class _MainShellState extends State<MainShell> {
   void _switchTab(int index) {
     setState(() => _currentIndex = index);
     if (index == 0) _homeKey.currentState?.refresh();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Expired / disabled accounts and policy updates block the app.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await AuthService.verifySession();
+      if (mounted) await PolicyService.checkAndPrompt(context);
+    });
   }
 
   late final List<Widget> _screens = [

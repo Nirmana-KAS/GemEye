@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/grade_result.dart';
 
@@ -37,8 +39,20 @@ class StorageService {
     await prefs.setStringList(_historyKey, jsonList);
   }
 
-  static Future<void> clearHistory() async {
+  /// Removes all graded stones. With [deletePhotos], their captured photo
+  /// files are deleted too (best effort).
+  static Future<void> clearHistory({bool deletePhotos = false}) async {
     final prefs = await SharedPreferences.getInstance();
+    if (deletePhotos) {
+      for (final r in await getGradeHistory()) {
+        try {
+          final f = File(r.capturedImagePath);
+          if (await f.exists()) await f.delete();
+        } catch (e) {
+          if (kDebugMode) debugPrint('Photo delete failed: $e');
+        }
+      }
+    }
     await prefs.remove(_historyKey);
   }
 
