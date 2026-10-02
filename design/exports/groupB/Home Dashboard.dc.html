@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Home Dashboard</span>
+    <span style="font:400 13px Inter;color:#6B7089">Tap the avatar to open SideDrawer · tap the banner or Grade a Stone to see routing</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="4">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:10px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 7px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#A0A4B8">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#1A1D2E;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+
+        <div data-scroll="1" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:16px;padding:12px 16px 20px">
+          <div style="display:flex;align-items:center;gap:12px;flex:none">
+            <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+              <span style="font:400 14px Inter;color:#6B7089">Good Afternoon,</span>
+              <span style="font:600 22px/1.2 Poppins;color:#1A1D2E">Shehan</span>
+            </div>
+            <a href="Notifications.dc.html" title="Notifications" style="width:40px;height:40px;border-radius:50%;border:1px solid #E5E7F0;background:#fff;color:#1A1D2E;display:flex;align-items:center;justify-content:center;position:relative;flex:none" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:24px">notifications</span><sc-if value="{{ fr.unread }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 4px;border-radius:10px;background:#EF4444;border:2px solid #fff;color:#fff;font:600 10px/1 Poppins;display:flex;align-items:center;justify-content:center;box-sizing:border-box">3</span></sc-if></a>
+            <button onClick="{{ fr.openDrawer }}" style="width:40px;height:40px;border-radius:50%;border:none;background:#3B5FD9;color:#fff;font:600 14px Poppins;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none" style-active="box-shadow:0 0 0 3px #EEF1FA">SP</button>
+          </div>
+
+          <div onClick="{{ fr.onBanner }}" style="flex:none;min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 12px 12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer" style-active="background:#EEF1FA">
+            <span style="width:8px;height:8px;border-radius:50%;background:{{ fr.dot }};flex:none;box-shadow:0 0 0 4px {{ fr.halo }}"></span>
+            <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E;text-wrap:pretty">{{ fr.banner }}</span>
+            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#A0A4B8">chevron_right</span>
+          </div>
+
+          <div onClick="{{ fr.onGrade }}" style="flex:none;border-radius:14px;background:linear-gradient(135deg,#1B3A8C 0%,#3B5FD9 100%);padding:20px;display:flex;align-items:center;gap:16px;cursor:pointer;position:relative;overflow:hidden" style-active="filter:brightness(.94)">
+            <div style="position:absolute;right:-36px;top:-36px;width:128px;height:128px;border-radius:50%;border:1px solid rgba(255,255,255,.12)"></div>
+            <div style="width:56px;height:56px;border-radius:16px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;flex:none"><span style="font-family:'Material Symbols Rounded';font-size:32px;color:#fff;font-variation-settings:'FILL' 1">diamond</span></div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0">
+              <span style="font:600 18px/1.2 Poppins;color:#fff">Grade a Stone</span>
+              <span style="font:400 13px/1.4 Inter;color:#fff">Capture or import a macro photo</span>
+            </div>
+            <span style="font-family:'Material Symbols Rounded';font-size:24px;color:#fff">arrow_forward</span>
+          </div>
+
+          <div style="flex:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+            <sc-for list="{{ fr.stats }}" as="st" hint-placeholder-count="3">
+              <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0">
+                <span style="font:500 12px/1.25 Inter;color:#6B7089;min-height:30px">{{ st.label }}</span>
+                <span style="font:700 24px/1.1 Poppins;color:#1A1D2E;font-variant-numeric:tabular-nums">{{ st.value }}</span>
+                <span style="font:500 11px Inter;color:#A0A4B8">{{ st.sub }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="flex:none;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font:600 16px Poppins;color:#1A1D2E">Recent Grades</span>
+              <sc-if value="{{ fr.hasItems }}" hint-placeholder-val="{{ true }}">
+                <button style="height:40px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;cursor:pointer;display:flex;align-items:center;gap:2px" style-active="color:#3B5FD9;text-decoration:underline">See all<span style="font-family:'Material Symbols Rounded';font-size:18px">chevron_right</span></button>
+              </sc-if>
+            </div>
+
+            <sc-if value="{{ fr.hasItems }}" hint-placeholder-val="{{ true }}">
+              <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column">
+                <sc-for list="{{ fr.items }}" as="it" hint-placeholder-count="5">
+                  <div style="min-height:64px;padding:12px 12px 12px 14px;display:flex;align-items:center;gap:12px;border-top:{{ it.border }};cursor:pointer" style-active="background:#EEF1FA">
+                    <div style="width:40px;height:40px;border-radius:10px;background:{{ it.hex }};box-shadow:inset 0 0 0 1px rgba(26,29,46,.08);flex:none"></div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0">
+                      <span style="font:600 14px Poppins;color:#1A1D2E">{{ it.grade }}</span>
+                      <span style="font:400 12px/1.35 Inter;color:#6B7089">{{ it.id }}</span><span style="font:400 11px Inter;color:#A0A4B8">{{ it.ago }}</span>
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none">
+                      <span style="height:24px;padding:0 10px;border-radius:12px;background:{{ it.tint }};display:inline-flex;align-items:center;gap:6px;font:600 11px Poppins;color:#1A1D2E;white-space:nowrap"><span style="width:6px;height:6px;border-radius:50%;background:{{ it.dot }}"></span>{{ it.conf }}</span>
+                      <sc-if value="{{ it.referred }}" hint-placeholder-val="{{ false }}">
+                        <span style="height:20px;padding:0 8px;border-radius:10px;background:rgba(245,158,11,.14);display:inline-flex;align-items:center;gap:4px;font:600 10px Poppins;color:#1A1D2E"><span style="font-family:'Material Symbols Rounded';font-size:13px;color:#F59E0B">flag</span>Referred</span>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ fr.isEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;border:1px dashed #E5E7F0;border-radius:12px">
+                <div style="width:64px;height:64px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:32px">diamond</span></div>
+                <span style="font:600 16px Poppins;color:#1A1D2E">No stones graded yet</span>
+                <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Grade your first sapphire and the report will appear here.</span>
+                <button onClick="{{ fr.onGrade }}" style="margin-top:4px;height:48px;padding:0 24px;border:none;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;cursor:pointer" style-active="background:#3B5FD9">Grade a stone</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <sc-if value="{{ fr.toast }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;left:16px;right:16px;bottom:76px;min-height:48px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(26,29,46,.12)">
+            <span style="width:28px;height:28px;border-radius:50%;background:#EEF1FA;color:#1B3A8C;display:flex;align-items:center;justify-content:center;flex:none"><span style="font-family:'Material Symbols Rounded';font-size:18px">info</span></span>
+            <span style="flex:1;font:500 13px Inter;color:#1A1D2E">{{ fr.toastText }}</span>
+          </div>
+        </sc-if>
+
+        <div style="height:64px;background:#fff;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(4,1fr);flex:none">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:{{ t.color }}">
+              <span style="font-family:'Material Symbols Rounded';font-size:24px;font-variation-settings:{{ t.fill }}">{{ t.icon }}</span>
+              <span style="font:{{ t.font }};font-size:11px">{{ t.label }}</span>
+              <span style="width:4px;height:4px;border-radius:50%;background:#1B3A8C;opacity:{{ t.dot }}"></span>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ fr.drawerOpen }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;z-index:5">
+            <div onClick="{{ closeDrawer }}" style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+            <div style="position:absolute;top:0;right:0;bottom:0;width:296px;background:#fff;border-radius:16px 0 0 16px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="background:#1B3A8C;padding:24px 20px 20px;display:flex;flex-direction:column;gap:16px;flex:none">
+                <div style="display:flex;align-items:center;gap:10px"><div title="GemEye logo asset" style="width:28px;height:28px;border-radius:8px;flex:none;border:1px dashed rgba(255,255,255,.55);background:repeating-linear-gradient(135deg,rgba(255,255,255,.16) 0 5px,rgba(255,255,255,.04) 5px 10px);display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;font:400 4.5px/1.15 'JetBrains Mono',monospace;color:#fff;overflow:hidden">GemEye logo asset</div><span style="font:700 28px/1 Poppins;color:#fff">GemEye</span></div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="width:44px;height:44px;border-radius:50%;background:#3B5FD9;display:flex;align-items:center;justify-content:center;font:600 14px Poppins;color:#fff;flex:none">SP</div>
+                  <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font:600 14px Poppins;color:#fff">Shehan Perera</span><span style="font:400 12px Inter;color:#fff">s.perera@ceylongems.lk</span><span style="font:400 11px Inter;color:#ABBDD6">Gemologist · Ceylon Gem Exports</span></div>
+                </div>
+              </div>
+              <div style="padding:10px 12px;display:flex;flex-direction:column;gap:2px">
+                <sc-for list="{{ drawerItems }}" as="d" hint-placeholder-count="11">
+                  <sc-if value="{{ d.divider }}" hint-placeholder-val="{{ false }}"><div style="height:1px;background:#E5E7F0;margin:6px 16px"></div></sc-if>
+                  <div onClick="{{ closeDrawer }}" style="height:44px;padding:0 16px;border-radius:12px;background:{{ d.bg }};display:flex;align-items:center;gap:14px;color:{{ d.color }};cursor:pointer" style-hover="background:#EEF1FA">
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:{{ d.iconColor }};font-variation-settings:{{ d.fill }}">{{ d.icon }}</span><span style="font:{{ d.font }}">{{ d.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="margin-top:auto;flex:none;border-top:1px solid #E5E7F0;padding:8px 12px 12px;display:flex;flex-direction:column;gap:6px"><div onClick="{{ closeDrawer }}" style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#EF4444;cursor:pointer" style-hover="background:rgba(239,68,68,.08)"><span style="font-family:'Material Symbols Rounded';font-size:22px">logout</span><span style="font:500 14px Inter">Logout</span></div><span style="padding:0 16px;font:400 11px Inter;color:#A0A4B8">App v1.0.0 · Server connected</span></div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { drawer: null, toast: null };
+  toast(i, text) {
+    clearTimeout(this.t);
+    this.setState({ toast: { i, text } });
+    this.t = setTimeout(() => this.setState({ toast: null }), 2200);
+  }
+  componentWillUnmount() { clearTimeout(this.t); }
+  renderVals() {
+    const s = this.state;
+    const G = { 1:['Dark','#020519'], 2:['Deep','#0B0F3F'], 3:['Vivid','#091A72'], 4:['Intense','#2A408C'], 5:['Medium Intense','#47619E'], 6:['Light','#718BB7'], 7:['Very Light','#ABBDD6'] };
+    const conf = p => p >= 60 ? ['High', 'rgba(16,185,129,.12)', '#10B981'] : p >= 40 ? ['Borderline', 'rgba(245,158,11,.14)', '#F59E0B'] : ['Low', 'rgba(239,68,68,.12)', '#EF4444'];
+    const rows = [[3,'00042','2 min ago',94],[4,'00041','18 min ago',52],[2,'00040','41 min ago',88],[5,'00039','1 h ago',76],[3,'00038','2 h ago',91]];
+    const items = rows.map(([g, id, ago, p], i) => {
+      const [lvl, tint, dot] = conf(p);
+      return { grade: `Grade ${g} · ${G[g][0]}`, hex: G[g][1], id: `GE-STONE-${id}`, ago, conf: `${lvl} · ${p}%`, tint, dot, referred: p < 60, border: i ? '1px solid #E5E7F0' : 'none' };
+    });
+    const statsFull = [{ label:'Today', value:'12', sub:'stones' }, { label:'Avg confidence', value:'81%', sub:'today' }, { label:'Referred', value:'3', sub:'borderline' }];
+    const statsEmpty = [{ label:'Today', value:'0', sub:'stones' }, { label:'Avg confidence', value:'—', sub:'today' }, { label:'Referred', value:'0', sub:'borderline' }];
+    const B = {
+      ok: { dot:'#10B981', halo:'rgba(16,185,129,.15)', banner:'Calibrated · OnePlus Nord 2 · Session 4 · today 09:12' },
+      old: { dot:'#F59E0B', halo:'rgba(245,158,11,.15)', banner:'Calibration is over 8 hours old. Recalibrate for best accuracy.' },
+      none: { dot:'#EF4444', halo:'rgba(239,68,68,.15)', banner:'Not calibrated. Calibrate before grading.' },
+    };
+    const defs = [
+      { id:'1a', caption:'Calibrated · default · 3 unread', b:'ok', full:true, unread:true },
+      { id:'1b', caption:'Calibration over 8 h old', b:'old', full:true },
+      { id:'1c', caption:'Not calibrated · Grade a Stone opens Calibration', b:'none', full:true },
+      { id:'1d', caption:'Empty · first session', b:'none', full:false },
+    ];
+    const frames = defs.map((d, i) => ({
+      ...d, ...B[d.b], label: `Home · ${d.id}`, unread: !!d.unread,
+      stats: d.full ? statsFull : statsEmpty,
+      items, hasItems: d.full, isEmpty: !d.full,
+      drawerOpen: s.drawer === i,
+      toast: !!(s.toast && s.toast.i === i), toastText: s.toast ? s.toast.text : '',
+      openDrawer: () => this.setState({ drawer: i }),
+      onBanner: () => this.toast(i, d.b === 'ok' ? 'Opens Calibration details' : 'Opens Calibration · 6 patch captures'),
+      onGrade: () => this.toast(i, d.b === 'none' ? 'Not calibrated → opens Calibration' : 'Opens Grade · capture or import'),
+    }));
+    const tabs = [['home','Home'],['center_focus_strong','Grade'],['history','History'],['menu_book','Guide']].map(([icon,label], i) => {
+      const on = i === 0;
+      return { icon, label, color: on ? '#1B3A8C' : '#6B7089', fill: on ? "'FILL' 1" : "'FILL' 0", font: on ? '600 11px Poppins' : '500 11px Inter', dot: on ? 1 : 0 };
+    });
+    const D = [['home','Home'],['center_focus_strong','Grade a Stone'],['palette','Calibration'],['history','Grading History'],['menu_book','Colour Grade Guide'],['compare','Stone Comparison'],['settings','Settings'],['rate_review','Feedback',1],['privacy_tip','Privacy Policy'],['info','About']];
+    const drawerItems = D.map(([icon,label,div], i) => {
+      const on = i === 0, out = label === 'Logout';
+      return { icon, label, divider: !!div, bg: on ? '#EEF1FA' : 'transparent', color: out ? '#EF4444' : on ? '#1B3A8C' : '#1A1D2E', iconColor: out ? '#EF4444' : on ? '#1B3A8C' : '#6B7089', fill: on ? "'FILL' 1" : "'FILL' 0", font: on ? '600 14px Poppins' : '500 14px Inter' };
+    });
+    return { frames, tabs, drawerItems, closeDrawer: () => this.setState({ drawer: null }) };
+  }
+}
+</script>
+</body>
+</html>

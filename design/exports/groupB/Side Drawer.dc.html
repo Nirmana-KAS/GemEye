@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">SideDrawer · opens from right</span>
+    <span style="font:400 13px Inter;color:#6B7089">Opened from the avatar on Home · tap an item to move the highlight · tap the scrim to close, the avatar to reopen</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="3">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:10px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 7px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#A0A4B8">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#1A1D2E;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+        <div style="padding:12px 16px;display:flex;align-items:center;gap:12px;flex:none">
+          <div style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font:400 14px Inter;color:#6B7089">Good Afternoon,</span><span style="font:600 22px/1.2 Poppins;color:#1A1D2E">Shehan</span></div>
+          <button onClick="{{ fr.open }}" style="width:40px;height:40px;border-radius:50%;border:none;background:#3B5FD9;color:#fff;font:600 14px Poppins;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none">SP</button>
+        </div>
+        <div style="margin:0 16px;height:48px;border:1px solid #E5E7F0;border-radius:12px;flex:none"></div>
+        <div style="margin:16px;height:100px;border-radius:14px;background:linear-gradient(135deg,#1B3A8C 0%,#3B5FD9 100%);flex:none"></div>
+
+        <sc-if value="{{ fr.isOpen }}" hint-placeholder-val="{{ true }}">
+          <div style="position:absolute;inset:0;z-index:5">
+            <div onClick="{{ fr.close }}" style="position:absolute;inset:0;background:rgba(26,29,46,.42);cursor:pointer"></div>
+            <div style="position:absolute;top:0;right:0;bottom:0;width:296px;background:#fff;border-radius:16px 0 0 16px;display:flex;flex-direction:column;overflow:hidden">
+              <div style="background:#1B3A8C;padding:24px 20px 20px;display:flex;flex-direction:column;gap:16px;flex:none">
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div title="GemEye logo asset" style="width:28px;height:28px;border-radius:8px;flex:none;border:1px dashed rgba(255,255,255,.55);background:repeating-linear-gradient(135deg,rgba(255,255,255,.16) 0 5px,rgba(255,255,255,.04) 5px 10px);display:flex;align-items:center;justify-content:center;text-align:center;padding:2px;font:400 4.5px/1.15 'JetBrains Mono',monospace;color:#fff;overflow:hidden">GemEye logo asset</div>
+                  <span style="flex:1;font:700 28px/1 Poppins;color:#fff">GemEye</span>
+                  <button onClick="{{ fr.close }}" style="width:40px;height:40px;margin-right:-10px;border:none;border-radius:50%;background:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:22px">close</span></button>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="width:44px;height:44px;border-radius:50%;background:#3B5FD9;display:flex;align-items:center;justify-content:center;font:600 14px Poppins;color:#fff;flex:none">SP</div>
+                  <div style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font:600 14px Poppins;color:#fff">Shehan Perera</span><span style="font:400 12px Inter;color:#fff">s.perera@ceylongems.lk</span><span style="font:400 11px Inter;color:#ABBDD6">Gemologist · Ceylon Gem Exports</span></div>
+                </div>
+              </div>
+              <div data-scroll="1" style="flex:1;min-height:0;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:2px">
+                <sc-for list="{{ fr.items }}" as="d" hint-placeholder-count="10">
+                  <sc-if value="{{ d.divider }}" hint-placeholder-val="{{ false }}"><div style="height:1px;background:#E5E7F0;margin:6px 16px;flex:none"></div></sc-if>
+                  <div onClick="{{ d.onTap }}" style="height:44px;flex:none;padding:0 16px;border-radius:12px;background:{{ d.bg }};display:flex;align-items:center;gap:14px;color:{{ d.color }};cursor:pointer" style-hover="background:#EEF1FA">
+                    <span style="font-family:'Material Symbols Rounded';font-size:22px;color:{{ d.iconColor }};font-variation-settings:{{ d.fill }}">{{ d.icon }}</span><span style="font:{{ d.font }}">{{ d.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="flex:none;border-top:1px solid #E5E7F0;padding:8px 12px 12px;display:flex;flex-direction:column;gap:6px">
+                <div onClick="{{ fr.close }}" style="height:44px;padding:0 16px;border-radius:12px;display:flex;align-items:center;gap:14px;color:#EF4444;cursor:pointer" style-hover="background:rgba(239,68,68,.08)"><span style="font-family:'Material Symbols Rounded';font-size:22px">logout</span><span style="font:500 14px Inter">Logout</span></div>
+                <span style="padding:0 16px;font:400 11px Inter;color:#A0A4B8">App v1.0.0 · Server connected</span>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { active: ['Home', 'Grading History', 'Colour Grade Guide'], open: [true, true, true] };
+  renderVals() {
+    const s = this.state;
+    const D = [['home','Home'],['center_focus_strong','Grade a Stone'],['palette','Calibration'],['history','Grading History'],['menu_book','Colour Grade Guide'],['compare','Stone Comparison'],['settings','Settings'],['rate_review','Feedback',1],['privacy_tip','Privacy Policy'],['info','About']];
+    const caps = ['Current page: Home', 'Current page: Grading History', 'Current page: Colour Grade Guide'];
+    const set = (key, i, v) => this.setState(st => { const a = [...st[key]]; a[i] = v; return { [key]: a }; });
+    const frames = caps.map((caption, i) => ({
+      id: '2' + 'abc'[i], caption, label: `SideDrawer · ${s.active[i]}`, isOpen: s.open[i],
+      open: () => set('open', i, true), close: () => set('open', i, false),
+      items: D.map(([icon, label, div]) => {
+        const on = label === s.active[i];
+        return { icon, label, divider: !!div, bg: on ? '#EEF1FA' : 'transparent', color: on ? '#1B3A8C' : '#1A1D2E', iconColor: on ? '#1B3A8C' : '#6B7089', fill: on ? "'FILL' 1" : "'FILL' 0", font: on ? '600 14px Poppins' : '500 14px Inter', onTap: () => set('active', i, label) };
+      }),
+    }));
+    return { frames };
+  }
+}
+</script>
+</body>
+</html>
