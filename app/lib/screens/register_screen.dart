@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
+import '../services/profile_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
@@ -227,9 +228,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     if (_googleMode) {
-      // TODO(F2): persist profile (phone, country, role, photo) for Google users.
-      _persistCompanyProfile();
-      _finishRegistration();
+      await _persistLocalProfile();
+      if (mounted) _finishRegistration();
       return;
     }
 
@@ -241,8 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       await _authService.registerWithEmail(email, password);
       await _authService.updateDisplayName(name);
-      // TODO(F2): persist profile (phone, country, role, photo).
-      _persistCompanyProfile();
+      await _persistLocalProfile();
       if (mounted) _finishRegistration();
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) debugPrint('Registration failed: ${e.code}');
@@ -274,10 +273,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  void _persistCompanyProfile() {
-    if (!_isCompany) return;
-    // TODO(F2): persist company profile (company name, logo, business reg.
-    // no, industry, address). Not stored anywhere yet.
+  /// Keeps the profile on this device (ProfileService) so Profile shows the
+  /// right account type and fields.
+  // TODO(F2): send the profile (incl. business reg. no and address) to the
+  // backend; those two fields are not stored locally.
+  Future<void> _persistLocalProfile() async {
+    try {
+      final photo = _profilePhoto == null
+          ? null
+          : await ProfileService.storeImage(_profilePhoto!, 'photo');
+      final logo = _isCompany && _companyLogo != null
+          ? await ProfileService.storeImage(_companyLogo!, 'logo')
+          : null;
+      await ProfileService.save(LocalProfile(
+        accountType: _isCompany ? AccountType.company : AccountType.individual,
+        phone: _phoneController.text.trim(),
+        role: _isCompany ? null : _selectedRole,
+        country: _selectedCountry,
+        companyName: _isCompany ? _companyNameController.text.trim() : '',
+        contactPerson: _isCompany ? _nameController.text.trim() : '',
+        industry: _isCompany ? _selectedIndustry : null,
+        photoPath: photo,
+        logoPath: logo,
+      ));
+    } catch (e) {
+      if (kDebugMode) debugPrint('Local profile save failed: $e');
+    }
   }
 
   void _finishRegistration() {

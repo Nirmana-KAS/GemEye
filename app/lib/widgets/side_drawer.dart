@@ -107,17 +107,7 @@ class GemEyeSideDrawer extends StatelessWidget {
                   _DrawerItem(
                     icon: Icons.rate_review_rounded,
                     label: 'Feedback',
-                    onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: BorderRadius.vertical(
-                              top: Radius.circular(AppRadius.xxl + 4)),
-                        ),
-                        builder: (ctx) => const FeedbackSheet(),
-                      );
-                    },
+                    onTap: () => FeedbackSheet.show(context),
                   ),
                   _DrawerItem(
                     icon: Icons.privacy_tip_rounded,

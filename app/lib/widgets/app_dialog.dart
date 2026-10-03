@@ -3,7 +3,9 @@ import '../config/theme.dart';
 
 enum AppDialogType { info, warning, danger }
 
-/// White confirmation dialog with a tinted status icon and two actions.
+/// White dialog with a tinted status icon, a text cancel action and a filled
+/// confirm action (System States). [blocking] dialogs use a darker scrim and
+/// cannot be dismissed by tapping outside or pressing back.
 class AppDialog {
   /// Returns true when the confirm action is pressed.
   static Future<bool> confirm(
@@ -14,10 +16,12 @@ class AppDialog {
     String cancelLabel = 'Cancel',
     AppDialogType type = AppDialogType.warning,
     IconData? icon,
+    bool blocking = false,
   }) async {
     final result = await showDialog<bool>(
       context: context,
-      barrierColor: AppColors.scrim,
+      barrierColor: blocking ? AppColors.scrimBlocking : AppColors.scrim,
+      barrierDismissible: !blocking,
       builder: (ctx) => _AppDialogContent(
         title: title,
         message: message,
@@ -25,6 +29,7 @@ class AppDialog {
         cancelLabel: cancelLabel,
         type: type,
         icon: icon,
+        blocking: blocking,
       ),
     );
     return result ?? false;
@@ -40,11 +45,12 @@ class AppDialog {
     AppDialogType type = AppDialogType.info,
     IconData? icon,
     bool barrierDismissible = true,
+    bool blocking = false,
   }) async {
     await showDialog<bool>(
       context: context,
-      barrierColor: AppColors.scrim,
-      barrierDismissible: barrierDismissible,
+      barrierColor: blocking ? AppColors.scrimBlocking : AppColors.scrim,
+      barrierDismissible: barrierDismissible && !blocking,
       builder: (ctx) => _AppDialogContent(
         title: title,
         message: message,
@@ -52,6 +58,7 @@ class AppDialog {
         cancelLabel: null,
         type: type,
         icon: icon,
+        blocking: blocking,
       ),
     );
   }
@@ -64,6 +71,7 @@ class _AppDialogContent extends StatelessWidget {
   final String? cancelLabel;
   final AppDialogType type;
   final IconData? icon;
+  final bool blocking;
 
   const _AppDialogContent({
     required this.title,
@@ -72,6 +80,7 @@ class _AppDialogContent extends StatelessWidget {
     required this.cancelLabel,
     required this.type,
     this.icon,
+    this.blocking = false,
   });
 
   @override
@@ -84,99 +93,91 @@ class _AppDialogContent extends StatelessWidget {
         ),
       AppDialogType.warning => (
           Icons.warning_rounded,
-          AppColors.warning,
+          AppColors.warningText,
           AppColors.warningTint
         ),
       AppDialogType.danger => (
           Icons.error_rounded,
-          AppColors.error,
+          AppColors.errorText,
           AppColors.errorTint
         ),
     };
     final confirmColor =
-        type == AppDialogType.danger ? AppColors.error : AppColors.primary;
+        type == AppDialogType.danger ? AppColors.errorText : AppColors.primary;
 
-    return Dialog(
-      backgroundColor: AppColors.card,
-      surfaceTintColor: AppColors.card,
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xxl)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxxl),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xxl, AppSpacing.xxl, AppSpacing.lg, AppSpacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-              child: Icon(icon ?? defaultIcon, size: 22, color: color),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.md),
-              child: Text(title, style: AppText.sectionHeader),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.only(right: AppSpacing.md),
-              child: Text(message,
-                  style:
-                      AppText.body14.copyWith(color: AppColors.textSecondary)),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                if (cancelLabel != null) ...[
-                  _DialogButton(
-                    label: cancelLabel!,
-                    color: AppColors.textSecondary,
-                    onPressed: () => Navigator.of(context).pop(false),
+    return PopScope(
+      canPop: !blocking,
+      child: Dialog(
+        backgroundColor: AppColors.card,
+        surfaceTintColor: AppColors.card,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.xl)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.huge),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(
+              AppSpacing.xxl, AppSpacing.xxxl, AppSpacing.xxl, AppSpacing.xl),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+                child: Icon(icon ?? defaultIcon, size: 22, color: color),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              Text(title, style: AppText.sectionHeader.copyWith(height: 1.35)),
+              const SizedBox(height: AppSpacing.lg),
+              Text(message,
+                  style: AppText.body14
+                      .copyWith(height: 1.5, color: AppColors.textSecondary)),
+              const SizedBox(height: AppSpacing.xl),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (cancelLabel != null) ...[
+                    Flexible(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.textSecondary,
+                          minimumSize: const Size(
+                              AppSpacing.touchTarget, AppSpacing.touchTarget),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xl),
+                          textStyle: AppText.button,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.md)),
+                        ),
+                        child: Text(cancelLabel!),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                  ],
+                  Flexible(
+                    child: FilledButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: confirmColor,
+                        foregroundColor: AppColors.onPrimary,
+                        minimumSize: const Size(
+                            AppSpacing.touchTarget, AppSpacing.touchTarget),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+                        textStyle: AppText.button,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.md)),
+                      ),
+                      child: Text(confirmLabel),
+                    ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
                 ],
-                _DialogButton(
-                  label: confirmLabel,
-                  color: confirmColor,
-                  onPressed: () => Navigator.of(context).pop(true),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
-    );
-  }
-}
-
-class _DialogButton extends StatelessWidget {
-  final String label;
-  final Color color;
-  final VoidCallback onPressed;
-
-  const _DialogButton({
-    required this.label,
-    required this.color,
-    required this.onPressed,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        foregroundColor: color,
-        minimumSize: const Size(AppSpacing.touchTarget, AppSpacing.touchTarget),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-        textStyle: AppText.button,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.sm)),
-      ),
-      child: Text(label),
     );
   }
 }

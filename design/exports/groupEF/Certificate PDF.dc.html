@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div data-screen-label="Certificate PDF" style="width:794px;height:1123px;background:#fff;display:flex;flex-direction:column;overflow:hidden;position:relative;border:1px solid #E5E7F0">
+  <div style="height:96px;background:#1B3A8C;padding:0 40px;display:flex;align-items:center;gap:16px;flex:none">
+    <div title="GemEye logo asset" style="width:44px;height:44px;border-radius:12px;flex:none;border:1px dashed #A0A4B8;background:repeating-linear-gradient(135deg,#EEF1FA 0 6px,#fff 6px 12px);display:flex;align-items:center;justify-content:center;text-align:center;padding:4px;font:400 6px/1.15 'JetBrains Mono',monospace;color:#6B7089;overflow:hidden">GemEye logo asset</div>
+    <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+      <span style="font:700 13px Poppins;color:#fff;letter-spacing:.04em">GemEye</span>
+      <span style="font:600 22px/1.2 Poppins;color:#fff">Colour Grading Certificate</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <span style="font:600 10px Poppins;letter-spacing:.14em;color:#ABBDD6">CERTIFICATE NO.</span>
+      <span style="font:500 16px 'JetBrains Mono',monospace;color:#fff">GE-202610-00042</span>
+    </div>
+  </div>
+
+  <div style="flex:1;padding:28px 40px 0;display:flex;flex-direction:column;gap:20px">
+    <div style="display:grid;grid-template-columns:232px minmax(0,1fr);gap:20px">
+      <div style="border:1px solid #E5E7F0;border-radius:12px;overflow:hidden;display:flex;flex-direction:column">
+        <div style="height:200px;background:repeating-linear-gradient(135deg,#EEF1FA 0 8px,#fff 8px 16px);display:flex;align-items:center;justify-content:center"><div style="width:136px;height:136px;border-radius:50%;background:#132F9E"></div></div>
+        <div style="height:32px;border-top:1px solid #E5E7F0;display:flex;align-items:center;justify-content:center;gap:8px;font:500 10px 'JetBrains Mono',monospace;color:#6B7089">GE-STONE-00042 · face-up</div>
+      </div>
+      <div style="border-radius:14px;background:linear-gradient(135deg,#091A72 0%,#1A3B8C 100%);padding:24px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden">
+        <div style="position:absolute;right:-36px;top:-36px;width:170px;height:170px;border-radius:50%;border:1px solid rgba(255,255,255,.1)"></div>
+        <div style="position:absolute;right:10px;top:10px;width:96px;height:96px;border-radius:50%;border:1px solid rgba(255,255,255,.1)"></div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font:600 11px Poppins;letter-spacing:.14em;color:#ABBDD6">GEMCLOUD GRADE</span>
+            <span style="font:700 48px/1 Poppins;color:#fff">Grade 3</span>
+            <span style="font:600 16px Inter;color:#fff">Vivid</span>
+            <span style="font:400 14px Inter;color:#fff">Trade name: Royal Blue</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+            <div style="width:56px;height:56px;border-radius:12px;background:#091A72;box-shadow:0 0 0 2px rgba(255,255,255,.85)"></div>
+            <span style="font:500 10px 'JetBrains Mono',monospace;color:#fff">G3 #091A72</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span style="height:26px;padding:0 12px;border-radius:13px;background:rgba(255,255,255,.14);display:inline-flex;align-items:center;gap:8px;font:600 12px Poppins;color:#fff"><span style="width:6px;height:6px;border-radius:50%;background:{{ dot }}"></span>{{ conf }}</span>
+          <span style="height:26px;padding:0 12px;border-radius:13px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);display:inline-flex;align-items:center;font:600 12px Poppins;color:#fff">± 0.22 grade</span>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ referred }}" hint-placeholder-val="{{ false }}">
+      <div style="border:1px solid #F59E0B;background:rgba(245,158,11,.08);border-radius:12px;padding:16px 20px;display:flex;align-items:center;gap:12px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex:none;box-shadow:0 0 0 4px rgba(245,158,11,.18)"></span>
+        <span style="font:500 13px Inter;color:#1A1D2E;white-space:nowrap">Borderline - reviewed by gemologist:</span>
+        <span style="flex:1;border-bottom:1px solid #1A1D2E;height:16px"></span>
+      </div>
+    </sc-if>
+
+    <div style="border:1px solid #E5E7F0;border-radius:12px;padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+      <span style="font:600 14px Poppins;color:#1A1D2E">Colour data</span>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px">
+        <sc-for list="{{ groups }}" as="g" hint-placeholder-count="3">
+          <div style="display:flex;flex-direction:column">
+            <span style="font:600 10px Poppins;letter-spacing:.1em;color:#6B7089;padding-bottom:8px;border-bottom:1px solid #1B3A8C">{{ g.name }}</span>
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="4">
+              <div style="height:26px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E5E7F0">
+                <span style="font:400 12px Inter;color:#6B7089">{{ r.k }}</span>
+                <span style="font:500 12px 'JetBrains Mono',monospace;color:#1A1D2E">{{ r.v }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;gap:24px;padding-top:4px">
+        <span style="font:400 12px Inter;color:#6B7089">Delta E (ΔE₀₀) to typical Grade 3 <span style="font:500 12px 'JetBrains Mono',monospace;color:#1A1D2E;margin-left:8px">1.6</span></span>
+        <span style="display:flex;align-items:center;gap:8px;font:400 12px Inter;color:#6B7089">Hex <span style="width:16px;height:16px;border-radius:4px;background:#132F9E"></span><span style="font:500 12px 'JetBrains Mono',monospace;color:#1A1D2E">#132F9E</span></span>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:20px">
+      <div style="border:1px solid #E5E7F0;border-radius:12px;padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;column-gap:24px;row-gap:12px">
+        <sc-for list="{{ details }}" as="d" hint-placeholder-count="8">
+          <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+            <span style="font:400 11px Inter;color:#6B7089">{{ d.k }}</span>
+            <span style="font:{{ d.font }};font-size:12px;color:#1A1D2E">{{ d.v }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="border:1px solid #E5E7F0;border-radius:12px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div style="width:112px;height:112px;display:grid;grid-template-columns:repeat(21,1fr);grid-template-rows:repeat(21,1fr)">
+          <sc-for list="{{ qr }}" as="q" hint-placeholder-count="441">
+            <span style="background:{{ q }}"></span>
+          </sc-for>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center">
+          <span style="font:600 12px Poppins;color:#1A1D2E">Scan to verify</span>
+          <span style="font:400 10px 'JetBrains Mono',monospace;color:#6B7089">verify.gemeye.app/GE-202610-00042</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px;padding:4px 0">
+      <span style="font:600 13px/1.5 Poppins;color:#1B3A8C">Classified according to the GEMCLOUD 7-Grade Colour Intensity Standard</span>
+      <span style="font:400 11px/1.5 Inter;color:#6B7089;text-wrap:pretty">Generated by the GemEye automated colour grading system. Not a substitute for a certified gemological laboratory report.</span>
+    </div>
+  </div>
+
+  <div style="height:44px;margin:0 40px;border-top:1px solid #E5E7F0;display:flex;align-items:center;justify-content:space-between;font:400 10px 'JetBrains Mono',monospace;color:#6B7089;flex:none">
+    <span>GemEye v1.0 · Model v3</span>
+    <span>GE-202610-00042</span>
+    <span>Issued 14 Oct 2026</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:794,&quot;height&quot;:1123},&quot;referred&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    const referred = this.props.referred ?? false;
+    const groups = [
+      { name: 'CIELAB', rows: [['Lightness (L*)', '42.3'], ['Green-Red (a*)', '8.9'], ['Blue-Yellow (b*)', '-27.0'], ['Chroma (C*)', '28.4']] },
+      { name: 'HSB', rows: [['Hue', '228°'], ['Saturation', '88%'], ['Brightness', '62%']] },
+      { name: 'CIECAM02', rows: [['Lightness J', '35.2'], ['Colourfulness M', '42.1'], ['Hue angle h', '285.3'], ['Saturation s', '68.5'], ['Chroma C', '39.8']] },
+    ].map(g => ({ name: g.name, rows: g.rows.map(([k, v]) => ({ k, v })) }));
+    const D = [
+      ['Stone ID', 'GE-STONE-00042', 1], ['Capture date / time', '14 Oct 2026, 14:23'],
+      ['Session', 'S-2026-10-14-04', 1], ['Device', 'OnePlus Nord 2'],
+      ['Calibration residual', '0.08 · Excellent'], ['Model version', 'v3 (CNN + Random Forest)'],
+      ['Issued to', 'Shehan Perera'], ['Company', 'Perera Gems (Pvt) Ltd'],
+    ];
+    const details = D.map(([k, v, m]) => ({ k, v, font: m ? "500 12px 'JetBrains Mono',monospace" : '500 12px Inter' }));
+    const N = 21, qr = [];
+    const finder = (r, c) => { for (const [fr, fc] of [[0, 0], [0, 14], [14, 0]]) { const y = r - fr, x = c - fc; if (y >= 0 && y < 7 && x >= 0 && x < 7) return (y === 0 || y === 6 || x === 0 || x === 6 || (y >= 2 && y <= 4 && x >= 2 && x <= 4)) ? 1 : 0; if (y >= -1 && y <= 7 && x >= -1 && x <= 7) return 0; } return -1; };
+    let s = 42;
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const f = finder(r, c); s = (s * 1103515245 + 12345) & 0x7fffffff; qr.push((f === -1 ? (s >> 16) & 1 : f) ? '#1A1D2E' : 'transparent'); }
+    return { referred, groups, details, qr, conf: referred ? 'Borderline · 46%' : 'High · 78%', dot: referred ? '#F59E0B' : '#10B981' };
+  }
+}
+</script>
+</body>
+</html>

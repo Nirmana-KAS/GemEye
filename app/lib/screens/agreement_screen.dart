@@ -1,9 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../config/constants.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
+import '../services/policy_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_checkbox.dart';
 import '../widgets/gem_app_bar.dart';
@@ -11,7 +9,11 @@ import '../widgets/policy_markdown.dart';
 import 'login_screen.dart';
 
 class AgreementScreen extends StatefulWidget {
-  const AgreementScreen({super.key});
+  /// Re-acceptance after a policy update: accepting pops with true instead
+  /// of opening Login, and back is disabled until accepted.
+  final bool reaccept;
+
+  const AgreementScreen({super.key, this.reaccept = false});
 
   @override
   State<AgreementScreen> createState() => _AgreementScreenState();
@@ -29,34 +31,39 @@ class _AgreementScreenState extends State<AgreementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: const GemAppBar(title: 'Before you start'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.screen,
-            AppSpacing.screen, AppSpacing.xxxl),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildSummary(),
-            const SizedBox(height: AppSpacing.xxxl),
-            const PolicyMarkdown(),
-          ],
+    return PopScope(
+      canPop: !widget.reaccept,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: GemAppBar(
+            title: widget.reaccept
+                ? 'Privacy policy updated'
+                : 'Before you start'),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.screen,
+              AppSpacing.screen, AppSpacing.screen, AppSpacing.xxxl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildSummary(),
+              const SizedBox(height: AppSpacing.xxxl),
+              const PolicyMarkdown(),
+            ],
+          ),
         ),
+        bottomNavigationBar: _buildBottomBar(),
       ),
-      bottomNavigationBar: _buildBottomBar(),
     );
   }
 
   Future<void> _accept() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(AppConstants.policyAcceptedKey, true);
-    } catch (e) {
-      if (kDebugMode) debugPrint('Policy flag write failed: $e');
-    }
+    await PolicyService.markAccepted();
     if (!mounted) return;
-    AppRoutes.pushReplacement(context, const LoginScreen());
+    if (widget.reaccept) {
+      Navigator.of(context).pop(true);
+    } else {
+      AppRoutes.pushReplacement(context, const LoginScreen());
+    }
   }
 
   Widget _buildSummary() {

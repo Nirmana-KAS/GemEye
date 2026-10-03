@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Colour Grade Guide</span>
+    <span style="font:400 13px Inter;color:#6B7089">Interactive · tap a strip segment or card to expand · G3 open by default</span>
+  </div>
+  <div id="18a" style="display:flex;flex-direction:column;gap:12px;flex:none">
+    <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 8px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">18a</span><span style="font:500 11px Inter;color:#6B7089">Guide · G3 expanded</span></div>
+    <div data-screen-label="Colour Grade Guide" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column">
+      <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none">
+        <span>9:41</span>
+        <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+      </div>
+      <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none">
+        <a href="Side Drawer.dc.html" style="width:48px;height:48px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;flex:none" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></a>
+        <div style="flex:1;min-width:0;font:600 20px Poppins;color:#fff">Colour Grade Guide</div>
+      </div>
+
+      <div data-scroll="1" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">
+        <div style="padding:16px 16px 4px;display:flex;flex-direction:column;gap:8px;flex:none">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);height:56px;border-radius:12px;overflow:hidden;border:1px solid #E5E7F0">
+            <sc-for list="{{ grades }}" as="g" hint-placeholder-count="7">
+              <button onClick="{{ g.onTap }}" aria-label="{{ g.title }}" style="border:none;background:{{ g.hex }};cursor:pointer;display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;box-shadow:{{ g.ring }}">
+                <span style="font:600 11px Poppins;color:{{ g.ink }}">{{ g.code }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="display:flex;justify-content:space-between;font:400 11px Inter;color:#6B7089"><span>Darkest</span><span>Lightest</span></div>
+        </div>
+
+        <div style="padding:8px 16px 16px;display:flex;flex-direction:column;gap:8px">
+          <sc-for list="{{ grades }}" as="g" hint-placeholder-count="7">
+            <div style="background:#fff;border:1px solid {{ g.border }};border-radius:12px;overflow:hidden;flex:none">
+              <button onClick="{{ g.onTap }}" style="width:100%;min-height:64px;padding:12px;border:none;background:none;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left" style-active="background:#EEF1FA">
+                <div style="width:40px;height:40px;border-radius:10px;background:{{ g.hex }};box-shadow:inset 0 0 0 1px rgba(26,29,46,.08);flex:none"></div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                  <span style="font:600 14px Poppins;color:#1A1D2E">{{ g.title }}</span>
+                  <span style="font:400 12px Inter;color:#6B7089">{{ g.trade }}</span>
+                </div>
+                <span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089;transform:rotate({{ g.rot }});transition:transform .2s">expand_more</span>
+              </button>
+              <sc-if value="{{ g.open }}" hint-placeholder-val="{{ false }}">
+                <div style="padding:0 12px 16px;display:flex;flex-direction:column;gap:12px">
+                  <div style="height:1px;background:#E5E7F0"></div>
+                  <span style="font:400 13px/1.5 Inter;color:#1A1D2E;text-wrap:pretty">{{ g.desc }}</span>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <div style="border:1px solid #E5E7F0;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:4px"><span style="font:400 11px Inter;color:#6B7089">Tone</span><span style="font:500 13px Inter;color:#1A1D2E">{{ g.tone }}</span></div>
+                    <div style="border:1px solid #E5E7F0;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:4px"><span style="font:400 11px Inter;color:#6B7089">Saturation</span><span style="font:500 13px Inter;color:#1A1D2E">{{ g.sat }}</span></div>
+                    <div style="border:1px solid #E5E7F0;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:4px"><span style="font:400 11px Inter;color:#6B7089">Lightness L*</span><span style="font:500 13px 'JetBrains Mono',monospace;color:#1A1D2E">{{ g.L }}</span></div>
+                    <div style="border:1px solid #E5E7F0;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:4px"><span style="font:400 11px Inter;color:#6B7089">Chroma C*</span><span style="font:500 13px 'JetBrains Mono',monospace;color:#1A1D2E">{{ g.C }}</span></div>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:flex-start;padding:12px 12px;border-radius:10px;background:#EEF1FA">
+                    <span style="font-family:'Material Symbols Rounded';font-size:18px;color:#1B3A8C">lightbulb</span>
+                    <span style="flex:1;font:500 12px/1.45 Inter;color:#1A1D2E">{{ g.tip }}</span>
+                  </div>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+
+          <div style="display:flex;gap:8px;align-items:flex-start;padding:12px 4px 4px">
+            <span style="font-family:'Material Symbols Rounded';font-size:16px;color:#A0A4B8">offline_pin</span>
+            <span style="font:400 12px/1.5 Inter;color:#6B7089;text-wrap:pretty">Based on the GEMCLOUD 7-Grade Standard · GRS · Bellerophon. Works offline.</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="height:64px;background:#fff;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(4,1fr);flex:none">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+          <a href="{{ t.href }}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:{{ t.color }}">
+            <span style="font-family:'Material Symbols Rounded';font-size:24px;font-variation-settings:{{ t.fill }}">{{ t.icon }}</span>
+            <span style="font:{{ t.font }};font-size:11px">{{ t.label }}</span>
+            <span style="width:4px;height:4px;border-radius:50%;background:#1B3A8C;opacity:{{ t.dot }}"></span>
+          </a>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { open: 2 };
+  renderVals() {
+    const D = [
+      ['#020519', 'Dark', 'Midnight Blue', 'Very dark blue that can read almost black in low light. Colour is visible mainly at the edges and in strong daylight.', 'Very dark', 'Low', '8 to 16', '6 to 12', 'Grade under bright daylight; indoor light makes these stones look black.'],
+      ['#0B0F3F', 'Deep', 'Twilight Blue', 'Deep, dense blue with a slightly inky look. Saturated colour, but the dark tone limits brilliance.', 'Dark', 'Moderate', '20 to 32', '14 to 22', 'Keep the stone face-up; tilting adds dark extinction areas.'],
+      ['#091A72', 'Vivid', 'Royal Blue', 'Rich, strongly saturated blue with a medium-dark tone. The most sought-after balance of depth and brightness.', 'Medium-dark', 'Strong', '36 to 46', '26 to 32', 'Small differences between G3 and G4 are common; use Repeatability mode if unsure.'],
+      ['#2A408C', 'Intense', 'Intense Cornflower', 'Bright, saturated blue with a medium tone. Lively colour with good light return.', 'Medium', 'Strong', '46 to 54', '22 to 28', 'Avoid direct sun; it can push Intense stones towards Vivid.'],
+      ['#47619E', 'Medium Intense', 'Cornflower Blue', 'Soft, velvety blue with a medium-light tone. Colour is pleasant but less saturated.', 'Medium-light', 'Moderate', '54 to 62', '18 to 24', 'Check for grey or green secondary tones under the same lighting.'],
+      ['#718BB7', 'Light', 'Pastel Blue', 'Light blue with a gentle, pastel look. Tone dominates over saturation.', 'Light', 'Low to moderate', '62 to 72', '12 to 18', 'A white tray is essential; coloured backgrounds tint light stones.'],
+      ['#ABBDD6', 'Very Light', 'Very Light Blue', 'Very pale blue, close to colourless in some lighting. Colour is faint and best seen face-up.', 'Very light', 'Low', '72 to 84', '6 to 12', 'Make sure the stone fills about 70% of the frame so the tray does not dominate.'],
+    ];
+    const grades = D.map(([hex, name, trade, desc, tone, sat, L, C, tip], i) => {
+      const open = this.state.open === i;
+      return { code: 'G' + (i + 1), hex, title: `Grade ${i + 1} · ${name}`, trade, desc, tone, sat, L, C, tip, open,
+        rot: open ? '180deg' : '0deg', border: open ? '#1B3A8C' : '#E5E7F0', ink: i >= 5 ? '#1A1D2E' : '#fff',
+        ring: open ? 'inset 0 0 0 2px #fff' : 'none',
+        onTap: () => this.setState(st => ({ open: st.open === i ? -1 : i })) };
+    });
+    const T = [['home', 'Home', 'Home Dashboard.dc.html'], ['center_focus_strong', 'Grade', 'Grade Capture.dc.html'], ['history', 'History', 'Grading History.dc.html'], ['menu_book', 'Guide', '#']];
+    const tabs = T.map(([icon, label, href], i) => { const a = i === 3; return { icon, label, href, color: a ? '#1B3A8C' : '#6B7089', fill: a ? "'FILL' 1" : "'FILL' 0", font: a ? '600 11px Poppins' : '500 11px Inter', dot: a ? 1 : 0 }; });
+    return { grades, tabs };
+  }
+}
+</script>
+</body>
+</html>

@@ -33,13 +33,20 @@ class ImagePickerField extends StatelessWidget {
   });
 
   Future<void> _pick(BuildContext context) async {
+    final file = await pickImage(context);
+    if (file != null) onChanged(file);
+  }
+
+  /// Gallery picker with the JPG / PNG and 5 MB checks. Returns null when
+  /// cancelled or rejected (the reason is shown in a snackbar).
+  static Future<File?> pickImage(BuildContext context) async {
     try {
       final picked = await ImagePicker().pickImage(
         source: ImageSource.gallery,
         maxWidth: 1024,
         maxHeight: 1024,
       );
-      if (picked == null) return;
+      if (picked == null) return null;
       final name = picked.name.toLowerCase();
       final validType = name.endsWith('.jpg') ||
           name.endsWith('.jpeg') ||
@@ -50,7 +57,7 @@ class ImagePickerField extends StatelessWidget {
               message: 'Choose a JPG or PNG image',
               type: AppSnackBarType.error);
         }
-        return;
+        return null;
       }
       if (await picked.length() > maxBytes) {
         if (context.mounted) {
@@ -58,9 +65,9 @@ class ImagePickerField extends StatelessWidget {
               message: 'Image is larger than 5 MB',
               type: AppSnackBarType.error);
         }
-        return;
+        return null;
       }
-      onChanged(File(picked.path));
+      return File(picked.path);
     } catch (e) {
       if (kDebugMode) debugPrint('ImagePickerField: $e');
       if (context.mounted) {
@@ -68,6 +75,7 @@ class ImagePickerField extends StatelessWidget {
             message: 'Could not open your photos. Please try again.',
             type: AppSnackBarType.error);
       }
+      return null;
     }
   }
 

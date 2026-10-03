@@ -7,6 +7,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image/image.dart' as img;
 import '../models/app_notification.dart';
 import 'notification_service.dart';
+import 'settings_service.dart';
 
 /// Max per-channel standard deviation (0-255) inside the measured region
 /// before a patch photo is rejected as not uniform.
@@ -194,6 +195,19 @@ class CalibrationService {
     }
   }
 
+  /// Deletes the current session, history and reminder flag (account
+  /// deletion).
+  static Future<void> clearAll() async {
+    try {
+      await _storage.delete(key: _currentKey);
+      await _storage.delete(key: _historyKey);
+      await _storage.delete(key: _remindedKey);
+    } catch (e) {
+      if (kDebugMode) debugPrint('CalibrationService.clearAll failed: $e');
+    }
+    session.value = null;
+  }
+
   static Future<bool> isValid() async => (await current())?.isValid ?? false;
 
   /// Saved sessions, newest first.
@@ -268,6 +282,7 @@ class CalibrationService {
         title: 'Recalibrate',
         message: 'Your calibration is over 8 hours old.',
         action: AppNotificationAction.openCalibration,
+        category: NotificationCategory.calibration,
       );
       await _storage.write(key: _remindedKey, value: s.id);
     } catch (e) {

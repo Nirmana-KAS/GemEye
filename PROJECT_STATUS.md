@@ -1338,3 +1338,268 @@
   - `+` app/lib/screens/repeatability_summary_screen.dart
 - **Connected edits:** EDIT-063, EDIT-064, EDIT-065, EDIT-067; Claude Design Group D export (Repeatability Mode)
 - **Reason:** Repeat captures show whether a grade is stable before it is saved.
+
+### EDIT-069 | 02 October 2026 13:00 | IST
+- **Topic:** CIEDE2000 Colour Difference
+- **Summary:** Added a standard CIEDE2000 (ΔE₀₀) implementation with unit tests against published reference pairs.
+- **What was done:**
+  - `ColourMath.deltaE2000(Lab, Lab)` with kL = kC = kH = 1 (Sharma, Wu and Dalal 2005), `Lab` value class, shared label "Delta E (ΔE₀₀)"
+  - Unit test with Sharma et al. (2005) pairs 1 (2.0425) and 17 (27.1492), plus identical colours = 0; all pass
+- **Files changed:**
+  - `+` app/lib/utils/colour_math.dart
+  - `+` app/test/colour_math_test.dart
+- **Connected edits:** EDIT-067
+- **Reason:** Stone Comparison and the certificate need a standard perceptual colour difference.
+
+### EDIT-070 | 02 October 2026 13:05 | IST
+- **Topic:** Certificate PDF Redesign
+- **Summary:** Certificate PDF follows the Group E design with embedded app fonts and theme colours.
+- **What was done:**
+  - Royal Blue header with logo.png on a white rounded frame, "Colour Grading Certificate", certificate number
+  - Stone photo card + gradient grade block (Grade N, GEMCLOUD name, trade name, grade swatch + hex, confidence and uncertainty pills)
+  - Colour data in 3 columns: CIELAB, HSB, CIECAM02 ("-", TODO(backend)); Delta E (ΔE₀₀) to typical grade and measured hex below
+  - Details grid: stone ID, capture date/time, session, device + calibration residual (from CalibrationService history when the session matches, else "-"), model version ("-", TODO(backend)), issued to (display name), company (only when set in Profile)
+  - QR content unchanged, caption "Scan to view certificate data" (TODO(backend) verification URL); statement, disclaimer, footer
+  - Amber "Borderline - reviewed by gemologist: ______" block when confidence is below the referral threshold
+  - Numbering, prefix setting and Downloads saving unchanged; Grad-CAM panel removed from the PDF (not in the design; still on Grade Result)
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart
+- **Connected edits:** EDIT-067, EDIT-069; Claude Design Group EF export (Certificate PDF)
+- **Reason:** The exported certificate must match the approved design.
+
+### EDIT-071 | 02 October 2026 13:09 | IST
+- **Topic:** Certificate Preview Redesign
+- **Summary:** Certificate screen shows the file name, a scaled A4 page with pinch to zoom, and Save to Downloads / Share / Print.
+- **What was done:**
+  - GemAppBar "Certificate"; header row with the PDF file name (mono) and "A4 · 1 page"
+  - Page rasterised once with `Printing.raster` and shown in an InteractiveViewer (1x to 5x) inside a bordered A4 frame; PdfPreview fallback
+  - Bottom bar: "Save to Downloads" (primary), "Share" (outlined), Print icon button (printing package)
+  - Success snackbar "Saved to Downloads"; save notification, save path and share/print behaviour unchanged; errors via AppSnackBar
+- **Files changed:**
+  - `~` app/lib/screens/certificate_screen.dart
+- **Connected edits:** EDIT-070; Claude Design Group EF export (Certificate Preview)
+- **Reason:** The preview must match the approved design.
+
+### EDIT-072 | 02 October 2026 13:09 | IST
+- **Topic:** Grading History Redesign
+- **Summary:** History follows the Group E design with all existing features kept and a separate sort sheet.
+- **What was done:**
+  - GemAppBar with menu (opens the shell drawer), sort and filter actions (red count badge)
+  - Search, chips All / G1-G7 (grade swatches) / Referred (confidence below the referral threshold)
+  - Count row ("N stones · All time" or date range) and current sort
+  - Rows: grade swatch, stone ID, Referred pill, "Grade N · Name", confidence level + time, certificate pill
+  - Swipe left to delete with AppDialog confirm; long press selection with checkboxes, "N selected", All / None, bottom bar Export Batch / Share / Delete
+  - Filter sheet: date range, Confidence (All / High only / Borderline only), Certificate, Session dropdown, Reset, Cancel / "Show N stones" (live count)
+  - Sort sheet grouped Date / Grade / Confidence with the selected option ticked
+  - Two EmptyStates: "No stones graded yet" (Grade a stone) and "No matching stones" (Clear filters)
+- **Files changed:**
+  - `~` app/lib/screens/history_screen.dart
+- **Connected edits:** EDIT-070; Claude Design Group EF export (Grading History)
+- **Reason:** History must match the approved design and flag referred stones.
+
+### EDIT-073 | 02 October 2026 13:14 | IST
+- **Topic:** Stone Comparison Redesign
+- **Summary:** Comparison follows the Group E design and uses CIEDE2000 instead of the old CIE76 distance.
+- **What was done:**
+  - Stone A / Stone B pickers with a swap button; history bottom sheet with search, the other stone disabled and tagged, current stone ticked
+  - Photo cards with A/B tags, capture date and a grade chip (swatch, G code, GEMCLOUD name)
+  - Result card: "ΔE₀₀ = x.x" from `ColourMath.deltaE2000`; < 2 green "Visually very similar", 2-5 amber "Noticeable difference", > 5 red "Clearly different"; grade difference
+  - Table L*, a*, b*, C*, Hue (circular difference), Saturation, Brightness with coloured difference text only (green < 1, amber 1-3, red > 3); J and M rows TODO(backend)
+  - "Compare another" reopens the Stone B picker; EmptyState until both stones are chosen
+- **Files changed:**
+  - `~` app/lib/screens/comparison_screen.dart
+- **Connected edits:** EDIT-069; Claude Design Group EF export (Stone Comparison)
+- **Reason:** Comparison must match the approved design and use a standard perceptual colour difference.
+
+### EDIT-074 | 02 October 2026 13:14 | IST
+- **Topic:** Colour Grade Guide Redesign
+- **Summary:** Guide follows the Group E design with a 7-colour strip and expandable grade cards; grade data aligned with the GEMCLOUD standard.
+- **What was done:**
+  - GemAppBar with menu (opens the shell drawer); 7-segment strip (tap opens and scrolls to the card), "Darkest" / "Lightest"
+  - Expandable cards (G3 open by default): swatch, "Grade N · Name", trade name, description, Tone and Saturation tiles, tip box; footer "Based on the GEMCLOUD 7-Grade Standard · GRS · Bellerophon. Works offline."
+  - "Lightness L*" and "Chroma C*" tiles not shown (TODO(dataset): real per-grade median L* and C* from the training set)
+  - colour_grades.json rewritten with the CLAUDE.md names, trade names and hex values plus the design copy (description, tone, saturation, tip); legacy colour ranges removed; swatches use AppColors.grades
+- **Files changed:**
+  - `~` app/lib/screens/guide_screen.dart
+  - `~` app/assets/data/colour_grades.json
+- **Connected edits:** Claude Design Group EF export (Colour Grade Guide)
+- **Reason:** The guide must match the approved design and the 7 GEMCLOUD grades.
+- **Notes:** flutter analyze: 0 errors (11 existing infos in settings_screen.dart); colour_math_test passes; widget_test.dart already failed before Group E. Debug APK built; not installed because the OnePlus Nord 2 was not connected (only an emulator was attached).
+
+### EDIT-075 | 02 October 2026 16:05 | IST
+- **Topic:** Status Text Tokens and System State Components
+- **Summary:** Added darker status text tokens and aligned AppSnackBar, AppDialog, EmptyState and StatusBanner with the System States page.
+- **What was done:**
+  - `AppColors.successText` #059669, `warningText` #B45309, `errorText` #DC2626 for text and icons on light tints; `scrimBlocking` for blocking dialogs; main status colours unchanged
+  - AppSnackBar: status icons use the text tokens, compact padding, 48 dp action
+  - AppDialog: filled confirm button (Royal Blue, or #DC2626 for danger), text cancel, 296 dp width, new `blocking` option (darker scrim, no tap-outside or back dismiss)
+  - EmptyState icon 32; StatusBanner gains an optional icon and text action; new `OfflineBanner` and `SkeletonBox` / `SkeletonRow`
+- **Files changed:**
+  - `~` app/lib/config/theme.dart
+  - `~` app/lib/widgets/app_snack_bar.dart
+  - `~` app/lib/widgets/app_dialog.dart
+  - `~` app/lib/widgets/empty_state.dart
+  - `~` app/lib/widgets/status_banner.dart
+  - `+` app/lib/widgets/skeleton.dart
+- **Connected edits:** EDIT-065; Claude Design Group EF export (System States)
+- **Reason:** Status text on tints must pass contrast, and shared components must match the approved states.
+
+### EDIT-076 | 02 October 2026 16:10 | IST
+- **Topic:** Settings Redesign and Single Referral Threshold
+- **Summary:** Settings follows the Group F design with every row wired, and the referral threshold is now one saved setting used everywhere.
+- **What was done:**
+  - New `SettingsService` (SharedPreferences, loaded at startup): referral threshold 40-90 (default 60), export format, certificate prefix, auto-save, 3 notification toggles
+  - `ConfidenceBadge.referThreshold` now reads the setting, so Home "Referred", Result borderline, History chips (live), certificates, repeatability and referral notifications all follow it
+  - CertificateService uses the saved prefix for new numbers; existing numbers unchanged
+  - NotificationService skips categories switched off (calibration reminders, referral alerts, certificate updates)
+  - Sections: Profile card, Calibration status (green / amber under 30 min / red) + Recalibrate + History sheet, Grading (slider, PDF / Image / Both, prefix dialog, auto-save TODO), Security (biometric first; Change Password hidden for Google-only accounts with a note), Notifications, Help (app introduction, Colour Grade Guide, feedback), Connection ("Server status: Not connected", TODO(backend) health check), Data, Account
+  - Export all data: CSV of every stone saved to Downloads/GemEye and opened in the share sheet (fixes F7)
+  - Clear history: danger dialog, deletes records and photos
+  - Delete account: danger dialog, re-authenticate (password prompt or Google), delete the Firebase user, wipe all local data (history, photos, calibration, notifications, profile, prefs), Login; TODO(backend) server data
+  - All use_build_context_synchronously infos fixed (analyzer now reports no issues)
+  - GuideScreen gets a back-arrow mode for opening from Settings
+- **Files changed:**
+  - `+` app/lib/services/settings_service.dart
+  - `+` app/lib/services/account_service.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `~` app/lib/screens/guide_screen.dart
+  - `~` app/lib/widgets/confidence_badge.dart
+  - `~` app/lib/services/notification_service.dart
+  - `~` app/lib/services/calibration_service.dart
+  - `~` app/lib/services/grade_record_service.dart
+  - `~` app/lib/services/certificate_service.dart
+  - `~` app/lib/services/storage_service.dart
+  - `~` app/lib/screens/certificate_screen.dart
+  - `~` app/lib/screens/history_screen.dart
+  - `~` app/lib/main.dart
+- **Connected edits:** EDIT-062, EDIT-067, EDIT-070, EDIT-072; Claude Design Group EF export (Settings)
+- **Reason:** Settings must work end to end, and one threshold must decide what is referred.
+
+### EDIT-077 | 02 October 2026 16:12 | IST
+- **Topic:** Profile Redesign and Local Profile Store
+- **Summary:** Profile follows the Group F design with real stats; profile details are kept on the device in secure storage.
+- **What was done:**
+  - New `ProfileService` (flutter_secure_storage): account type, phone, role, country, company name, contact person, industry, photo and logo paths; migrates the old SharedPreferences keys
+  - Registration now saves these details locally (TODO(F2) backend sync; business reg. no and address still not stored)
+  - Profile: 96 dp avatar (photo, Google photo or initials; tap to pick), name, type pill, stats Total graded / Referred / Certificates from StorageService
+  - Individual: full name, email locked + Change, phone, role, country; Company: logo (ImagePickerField), company name, contact person, email, phone, industry, country
+  - "Save changes" enabled only after an edit; "Profile saved" snackbar; certificates read the company name from the profile
+  - `ImagePickerField.pickImage` made reusable
+- **Files changed:**
+  - `+` app/lib/services/profile_service.dart
+  - `~` app/lib/screens/profile_screen.dart
+  - `~` app/lib/screens/register_screen.dart
+  - `~` app/lib/widgets/image_picker_field.dart
+  - `~` app/lib/services/certificate_service.dart
+- **Connected edits:** EDIT-076; Claude Design Group EF export (Profile)
+- **Reason:** Profile must match the design and show real data without exposing personal data in plain prefs.
+
+### EDIT-078 | 02 October 2026 16:15 | IST
+- **Topic:** Security Flows and Blocking Dialogs
+- **Summary:** Added the biometric check, Change Password and Change Email screens, and the Session expired and Privacy policy updated dialogs.
+- **What was done:**
+  - `BiometricSheet` (local_auth): fingerprint / face first, "Use PIN instead" uses the device credential; verified / not recognised states; devices without a screen lock pass through
+  - MainActivity switched to FlutterFragmentActivity (required by local_auth); NSFaceIDUsageDescription added for iOS
+  - Change Password: re-authenticate with the current password, 4-rule list, updatePassword, "Forgot current password?" reset link
+  - Change Email: current email locked, verifyBeforeUpdateEmail, info text; both send an info notification on success
+  - AuthService: hasPassword / isGoogleOnly, re-authentication helpers, blocking "Session expired" dialog then logout on user-token-expired / user-disabled (checked at startup and in auth calls)
+  - Privacy policy version (`AppConstants.privacyPolicyVersion`); acceptance stores the version; a newer version shows the blocking dialog (Log out / Review) and the Privacy Agreement in re-accept mode
+- **Files changed:**
+  - `+` app/lib/widgets/biometric_sheet.dart
+  - `+` app/lib/screens/change_password_screen.dart
+  - `+` app/lib/screens/change_email_screen.dart
+  - `+` app/lib/services/policy_service.dart
+  - `~` app/lib/services/auth_service.dart
+  - `~` app/lib/screens/agreement_screen.dart
+  - `~` app/lib/screens/main_shell.dart
+  - `~` app/lib/config/constants.dart
+  - `~` app/android/app/src/main/kotlin/com/gemeye/gemeye/MainActivity.kt
+  - `~` app/ios/Runner/Info.plist
+- **Connected edits:** EDIT-075, EDIT-076; Claude Design Group EF export (Security Dialogs)
+- **Reason:** Sensitive changes need a device check and re-authentication, and expired sessions or policy updates must block the app.
+
+### EDIT-079 | 02 October 2026 16:18 | IST
+- **Topic:** About and Feedback Redesign
+- **Summary:** About and the Feedback sheet follow the Group F design; Privacy Policy keeps PolicyMarkdown.
+- **What was done:**
+  - About: logo on a white frame, GemEye, tagline, version pill; Developer card (assets/images/about/developer.jpg or "NK"), link buttons only for non-empty AppConstants links; Special thanks cards for NSBM Green University and Orava (Pvt) Ltd. (logos from assets/images/about/ when present, no team member placeholders); feedback and privacy rows; "Made in Sri Lanka · © 2026"
+  - assets/images/about/ folder registered (empty until the photos and logos are added)
+  - Feedback sheet: 5-star rating with label, category chips (Accuracy, App, Calibration, Other), comment with 500 limit and counter, Send enabled after rating; stored locally; success snackbar; TODO(backend) send; one `FeedbackSheet.show` used by the drawer, About and Settings
+- **Files changed:**
+  - `~` app/lib/screens/about_screen.dart
+  - `~` app/lib/screens/feedback_sheet.dart
+  - `~` app/lib/widgets/side_drawer.dart
+  - `~` app/pubspec.yaml
+  - `+` app/assets/images/about/.gitkeep
+- **Connected edits:** EDIT-075; Claude Design Group EF export (About Privacy Feedback)
+- **Reason:** About and Feedback must match the approved design without placeholder names.
+
+### EDIT-080 | 02 October 2026 16:22 | IST
+- **Topic:** Offline Banner and Loading Skeletons
+- **Summary:** Home and Grade a Stone show an offline banner with Retry and disable capture while offline; Home and History show loading skeletons.
+- **What was done:**
+  - Added connectivity_plus; `ConnectivityService` keeps a live online flag (Retry re-checks)
+  - "You're offline - grading needs a connection" banner on Home and Grade a Stone; QuickGradeCard and the Import / Take Photo buttons disabled while offline
+  - Home and History skeletons in Primary Surface replace the content until data loads
+  - flutter analyze: no issues; unit tests pass (widget_test.dart already failing before Group E); debug APK built, not installed because the OnePlus Nord 2 was not connected
+- **Files changed:**
+  - `+` app/lib/services/connectivity_service.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/capture_screen.dart
+  - `~` app/lib/screens/history_screen.dart
+  - `~` app/lib/widgets/quick_grade_card.dart
+  - `~` app/lib/main.dart
+  - `~` app/pubspec.yaml, app/pubspec.lock (+ generated plugin registrants)
+- **Connected edits:** EDIT-075; Claude Design Group EF export (System States)
+- **Reason:** Grading needs a connection, and loading should not show empty screens.
+
+### EDIT-081 | 03 October 2026 02:35 | IST
+- **Topic:** Git Rule, Backend Skeleton and App Backend Report
+- **Summary:** CLAUDE.md now forbids git commands and commits by Claude Code; the backend folder skeleton and a read-only app report for backend integration were added.
+- **What was done:**
+  - CLAUDE.md: Edit history rule now ends "Do not commit."; new Git (strict) section (no commit, push, branch, checkout, merge, rebase, stash or Co-Authored-By; developer commits with GitHub Desktop on main)
+  - Backend skeleton: app/__init__.py, export/, secrets/, tests/ (with .gitkeep), .env.example (keys only), README.md; existing backend/models/.gitkeep kept
+  - .gitignore: backend/.env, backend/models/*, backend/secrets/* (keeping .gitkeep files), backend/**/__pycache__/
+  - docs/app_backend_report.md: GradeResult source, public service signatures, demo result locations, GradeResult consumers, calibration CCM storage, AppConstants, dependencies, Android permissions (INTERNET only in debug/profile, no cleartext config)
+- **Files changed:**
+  - `~` CLAUDE.md
+  - `~` .gitignore
+  - `+` backend/app/__init__.py
+  - `+` backend/export/.gitkeep
+  - `+` backend/secrets/.gitkeep
+  - `+` backend/tests/.gitkeep
+  - `+` backend/.env.example
+  - `+` backend/README.md
+  - `+` docs/app_backend_report.md
+- **Connected edits:** EDIT-080
+- **Reason:** Phase 0 / Step 1 of the backend work: set the git rule, prepare the backend layout, and document what the app expects from the API.
+
+### EDIT-082 | 03 October 2026 10:45 | IST
+- **Topic:** Backend Phase 1 - Inference Server (FastAPI + Docker)
+- **Summary:** Local FastAPI inference server for the v3 model (CNN with MC Dropout + RF ensemble) in Docker, with a training-identical model colour path, a separate display colour path and smoke tests.
+- **What was done:**
+  - Verified Phase 0 inputs: models present; w_cnn 0.6; ccm_residual 0.2548; CIECAM02 fallbacks 912/912; affine_residual 0.1276; ciecam02_real nan_count 0, no errors; blur threshold 29.47; OOD threshold_p99 25.69 on layer "dense"
+  - Environment pinned to training versions (python:3.13-slim, tensorflow-cpu 2.20.0, keras 3.13.2, numpy 2.1.3, scikit-learn 1.6.1, joblib 1.6.0, colour-science 0.4.7); opencv-python-headless 4.14.0.94 (OpenCV 4.14.0); non-root Dockerfile, dev docker-compose with live reload and read-only model/export/secrets mounts
+  - Model path: session 3x3 map from user patches (or identity), training CCM, JPEG round trip; v3 GrabCut + 12-D features copied from the Phase 0 export code with the CIECAM02 fallback reproduced
+  - Display path: 4x3 affine from user patches (or exported default); L*a*b*, C*, HSB, hex, real CIECAM02, ΔE00 to the grade's physical median
+  - Inference: deterministic + 30-pass MC Dropout batch (Dropout only, fixed stateless seed so the same image gives the same grade), RF, 0.6/0.4 ensemble; diagnostics (blur, stone area, physical hue, Mahalanobis OOD) reported, no rejection yet
+  - GET /health and POST /grade with 400/413/500 handling, no stack traces, uploads kept in memory and never stored
+  - Smoke tests: 4 passed in the container; average /grade latency about 3.7 s on CPU (CNN about 2.6 s)
+- **Files changed:**
+  - `+` backend/requirements.txt
+  - `+` backend/Dockerfile
+  - `+` backend/docker-compose.yml
+  - `+` backend/.dockerignore
+  - `+` backend/app/config.py
+  - `+` backend/app/assets.py
+  - `+` backend/app/schemas.py
+  - `+` backend/app/main.py
+  - `+` backend/app/pipeline/__init__.py
+  - `+` backend/app/pipeline/colour.py
+  - `+` backend/app/pipeline/features.py
+  - `+` backend/app/pipeline/display.py
+  - `+` backend/app/pipeline/inference.py
+  - `+` backend/tests/test_smoke.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-081
+- **Reason:** Phase 1 of the backend work: serve the v3 grading model locally with results that match training.

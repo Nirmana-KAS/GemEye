@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Profile</span>
+    <span style="font:400 13px Inter;color:#6B7089">Opened from Settings › Profile · fields are editable · Save changes enables after an edit</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="2">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 8px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#6B7089">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+        <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none">
+          <a href="Settings.dc.html" style="width:48px;height:48px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;flex:none" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">arrow_back</span></a>
+          <div style="flex:1;min-width:0;font:600 20px Poppins;color:#fff">Profile</div>
+        </div>
+
+        <div data-scroll="1" style="flex:1;min-height:0;overflow-y:auto;padding:24px 16px 16px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:12px;flex:none">
+            <button aria-label="Change photo" style="width:96px;height:96px;border-radius:{{ fr.avR }};border:none;padding:0;background:#3B5FD9;display:flex;align-items:center;justify-content:center;font:600 32px Poppins;color:#fff;position:relative;cursor:pointer">{{ fr.initials }}
+              <span style="position:absolute;right:0;bottom:0;width:32px;height:32px;border-radius:50%;background:#1B3A8C;border:3px solid #fff;color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Material Symbols Rounded';font-size:16px">photo_camera</span>
+            </button>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <span style="font:600 20px Poppins;color:#1A1D2E">{{ fr.displayName }}</span>
+              <span style="height:24px;padding:0 12px;border-radius:12px;background:#EEF1FA;display:inline-flex;align-items:center;gap:4px;font:600 11px Poppins;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:14px">{{ fr.typeIcon }}</span>{{ fr.type }}</span>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:none">
+            <sc-for list="{{ stats }}" as="s" hint-placeholder-count="3">
+              <div style="background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:12px 12px;display:flex;flex-direction:column;gap:4px">
+                <span style="font:700 22px/1 Poppins;color:{{ s.color }}">{{ s.v }}</span>
+                <span style="font:400 11px Inter;color:#6B7089">{{ s.k }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <sc-if value="{{ fr.isCompany }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:16px;flex:none">
+              <div style="width:64px;height:64px;border-radius:14px;flex:none;overflow:hidden;background:repeating-linear-gradient(135deg,#EEF1FA 0 6px,#fff 6px 12px);border:1px solid #E5E7F0;display:flex;align-items:center;justify-content:center;font:400 9px 'JetBrains Mono';color:#6B7089">logo</div>
+              <div style="display:flex;flex-direction:column;gap:4px;min-width:0">
+                <span style="font:500 14px Inter;color:#1A1D2E">Company Logo</span>
+                <div style="display:flex;margin-left:-8px;gap:4px"><button style="height:36px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;border-radius:8px;display:flex;align-items:center;gap:4px;cursor:pointer" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:18px">upload</span>Replace</button><button style="height:36px;padding:0 8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;border-radius:8px;display:flex;align-items:center;gap:4px;cursor:pointer" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:18px">delete</span>Remove</button></div>
+                <span style="font:400 11px Inter;color:#6B7089">JPG or PNG · up to 5 MB</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ fr.fields }}" as="f" hint-placeholder-count="5">
+            <div style="display:flex;flex-direction:column;gap:8px;flex:none">
+              <sc-if value="{{ f.isInput }}" hint-placeholder-val="{{ true }}">
+                <label style="font:500 12px Inter;color:#6B7089">{{ f.label }}</label>
+                <input value="{{ f.value }}" onChange="{{ f.onChange }}" type="{{ f.inputType }}" style="height:48px;padding:0 16px;border-radius:12px;border:1.5px solid transparent;background:#EEF1FA;font:400 14px Inter;color:#1A1D2E;outline:none" style-focus="border-color:#1B3A8C;background:#fff"></input>
+              </sc-if>
+              <sc-if value="{{ f.isLocked }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;justify-content:space-between;align-items:baseline"><label style="font:500 12px Inter;color:#6B7089">{{ f.label }}</label><a href="Settings.dc.html#19c" style="font:600 13px Poppins;color:#1B3A8C;padding:4px 0">Change</a></div>
+                <div style="height:48px;padding:0 16px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;justify-content:space-between;gap:8px;font:400 14px Inter;color:#6B7089"><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.value }}</span><span style="font-family:'Material Symbols Rounded';font-size:18px;color:#A0A4B8">lock</span></div>
+              </sc-if>
+              <sc-if value="{{ f.isDropdown }}" hint-placeholder-val="{{ false }}">
+                <label style="font:500 12px Inter;color:#6B7089">{{ f.label }}</label>
+                <div style="height:48px;padding:0 12px 0 16px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#1A1D2E">{{ f.value }}<span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">expand_more</span></div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ fr.saved }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;left:16px;right:16px;bottom:88px;min-height:52px;background:#fff;border:1px solid #E5E7F0;border-radius:12px;padding:4px 4px 4px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px rgba(26,29,46,.10)">
+            <span style="width:28px;height:28px;border-radius:50%;background:rgba(16,185,129,.12);color:#10B981;display:flex;align-items:center;justify-content:center;flex:none;font-family:'Material Symbols Rounded';font-size:18px;font-variation-settings:'FILL' 1">check_circle</span>
+            <span style="flex:1;font:500 14px/1.35 Inter;color:#1A1D2E">Profile saved</span>
+            <button onClick="{{ fr.dismiss }}" style="height:48px;padding:0 12px;border:none;border-radius:8px;background:none;font:600 13px Poppins;color:#1B3A8C;cursor:pointer" style-active="background:#EEF1FA">OK</button>
+          </div>
+        </sc-if>
+
+        <div style="padding:12px 16px 20px;border-top:1px solid #E5E7F0;background:#fff;flex:none">
+          <button onClick="{{ fr.onSave }}" disabled="{{ fr.clean }}" style="width:100%;height:48px;border:none;border-radius:12px;background:{{ fr.pBg }};color:{{ fr.pColor }};font:600 14px Poppins;cursor:pointer" style-active="filter:brightness(1.15)">Save changes</button>
+        </div>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    v: [
+      { name: 'Shehan Perera', phone: '+94 77 123 4567' },
+      { name: 'Perera Gems (Pvt) Ltd', contact: 'Shehan Perera', phone: '+94 11 234 5678' },
+    ],
+    dirty: [false, false], saved: [false, false],
+  };
+  renderVals() {
+    const s = this.state;
+    const set = (f, k) => e => { const val = e.target.value; this.setState(st => { const v = st.v.map(o => ({ ...o })); v[f][k] = val; const d = [...st.dirty]; d[f] = true; const sv = [...st.saved]; sv[f] = false; return { v, dirty: d, saved: sv }; }); };
+    const inp = (f, label, k, inputType = 'text') => ({ isInput: true, label, value: s.v[f][k], onChange: set(f, k), inputType });
+    const lock = (label, value) => ({ isLocked: true, label, value });
+    const dd = (label, value) => ({ isDropdown: true, label, value });
+    const ini = n => n.split(' ').filter(w => /^[A-Z]/.test(w)).slice(0, 2).map(w => w[0]).join('');
+    const fieldSets = [
+      [inp(0, 'Full name', 'name'), lock('Email', 's.perera@gemlab.lk'), inp(0, 'Phone', 'phone', 'tel'), dd('Role', 'Gemologist'), dd('Country', 'Sri Lanka')],
+      [inp(1, 'Company name', 'name'), inp(1, 'Contact person', 'contact'), lock('Email', 'info@pereragems.lk'), inp(1, 'Phone', 'phone', 'tel'), dd('Industry', 'Gem Trading'), dd('Country', 'Sri Lanka')],
+    ];
+    const frames = [0, 1].map(f => {
+      const clean = !s.dirty[f];
+      return {
+        id: '20' + 'ab'[f], caption: f ? 'Company account · logo' : 'Individual account', label: 'Profile · ' + (f ? 'Company' : 'Individual'),
+        isCompany: f === 1, avR: f ? '24px' : '50%', displayName: s.v[f].name, initials: f ? 'PG' : ini(s.v[0].name) || 'SP',
+        type: f ? 'Company' : 'Individual', typeIcon: f ? 'business' : 'person', fields: fieldSets[f],
+        clean, pBg: clean ? '#E5E7F0' : '#1B3A8C', pColor: clean ? '#A0A4B8' : '#fff', saved: s.saved[f],
+        onSave: () => this.setState(st => { const d = [...st.dirty]; d[f] = false; const sv = [...st.saved]; sv[f] = true; return { dirty: d, saved: sv }; }),
+        dismiss: () => this.setState(st => { const sv = [...st.saved]; sv[f] = false; return { saved: sv }; }),
+      };
+    });
+    const stats = [['42', 'Total graded', '#1A1D2E'], ['6', 'Referred', '#B45309'], ['28', 'Certificates', '#1A1D2E']].map(([v, k, color]) => ({ v, k, color }));
+    return { frames, stats };
+  }
+}
+</script>
+</body>
+</html>

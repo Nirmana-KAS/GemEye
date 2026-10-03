@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../services/settings_service.dart';
 
-/// Pill showing confidence level: High ≥ 60 (green), Borderline 40–59
-/// (amber), Low < 40 (red). [confidence] is a percentage (0–100).
+/// Pill showing confidence level: High at or above the referral threshold
+/// (green, Settings, default 60), Borderline down to 40 (amber), Low below
+/// 40 (red). [confidence] is a percentage (0-100).
 class ConfidenceBadge extends StatelessWidget {
-  static const double referThreshold = 60;
+  /// Referral threshold from Settings (single source of truth).
+  static double get referThreshold =>
+      SettingsService.referralThreshold.value;
   static const double lowThreshold = 40;
 
   final double confidence;

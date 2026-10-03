@@ -68,5 +68,7 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSFaceIDUsageDescription</key>
+		<string>GemEye uses Face ID to confirm it is you before changing your password or email.</string>
 	</dict>
 </plist>

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..700,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0;background:#fff;font-family:Inter,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#1B3A8C;text-decoration:none}a:hover{color:#3B5FD9}
+*{box-sizing:border-box}
+[data-scroll]{scrollbar-width:none}[data-scroll]::-webkit-scrollbar{display:none}
+</style>
+</helmet>
+<div style="padding:48px;display:flex;flex-direction:column;gap:20px;background:#fff;width:max-content">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <span style="font:600 20px Poppins;color:#1A1D2E">Grading History</span>
+    <span style="font:400 13px Inter;color:#6B7089">16a list with one row swiped left · 16b selection mode (long press) · 16c filter sheet · 16d sort sheet · 16e empty</span>
+  </div>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+  <sc-for list="{{ frames }}" as="fr" hint-placeholder-count="5">
+    <div id="{{ fr.id }}" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:center;gap:8px"><span style="height:20px;padding:0 8px;border-radius:6px;background:#1B3A8C;color:#fff;font:600 11px Poppins;display:flex;align-items:center">{{ fr.id }}</span><span style="font:500 11px Inter;color:#6B7089">{{ fr.caption }}</span></div>
+      <div data-screen-label="{{ fr.label }}" style="width:360px;height:800px;background:#fff;border:1px solid #E5E7F0;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;position:relative">
+        <div style="height:24px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;font:500 12px Inter;color:#fff;background:#1B3A8C;flex:none">
+          <span>9:41</span>
+          <div style="display:flex;gap:4px;align-items:center"><span style="font-family:'Material Symbols Rounded';font-size:16px">signal_cellular_alt</span><span style="font-family:'Material Symbols Rounded';font-size:16px">wifi</span><span style="font-family:'Material Symbols Rounded';font-size:16px">battery_full</span></div>
+        </div>
+
+        <sc-if value="{{ fr.normalBar }}" hint-placeholder-val="{{ true }}">
+          <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:0;padding:0 4px;flex:none">
+            <a href="Side Drawer.dc.html" style="width:48px;height:48px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;flex:none" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">menu</span></a>
+            <div style="flex:1;min-width:0;font:600 20px Poppins;color:#fff;white-space:nowrap">Grading History</div>
+            <button aria-label="Sort" style="width:48px;height:48px;border:none;border-radius:50%;background:none;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">swap_vert</span></button>
+            <button aria-label="Filter" style="width:48px;height:48px;border:none;border-radius:50%;background:none;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;position:relative" style-active="background:#3B5FD9">
+              <span style="font-family:'Material Symbols Rounded';font-size:24px">tune</span>
+              <sc-if value="{{ fr.hasFilterBadge }}" hint-placeholder-val="{{ false }}"><span style="position:absolute;top:6px;right:5px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#DC2626;border:2px solid #1B3A8C;color:#fff;font:600 10px/1 Poppins;display:flex;align-items:center;justify-content:center">{{ fr.filterCount }}</span></sc-if>
+            </button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ fr.selecting }}" hint-placeholder-val="{{ false }}">
+          <div style="height:56px;background:#1B3A8C;display:flex;align-items:center;gap:4px;padding:0 4px;flex:none">
+            <button aria-label="Exit selection" style="width:48px;height:48px;border:none;border-radius:50%;background:none;color:#fff;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:24px">close</span></button>
+            <div style="flex:1;min-width:0;font:600 20px Poppins;color:#fff">{{ selCount }} selected</div>
+            <button onClick="{{ selectAll }}" style="height:48px;padding:0 12px;border:none;border-radius:20px;background:none;color:#fff;font:600 13px Poppins;display:flex;align-items:center;gap:8px;cursor:pointer" style-active="background:#3B5FD9"><span style="font-family:'Material Symbols Rounded';font-size:20px">select_all</span>All</button>
+          </div>
+        </sc-if>
+
+        <div style="padding:12px 16px 8px;display:flex;flex-direction:column;gap:12px;flex:none">
+          <div style="height:48px;padding:0 16px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;gap:12px">
+            <span style="font-family:'Material Symbols Rounded';font-size:20px;color:#6B7089">search</span>
+            <span style="flex:1;font:400 14px Inter;color:#6B7089">Search by stone ID</span>
+          </div>
+        </div>
+        <div data-scroll="1" style="overflow-x:auto;flex:none;padding:0 16px 12px">
+          <div style="display:flex;gap:8px;width:max-content">
+            <sc-for list="{{ fr.chips }}" as="f" hint-placeholder-count="9">
+              <button onClick="{{ f.onTap }}" style="height:32px;padding:0 12px;border-radius:16px;border:1px solid {{ f.border }};background:{{ f.bg }};color:{{ f.color }};font:500 12px Inter;display:flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap">
+                <sc-if value="{{ f.on }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Material Symbols Rounded';font-size:16px">check</span></sc-if>
+                <sc-if value="{{ f.hasSw }}" hint-placeholder-val="{{ false }}"><span style="width:10px;height:10px;border-radius:3px;background:{{ f.hex }};box-shadow:0 0 0 1px rgba(255,255,255,.6)"></span></sc-if>{{ f.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="height:32px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #E5E7F0;flex:none">
+          <span style="font:500 12px Inter;color:#6B7089">{{ fr.countText }}</span>
+          <span style="font:400 12px Inter;color:#6B7089">{{ fr.sortText }}</span>
+        </div>
+
+        <sc-if value="{{ fr.hasItems }}" hint-placeholder-val="{{ true }}">
+          <div data-scroll="1" style="flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column">
+            <sc-for list="{{ fr.items }}" as="it" hint-placeholder-count="7">
+              <div style="position:relative;overflow:hidden;flex:none;border-bottom:1px solid #E5E7F0">
+                <sc-if value="{{ it.swiped }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute;top:0;right:0;bottom:0;width:88px;background:#DC2626;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><span style="font-family:'Material Symbols Rounded';font-size:22px">delete</span><span style="font:600 11px Poppins">Delete</span></div>
+                </sc-if>
+                <div onClick="{{ it.onTap }}" style="position:relative;transform:translateX({{ it.tx }});background:{{ it.bg }};min-height:80px;padding:12px 16px;display:flex;gap:12px;align-items:center;cursor:pointer">
+                  <sc-if value="{{ fr.selecting }}" hint-placeholder-val="{{ false }}">
+                    <span style="width:20px;height:20px;border-radius:6px;border:2px solid {{ it.cbBorder }};background:{{ it.cbBg }};display:flex;align-items:center;justify-content:center;flex:none;color:#fff;font-family:'Material Symbols Rounded';font-size:16px;font-weight:700">{{ it.mark }}</span>
+                  </sc-if>
+                  <div style="width:40px;height:40px;border-radius:10px;background:{{ it.hex }};box-shadow:inset 0 0 0 1px rgba(26,29,46,.08);flex:none"></div>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="flex:1;font:600 14px Poppins;color:#1A1D2E">{{ it.id }}</span>
+                      <sc-if value="{{ it.referred }}" hint-placeholder-val="{{ false }}"><span style="height:20px;padding:0 8px;border-radius:10px;background:rgba(245,158,11,.14);color:#B45309;font:600 10px Poppins;display:inline-flex;align-items:center;gap:4px;flex:none"><span style="width:5px;height:5px;border-radius:50%;background:#F59E0B"></span>Referred</span></sc-if>
+                    </div>
+                    <span style="font:500 12px Inter;color:#1A1D2E">{{ it.grade }}</span>
+                    <span style="font:400 12px Inter;color:#6B7089">{{ it.meta }}</span>
+                    <sc-if value="{{ it.hasCert }}" hint-placeholder-val="{{ false }}"><span style="align-self:flex-start;margin-top:4px;height:20px;padding:0 8px 0 8px;border-radius:10px;background:#EEF1FA;color:#1B3A8C;font:500 10px 'JetBrains Mono',monospace;display:inline-flex;align-items:center;gap:4px"><span style="font-family:'Material Symbols Rounded';font-size:14px">description</span>{{ it.cert }}</span></sc-if>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ fr.isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;padding:24px 16px;display:flex;flex-direction:column">
+            <div style="padding:32px 24px;display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;border:1px dashed #E5E7F0;border-radius:12px">
+              <div style="width:64px;height:64px;border-radius:50%;background:#EEF1FA;display:flex;align-items:center;justify-content:center;color:#1B3A8C"><span style="font-family:'Material Symbols Rounded';font-size:32px">diamond</span></div>
+              <span style="font:600 16px Poppins;color:#1A1D2E">No stones graded yet</span>
+              <span style="font:400 14px/1.5 Inter;color:#6B7089;text-wrap:pretty">Grade your first sapphire and the report will appear here.</span>
+              <a href="Grade Capture.dc.html" style="margin-top:4px;height:48px;padding:0 24px;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;display:flex;align-items:center" style-active="background:#3B5FD9">Grade a stone</a>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ fr.selecting }}" hint-placeholder-val="{{ false }}">
+          <div style="height:64px;background:#fff;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(3,1fr);flex:none">
+            <button style="border:none;background:none;color:#1B3A8C;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:24px">workspace_premium</span><span style="font:600 11px Poppins">Export Batch</span></button>
+            <button style="border:none;background:none;color:#1B3A8C;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer" style-active="background:#EEF1FA"><span style="font-family:'Material Symbols Rounded';font-size:24px">share</span><span style="font:600 11px Poppins">Share</span></button>
+            <button style="border:none;background:none;color:#EF4444;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer" style-active="background:rgba(239,68,68,.08)"><span style="font-family:'Material Symbols Rounded';font-size:24px">delete</span><span style="font:600 11px Poppins">Delete</span></button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ fr.normalBar }}" hint-placeholder-val="{{ true }}">
+          <div style="height:64px;background:#fff;border-top:1px solid #E5E7F0;display:grid;grid-template-columns:repeat(4,1fr);flex:none">
+            <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+              <a href="{{ t.href }}" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:{{ t.color }}">
+                <span style="font-family:'Material Symbols Rounded';font-size:24px;font-variation-settings:{{ t.fill }}">{{ t.icon }}</span>
+                <span style="font:{{ t.font }};font-size:11px">{{ t.label }}</span>
+                <span style="width:4px;height:4px;border-radius:50%;background:#1B3A8C;opacity:{{ t.dot }}"></span>
+              </a>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ fr.filterSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:8px 20px 20px;display:flex;flex-direction:column;gap:20px">
+            <div style="width:36px;height:4px;border-radius:2px;background:#E5E7F0;align-self:center"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:-8px">
+              <span style="font:600 16px Poppins;color:#1A1D2E">Filters</span>
+              <button style="height:48px;padding:0 8px;margin-right:-8px;border:none;background:none;color:#1B3A8C;font:600 14px Poppins;cursor:pointer">Reset</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:500 12px Inter;color:#6B7089">Date range</span>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div style="height:48px;padding:0 12px;border-radius:12px;border:1.5px solid #1B3A8C;background:#fff;display:flex;align-items:center;gap:8px"><span style="font-family:'Material Symbols Rounded';font-size:18px;color:#1B3A8C">calendar_today</span><div style="display:flex;flex-direction:column"><span style="font:400 10px Inter;color:#6B7089">From</span><span style="font:500 13px Inter;color:#1A1D2E">01 Oct 2026</span></div></div>
+                <div style="height:48px;padding:0 12px;border-radius:12px;border:1.5px solid #1B3A8C;background:#fff;display:flex;align-items:center;gap:8px"><span style="font-family:'Material Symbols Rounded';font-size:18px;color:#1B3A8C">calendar_today</span><div style="display:flex;flex-direction:column"><span style="font:400 10px Inter;color:#6B7089">To</span><span style="font:500 13px Inter;color:#1A1D2E">14 Oct 2026</span></div></div>
+              </div>
+            </div>
+            <sc-for list="{{ segs }}" as="sg" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <span style="font:500 12px Inter;color:#6B7089">{{ sg.label }}</span>
+                <div style="height:48px;border-radius:12px;overflow:hidden;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#fff">
+                  <sc-for list="{{ sg.opts }}" as="o" hint-placeholder-count="3">
+                    <button onClick="{{ o.onTap }}" style="border:none;background:{{ o.bg }};color:{{ o.color }};font:{{ o.font }};font-size:13px;cursor:pointer;white-space:nowrap">{{ o.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <span style="font:500 12px Inter;color:#6B7089">Session</span>
+              <div style="height:48px;padding:0 16px;border-radius:12px;background:#EEF1FA;display:flex;align-items:center;justify-content:space-between;font:400 14px Inter;color:#1A1D2E">All sessions<span style="font-family:'Material Symbols Rounded';font-size:22px;color:#6B7089">expand_more</span></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:8px;margin-top:4px">
+              <button style="height:48px;border:1.5px solid #1B3A8C;border-radius:12px;background:#fff;color:#1B3A8C;font:600 14px Poppins;cursor:pointer" style-active="background:#EEF1FA">Cancel</button>
+              <button style="height:48px;border:none;border-radius:12px;background:#1B3A8C;color:#fff;font:600 14px Poppins;cursor:pointer" style-active="background:#3B5FD9">Show 18 stones</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ fr.sortSheet }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;inset:0;background:rgba(26,29,46,.42)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;padding:8px 8px 16px;display:flex;flex-direction:column">
+            <div style="width:36px;height:4px;border-radius:2px;background:#E5E7F0;align-self:center"></div>
+            <span style="font:600 16px Poppins;color:#1A1D2E;padding:16px 12px 8px">Sort by</span>
+            <sc-for list="{{ sortGroups }}" as="g" hint-placeholder-count="3">
+              <div style="display:flex;flex-direction:column;padding:4px 0">
+                <span style="font:600 11px Poppins;letter-spacing:.08em;color:#6B7089;padding:8px 12px 4px">{{ g.name }}</span>
+                <sc-for list="{{ g.opts }}" as="o" hint-placeholder-count="2">
+                  <button onClick="{{ o.onTap }}" style="height:48px;padding:0 12px;border:none;border-radius:12px;background:{{ o.bg }};display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left" style-hover="background:#EEF1FA">
+                    <span style="font-family:'Material Symbols Rounded';font-size:20px;color:{{ o.iconColor }}">{{ o.icon }}</span>
+                    <span style="flex:1;font:{{ o.font }};font-size:14px;color:{{ o.color }}">{{ o.label }}</span>
+                    <sc-if value="{{ o.on }}" hint-placeholder-val="{{ false }}"><span style="font-family:'Material Symbols Rounded';font-size:20px;color:#1B3A8C">check</span></sc-if>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { chip: 'All', sel: [0, 2, 3], conf: 1, cert: 0, sort: 0 };
+  renderVals() {
+    const s = this.state;
+    const GH = ['#020519', '#0B0F3F', '#091A72', '#2A408C', '#47619E', '#718BB7', '#ABBDD6'];
+    const GN = ['Dark', 'Deep', 'Vivid', 'Intense', 'Medium Intense', 'Light', 'Very Light'];
+    const R = [
+      ['00042', 3, 'High', 78, '14:23', true], ['00041', 4, 'Borderline', 46, '13:58', false, true],
+      ['00040', 2, 'High', 84, '13:31', true], ['00039', 5, 'High', 71, '11:05'],
+      ['00038', 3, 'High', 80, '10:42', true], ['00037', 6, 'Borderline', 52, '10:12', false, true],
+      ['00036', 4, 'High', 69, '13 Oct, 16:20', true],
+    ];
+    const base = R.map(([n, g, c, p, t, cert, ref]) => ({
+      id: 'GE-STONE-' + n, hex: GH[g - 1], grade: `Grade ${g} · ${GN[g - 1]}`, meta: `${c} ${p}% · ${t}`,
+      hasCert: !!cert, cert: 'GE-202610-' + n, referred: !!ref,
+    }));
+    const items = (mode) => base.map((it, i) => {
+      const on = s.sel.includes(i), selMode = mode === 'select';
+      return { ...it, swiped: mode === 'swipe' && i === 1, tx: mode === 'swipe' && i === 1 ? '-88px' : '0px',
+        bg: selMode && on ? '#EEF1FA' : '#fff', mark: on ? 'check' : '', cbBg: on ? '#1B3A8C' : '#fff', cbBorder: on ? '#1B3A8C' : '#A0A4B8',
+        onTap: selMode ? () => this.setState(st => ({ sel: st.sel.includes(i) ? st.sel.filter(x => x !== i) : [...st.sel, i] })) : undefined };
+    });
+    const chipDefs = ['All', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'Referred'];
+    const chips = (live) => chipDefs.map((label, i) => {
+      const on = (live ? s.chip : 'All') === label;
+      return { label, on, hasSw: i >= 1 && i <= 7, hex: GH[i - 1], border: on ? '#1B3A8C' : '#E5E7F0', bg: on ? '#1B3A8C' : '#fff', color: on ? '#fff' : '#1A1D2E',
+        onTap: live ? () => this.setState({ chip: label }) : undefined };
+    });
+    const sortLabels = ['Newest first', 'Oldest first', 'G1 to G7', 'G7 to G1', 'Highest first', 'Lowest first'];
+    const sortHead = ['Date', 'Date', 'Grade', 'Grade', 'Confidence', 'Confidence'];
+    const sortText = `${sortHead[s.sort]} · ${sortLabels[s.sort].toLowerCase()}`;
+    const F = (o) => ({ normalBar: true, selecting: false, hasFilterBadge: false, filterCount: 0, hasItems: true, isEmpty: false, filterSheet: false, sortSheet: false,
+      chips: chips(false), countText: '42 stones · All time', sortText, items: items('none'), ...o });
+    const frames = [
+      F({ id: '16a', caption: 'List · row 2 swiped left · chips interactive', label: 'History · List', chips: chips(true), items: items('swipe') }),
+      F({ id: '16b', caption: 'Selection mode · tap rows', label: 'History · Selection', normalBar: false, selecting: true, items: items('select') }),
+      F({ id: '16c', caption: 'Filter sheet · 2 active', label: 'History · Filter', hasFilterBadge: true, filterCount: 2, countText: '18 stones · 01 Oct to 14 Oct', filterSheet: true }),
+      F({ id: '16d', caption: 'Sort sheet', label: 'History · Sort', sortSheet: true }),
+      F({ id: '16e', caption: 'Empty', label: 'History · Empty', hasItems: false, isEmpty: true, countText: '0 stones · All time' }),
+    ];
+    const seg = (label, opts, key) => ({ label, opts: opts.map((o, i) => { const on = s[key] === i; return { label: o, bg: on ? '#1B3A8C' : '#EEF1FA', color: on ? '#fff' : '#6B7089', font: on ? '600 13px Poppins' : '500 13px Inter', onTap: () => this.setState({ [key]: i }) }; }) });
+    const segs = [seg('Confidence', ['All', 'High only', 'Borderline only'], 'conf'), seg('Certificate', ['All', 'Exported', 'Not exported'], 'cert')];
+    const icons = ['arrow_downward', 'arrow_upward', 'arrow_downward', 'arrow_upward', 'arrow_downward', 'arrow_upward'];
+    const sortGroups = ['DATE', 'GRADE', 'CONFIDENCE'].map((name, g) => ({ name, opts: [0, 1].map(k => { const i = g * 2 + k, on = s.sort === i; return { label: sortLabels[i], icon: icons[i], on, bg: on ? '#EEF1FA' : 'transparent', color: on ? '#1B3A8C' : '#1A1D2E', iconColor: on ? '#1B3A8C' : '#6B7089', font: on ? '600 14px Poppins' : '400 14px Inter', onTap: () => this.setState({ sort: i }) }; }) }));
+    const T = [['home', 'Home', 'Home Dashboard.dc.html'], ['center_focus_strong', 'Grade', 'Grade Capture.dc.html'], ['history', 'History', '#'], ['menu_book', 'Guide', 'Colour Grade Guide.dc.html']];
+    const tabs = T.map(([icon, label, href], i) => { const a = i === 2; return { icon, label, href, color: a ? '#1B3A8C' : '#6B7089', fill: a ? "'FILL' 1" : "'FILL' 0", font: a ? '600 11px Poppins' : '500 11px Inter', dot: a ? 1 : 0 }; });
+    return { frames, segs, sortGroups, tabs, selCount: s.sel.length, selectAll: () => this.setState({ sel: base.map((_, i) => i) }) };
+  }
+}
+</script>
+</body>
+</html>

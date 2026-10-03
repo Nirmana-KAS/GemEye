@@ -33,10 +33,18 @@ class AppColors {
   static const Color warningTint = Color(0x24F59E0B);
   static const Color errorTint = Color(0x1FEF4444);
 
+  // Darker status text for use on light tints (System States, 4.5:1)
+  static const Color successText = Color(0xFF059669);
+  static const Color warningText = Color(0xFFB45309);
+  static const Color errorText = Color(0xFFDC2626);
+
   // Shadows and overlays
   static const Color shadow = Color(0x1A1A1D2E);
   static const Color menuShadow = Color(0x1F1A1D2E);
   static const Color scrim = Color(0x6B1A1D2E);
+
+  /// Darker scrim behind blocking dialogs (no dismiss).
+  static const Color scrimBlocking = Color(0x991A1D2E);
 
   // Google sign-in branding
   static const Color googleBorder = Color(0xFF747775);

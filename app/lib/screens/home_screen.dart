@@ -7,6 +7,7 @@ import '../config/routes.dart';
 import '../models/grade_result.dart';
 import '../services/auth_service.dart';
 import '../services/calibration_service.dart';
+import '../services/connectivity_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/app_buttons.dart';
@@ -16,6 +17,7 @@ import '../widgets/notification_bell.dart';
 import '../widgets/quick_grade_card.dart';
 import '../widgets/recent_grade_tile.dart';
 import '../widgets/relative_time.dart';
+import '../widgets/skeleton.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/status_banner.dart';
 import 'calibration_screen.dart';
@@ -172,21 +174,83 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxl),
-              children: [
-                _buildHeader(context),
-                const SizedBox(height: AppSpacing.xl),
-                _buildCalibrationBanner(),
-                const SizedBox(height: AppSpacing.xl),
-                QuickGradeCard(onTap: _openCapture),
-                const SizedBox(height: AppSpacing.xl),
-                _buildStats(),
-                const SizedBox(height: AppSpacing.xl),
-                _buildRecent(),
-              ],
+              children: !_loaded
+                  ? [_buildSkeleton()]
+                  : [
+                      _buildHeader(context),
+                      const OfflineBanner(
+                          padding: EdgeInsets.only(top: AppSpacing.xl)),
+                      const SizedBox(height: AppSpacing.xl),
+                      _buildCalibrationBanner(),
+                      const SizedBox(height: AppSpacing.xl),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: ConnectivityService.online,
+                        builder: (context, online, _) =>
+                            QuickGradeCard(onTap: online ? _openCapture : null),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      _buildStats(),
+                      const SizedBox(height: AppSpacing.xl),
+                      _buildRecent(),
+                    ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Loading skeleton (System States): header, banner, hero card, stats
+  /// and three recent rows.
+  Widget _buildSkeleton() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonBox(width: 96, height: 12, radius: 6),
+                  SizedBox(height: AppSpacing.md),
+                  SkeletonBox(width: 140, height: 20),
+                ],
+              ),
+            ),
+            SkeletonBox(height: 40, circle: true),
+            SizedBox(width: AppSpacing.md),
+            SkeletonBox(height: 40, circle: true),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        const SkeletonBox(height: 48, radius: AppRadius.lg),
+        const SizedBox(height: AppSpacing.xl),
+        const SkeletonBox(height: 152, radius: AppRadius.xxl),
+        const SizedBox(height: AppSpacing.xl),
+        Row(
+          children: [
+            for (var i = 0; i < 3; i++) ...[
+              if (i > 0) const SizedBox(width: AppSpacing.md),
+              const Expanded(
+                  child: SkeletonBox(height: 88, radius: AppRadius.lg)),
+            ],
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xxl),
+        const Align(
+          alignment: Alignment.centerLeft,
+          child: SkeletonBox(width: 120, height: 16),
+        ),
+        for (final w in const [
+          [0.7, 0.45],
+          [0.6, 0.5],
+          [0.75, 0.4],
+        ]) ...[
+          const SizedBox(height: AppSpacing.xl),
+          SkeletonRow(lines: w),
+        ],
+      ],
     );
   }
 
@@ -289,9 +353,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
-        if (!_loaded)
-          const SizedBox(height: 120)
-        else if (hasItems)
+        if (hasItems)
           Container(
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
