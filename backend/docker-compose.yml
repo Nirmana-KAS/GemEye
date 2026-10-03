@@ -1,0 +1,27 @@
+# Development setup: live reload of ./app, models and exports mounted read-only.
+services:
+  api:
+    build: .
+    image: gemeye-api:dev
+    container_name: gemeye-api
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      MODEL_DIR: /srv/models
+      EXPORT_DIR: /srv/export
+      # Windows bind mounts do not forward file events; poll for --reload.
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      - ./app:/srv/app
+      - ./tests:/srv/tests
+      - ./models:/srv/models:ro
+      - ./export:/srv/export:ro
+      - ./secrets:/srv/secrets:ro
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/srv/app"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s

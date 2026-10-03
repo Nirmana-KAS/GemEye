@@ -77,3 +77,11 @@ app/ios/Runner/GoogleService-Info.plist
 
 # AWS
 .aws/
+
+# Backend (local only)
+backend/.env
+backend/models/*
+!backend/models/.gitkeep
+backend/secrets/*
+!backend/secrets/.gitkeep
+backend/**/__pycache__/

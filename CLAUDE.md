@@ -308,7 +308,13 @@ After modifying ANY Dart file, always run "flutter analyze" from the app/ direct
 
 ## Edit history (mandatory)
 
-After EVERY code or asset change, append an entry to PROJECT_STATUS.md using the existing EDIT-0NN format (date, IST, Topic, Summary, What was done, Files changed with +/~/-, Connected edits, Reason), then commit it with the change. Never skip this, even for small fixes.
+After EVERY code or asset change, append an entry to PROJECT_STATUS.md in exactly the same format as the existing entries (### EDIT-0NN | date | IST, Topic, Summary, What was done, Files changed with +/~/- markers, Connected edits, Reason). Do not commit.
+
+---
+
+## Git (strict)
+
+Never run git commit, push, branch, checkout, merge, rebase or stash. Never add "Co-Authored-By" anywhere. Only edit files. The developer commits manually with GitHub Desktop on main.
 
 ---
 

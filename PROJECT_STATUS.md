@@ -1552,3 +1552,54 @@
   - `~` app/pubspec.yaml, app/pubspec.lock (+ generated plugin registrants)
 - **Connected edits:** EDIT-075; Claude Design Group EF export (System States)
 - **Reason:** Grading needs a connection, and loading should not show empty screens.
+
+### EDIT-081 | 03 October 2026 02:35 | IST
+- **Topic:** Git Rule, Backend Skeleton and App Backend Report
+- **Summary:** CLAUDE.md now forbids git commands and commits by Claude Code; the backend folder skeleton and a read-only app report for backend integration were added.
+- **What was done:**
+  - CLAUDE.md: Edit history rule now ends "Do not commit."; new Git (strict) section (no commit, push, branch, checkout, merge, rebase, stash or Co-Authored-By; developer commits with GitHub Desktop on main)
+  - Backend skeleton: app/__init__.py, export/, secrets/, tests/ (with .gitkeep), .env.example (keys only), README.md; existing backend/models/.gitkeep kept
+  - .gitignore: backend/.env, backend/models/*, backend/secrets/* (keeping .gitkeep files), backend/**/__pycache__/
+  - docs/app_backend_report.md: GradeResult source, public service signatures, demo result locations, GradeResult consumers, calibration CCM storage, AppConstants, dependencies, Android permissions (INTERNET only in debug/profile, no cleartext config)
+- **Files changed:**
+  - `~` CLAUDE.md
+  - `~` .gitignore
+  - `+` backend/app/__init__.py
+  - `+` backend/export/.gitkeep
+  - `+` backend/secrets/.gitkeep
+  - `+` backend/tests/.gitkeep
+  - `+` backend/.env.example
+  - `+` backend/README.md
+  - `+` docs/app_backend_report.md
+- **Connected edits:** EDIT-080
+- **Reason:** Phase 0 / Step 1 of the backend work: set the git rule, prepare the backend layout, and document what the app expects from the API.
+
+### EDIT-082 | 03 October 2026 10:45 | IST
+- **Topic:** Backend Phase 1 - Inference Server (FastAPI + Docker)
+- **Summary:** Local FastAPI inference server for the v3 model (CNN with MC Dropout + RF ensemble) in Docker, with a training-identical model colour path, a separate display colour path and smoke tests.
+- **What was done:**
+  - Verified Phase 0 inputs: models present; w_cnn 0.6; ccm_residual 0.2548; CIECAM02 fallbacks 912/912; affine_residual 0.1276; ciecam02_real nan_count 0, no errors; blur threshold 29.47; OOD threshold_p99 25.69 on layer "dense"
+  - Environment pinned to training versions (python:3.13-slim, tensorflow-cpu 2.20.0, keras 3.13.2, numpy 2.1.3, scikit-learn 1.6.1, joblib 1.6.0, colour-science 0.4.7); opencv-python-headless 4.14.0.94 (OpenCV 4.14.0); non-root Dockerfile, dev docker-compose with live reload and read-only model/export/secrets mounts
+  - Model path: session 3x3 map from user patches (or identity), training CCM, JPEG round trip; v3 GrabCut + 12-D features copied from the Phase 0 export code with the CIECAM02 fallback reproduced
+  - Display path: 4x3 affine from user patches (or exported default); L*a*b*, C*, HSB, hex, real CIECAM02, ΔE00 to the grade's physical median
+  - Inference: deterministic + 30-pass MC Dropout batch (Dropout only, fixed stateless seed so the same image gives the same grade), RF, 0.6/0.4 ensemble; diagnostics (blur, stone area, physical hue, Mahalanobis OOD) reported, no rejection yet
+  - GET /health and POST /grade with 400/413/500 handling, no stack traces, uploads kept in memory and never stored
+  - Smoke tests: 4 passed in the container; average /grade latency about 3.7 s on CPU (CNN about 2.6 s)
+- **Files changed:**
+  - `+` backend/requirements.txt
+  - `+` backend/Dockerfile
+  - `+` backend/docker-compose.yml
+  - `+` backend/.dockerignore
+  - `+` backend/app/config.py
+  - `+` backend/app/assets.py
+  - `+` backend/app/schemas.py
+  - `+` backend/app/main.py
+  - `+` backend/app/pipeline/__init__.py
+  - `+` backend/app/pipeline/colour.py
+  - `+` backend/app/pipeline/features.py
+  - `+` backend/app/pipeline/display.py
+  - `+` backend/app/pipeline/inference.py
+  - `+` backend/tests/test_smoke.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-081
+- **Reason:** Phase 1 of the backend work: serve the v3 grading model locally with results that match training.
