@@ -335,6 +335,7 @@ class Features(BaseModel):
     repeatability_mode: bool
     gradcam: bool
     public_verification: bool
+    session_mapping: bool = False
 
 
 class AppConfig(BaseModel):
@@ -344,6 +345,7 @@ class AppConfig(BaseModel):
     min_app_version: str
     maintenance: Maintenance
     features: Features
+    blur_min_variance: float
 
 
 class FeedbackIn(BaseModel):

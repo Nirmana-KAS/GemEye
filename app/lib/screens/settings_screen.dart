@@ -2,17 +2,18 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../config/constants.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
 import '../services/account_service.dart';
+import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/calibration_service.dart';
+import '../services/history_service.dart';
+import '../services/me_service.dart';
 import '../services/profile_service.dart';
 import '../services/settings_service.dart';
-import '../services/storage_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/calibration_history_sheet.dart';
@@ -40,10 +41,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AuthService _auth = AuthService();
   LocalProfile _profile = const LocalProfile();
 
+  /// Server reachability (GET /health): null while checking.
+  bool? _connected;
+  int _latencyMs = 0;
+
+  /// Referral threshold before the slider was dragged, to restore it when
+  /// the server refuses the change.
+  double _thresholdBefore = SettingsService.defaultReferralThreshold;
+
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _checkServer();
+    MeService.sync();
+  }
+
+  Future<void> _checkServer() async {
+    setState(() => _connected = null);
+    final watch = Stopwatch()..start();
+    var ok = false;
+    try {
+      await ApiClient.instance.getJson('/health', auth: false);
+      ok = true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Health check failed: $e');
+    }
+    watch.stop();
+    if (!mounted) return;
+    setState(() {
+      _connected = ok;
+      _latencyMs = watch.elapsedMilliseconds;
+    });
+  }
+
+  Future<void> _saveThreshold(double v) async {
+    await SettingsService.setReferralThreshold(v);
+    try {
+      await MeService.updateSettings(
+          referralThresholdPercent: SettingsService.referralThreshold.value);
+    } on ApiException catch (e) {
+      await SettingsService.setReferralThreshold(_thresholdBefore);
+      if (!mounted) return;
+      AppSnackBar.show(context,
+          message: 'Referral threshold not changed. ${e.message}',
+          type: AppSnackBarType.error);
+    }
+  }
+
+  Future<void> _setShowName(bool v) async {
+    final before = SettingsService.showNameOnCertificates.value;
+    await SettingsService.setShowNameOnCertificates(v);
+    try {
+      await MeService.updateSettings(showNameOnCertificates: v);
+    } on ApiException catch (e) {
+      await SettingsService.setShowNameOnCertificates(before);
+      if (!mounted) return;
+      AppSnackBar.show(context,
+          message: 'Setting not changed. ${e.message}',
+          type: AppSnackBarType.error);
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -58,21 +115,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   // Grading
-
-  Future<void> _editPrefix() async {
-    final prefix = await showDialog<String>(
-      context: context,
-      barrierColor: AppColors.scrim,
-      builder: (_) =>
-          _PrefixDialog(initial: SettingsService.certificatePrefix.value),
-    );
-    if (prefix == null) return;
-    await SettingsService.setCertificatePrefix(prefix);
-    if (!mounted) return;
-    AppSnackBar.show(context,
-        message: 'Certificate prefix set to $prefix',
-        type: AppSnackBarType.success);
-  }
 
   // Data
 
@@ -107,49 +149,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _clearHistory() async {
-    final count = (await StorageService.getGradeHistory()).length;
+    final all = await HistoryService.load();
     if (!mounted) return;
+    final count = all.length;
     final ok = await AppDialog.confirm(
       context,
       title: 'Clear all history?',
       message: 'All $count graded stone${count == 1 ? '' : 's'} and their '
-          'photos will be deleted. Exported certificates are not affected.',
+          'photos will be deleted from your account. Issued certificates '
+          'are not affected.',
       confirmLabel: 'Clear',
       type: AppDialogType.danger,
       icon: Icons.delete_sweep_rounded,
     );
     if (!ok) return;
-    try {
-      await StorageService.clearHistory(deletePhotos: true);
-      // TODO(backend): delete the user's grades on the server.
-      if (!mounted) return;
-      AppSnackBar.show(context,
-          message: 'History cleared', type: AppSnackBarType.success);
-    } catch (e) {
-      if (kDebugMode) debugPrint('Clear history failed: $e');
-      if (mounted) {
-        AppSnackBar.show(context,
-            message: 'Could not clear history. Try again.',
-            type: AppSnackBarType.error);
+    String? failure;
+    for (final r in all) {
+      try {
+        await HistoryService.delete(r);
+      } on ApiException catch (e) {
+        failure = e.message;
+        break;
+      } catch (e) {
+        if (kDebugMode) debugPrint('Clear history failed: $e');
+        failure = 'Could not clear history. Try again.';
+        break;
       }
     }
+    if (!mounted) return;
+    AppSnackBar.show(context,
+        message: failure ?? 'History cleared',
+        type: failure == null ? AppSnackBarType.success : AppSnackBarType.error);
   }
 
   // Account
 
-  Future<void> _deleteAccount() async {
-    final ok = await AppDialog.confirm(
-      context,
-      title: 'Delete account permanently?',
-      message: 'This cannot be undone. Your profile, grading history and '
-          'certificates will be removed.',
-      confirmLabel: 'Delete',
-      type: AppDialogType.danger,
-      icon: Icons.person_remove_rounded,
-    );
-    if (!ok || !mounted) return;
-
-    // Firebase needs a recent sign-in before deleting the user.
+  /// Signs the user in again (password or Google), so the server accepts
+  /// DELETE /me. Returns false when cancelled or it failed (message shown).
+  Future<bool> _reauthenticate() async {
     try {
       if (_auth.hasPassword) {
         final password = await showDialog<String>(
@@ -157,21 +194,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           barrierColor: AppColors.scrim,
           builder: (_) => const _PasswordPromptDialog(),
         );
-        if (password == null) return;
+        if (password == null) return false;
         await _auth.reauthenticateWithPassword(password);
       } else {
-        if (!await _auth.reauthenticateWithGoogle()) return;
+        if (!await _auth.reauthenticateWithGoogle()) return false;
       }
+      // The server checks when the user last signed in (token auth_time).
+      await FirebaseAuth.instance.currentUser?.getIdToken(true);
+      return true;
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) debugPrint('Re-authentication failed: ${e.code}');
-      if (AuthService.handleSessionError(e) || !mounted) return;
+      if (AuthService.handleSessionError(e) || !mounted) return false;
       final wrong = e.code == 'wrong-password' || e.code == 'invalid-credential';
       AppSnackBar.show(context,
           message: wrong
               ? 'Password is incorrect'
               : 'Could not confirm your identity. Try again.',
           type: AppSnackBarType.error);
-      return;
+      return false;
     } catch (e) {
       if (kDebugMode) debugPrint('Re-authentication failed: $e');
       if (mounted) {
@@ -179,21 +219,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
             message: 'Could not confirm your identity. Try again.',
             type: AppSnackBarType.error);
       }
-      return;
+      return false;
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final ok = await AppDialog.confirm(
+      context,
+      title: 'Delete account permanently?',
+      message: 'This cannot be undone. Your profile, grading history, '
+          'calibrations and photos will be removed from the server. '
+          'Certificates already issued stay verifiable but lose your '
+          'details.',
+      confirmLabel: 'Delete',
+      type: AppDialogType.danger,
+      icon: Icons.person_remove_rounded,
+    );
+    if (!ok || !mounted) return;
+
+    // The server needs a sign-in from the last 5 minutes. If it still says
+    // reauth_required (slow dialog), ask once more.
+    for (var attempt = 0;; attempt++) {
+      if (!await _reauthenticate() || !mounted) return;
+      try {
+        await MeService.deleteAccount();
+        break;
+      } on ApiException catch (e) {
+        if (e.code == ApiErrorCode.accountDeleted) break;
+        if (e.code == ApiErrorCode.reauthRequired && attempt == 0) continue;
+        if (mounted) {
+          AppSnackBar.show(context,
+              message: e.code == ApiErrorCode.reauthRequired
+                  ? 'Please sign in again to delete your account.'
+                  : e.message,
+              type: AppSnackBarType.error);
+        }
+        return;
+      }
     }
 
-    final deleted = await AuthService.endSession(
-      beforeSignOut: () async {
-        // TODO(backend): delete server data (grades, certificates,
-        // feedback, S3 images) before removing the Firebase user.
-        await FirebaseAuth.instance.currentUser?.delete();
-        await AccountService.clearLocalData();
-      },
-    );
-    if (!deleted && mounted) {
+    final done =
+        await AuthService.endSession(beforeSignOut: AccountService.clearLocalData);
+    if (!done && mounted) {
       AppSnackBar.show(context,
-          message: 'Could not delete your account. Try again.',
-          type: AppSnackBarType.error);
+          message: 'Your account was deleted. Please restart the app.',
+          type: AppSnackBarType.warning);
     }
   }
 
@@ -486,9 +556,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           SettingsService.minReferralThreshold)
                       .round(),
                   label: '${v.round()}%',
+                  onChangeStart: (_) => _thresholdBefore =
+                      SettingsService.referralThreshold.value,
                   onChanged: (x) =>
                       SettingsService.referralThreshold.value = x.roundToDouble(),
-                  onChangeEnd: SettingsService.setReferralThreshold,
+                  onChangeEnd: _saveThreshold,
                 ),
               ),
               Row(
@@ -532,12 +604,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      ValueListenableBuilder<String>(
-        valueListenable: SettingsService.certificatePrefix,
-        builder: (context, prefix, _) => _NavRow(
-          label: 'Certificate prefix',
-          value: prefix,
-          onTap: _editPrefix,
+      ValueListenableBuilder<bool>(
+        valueListenable: SettingsService.showNameOnCertificates,
+        builder: (context, on, _) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: ToggleRow(
+            title: 'Show my name/company on public certificate',
+            subtitle: 'Anyone who scans the QR code can see it',
+            value: on,
+            onChanged: _setShowName,
+          ),
         ),
       ),
       ValueListenableBuilder<bool>(
@@ -617,28 +693,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildConnection() {
-    // TODO(backend): call the API health endpoint and show Connected +
-    // latency when the grading server is deployed.
+    final c = _connected;
+    final label = c == null
+        ? 'Server status: Checking...'
+        : c
+            ? 'Server status: Connected · $_latencyMs ms'
+            : 'Server status: Not connected';
     return _Group(children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
-        child: Row(
-          children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                  color: AppColors.errorTint, shape: BoxShape.circle),
-              child: const Icon(Icons.cloud_off_rounded,
-                  size: 16, color: AppColors.errorText),
-            ),
-            const SizedBox(width: AppSpacing.lg),
-            const Expanded(
-              child: Text('Server status: Not connected',
-                  style: AppText.body14Medium),
-            ),
-          ],
+      InkWell(
+        onTap: c == null ? null : _checkServer,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+          child: Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                    color: c == true ? AppColors.successTint : AppColors.errorTint,
+                    shape: BoxShape.circle),
+                child: Icon(
+                    c == true ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
+                    size: 16,
+                    color:
+                        c == true ? AppColors.successText : AppColors.errorText),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(child: Text(label, style: AppText.body14Medium)),
+              const Icon(Icons.refresh_rounded,
+                  size: 18, color: AppColors.textMuted),
+            ],
+          ),
         ),
       ),
     ]);
@@ -702,7 +788,6 @@ class _NavRow extends StatelessWidget {
   final String label;
   final String? subtitle;
   final IconData? subtitleIcon;
-  final String? value;
   final bool danger;
   final VoidCallback onTap;
 
@@ -711,7 +796,6 @@ class _NavRow extends StatelessWidget {
     required this.label,
     this.subtitle,
     this.subtitleIcon,
-    this.value,
     this.danger = false,
     required this.onTap,
   });
@@ -760,12 +844,6 @@ class _NavRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (value != null) ...[
-              Text(value!,
-                  style: AppText.monoValue
-                      .copyWith(fontSize: 13, fontWeight: FontWeight.w500)),
-              const SizedBox(width: AppSpacing.lg),
-            ],
             const Icon(Icons.chevron_right_rounded,
                 size: 22, color: AppColors.textMuted),
           ],
@@ -848,55 +926,6 @@ class _Segments<T> extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-/// Edits the certificate prefix (1-6 letters or digits, upper case).
-class _PrefixDialog extends StatefulWidget {
-  final String initial;
-
-  const _PrefixDialog({required this.initial});
-
-  @override
-  State<_PrefixDialog> createState() => _PrefixDialogState();
-}
-
-class _PrefixDialogState extends State<_PrefixDialog> {
-  late final TextEditingController _c =
-      TextEditingController(text: widget.initial);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  bool get _valid => RegExp(r'^[A-Z0-9]{1,6}$').hasMatch(_c.text.trim());
-
-  @override
-  Widget build(BuildContext context) {
-    return _FormDialog(
-      title: 'Certificate prefix',
-      message: 'Used for new certificate numbers, e.g. '
-          '${_valid ? _c.text.trim() : 'GE'}-202610-00042. Existing '
-          'certificates keep their number.',
-      field: TextField(
-        controller: _c,
-        autofocus: true,
-        maxLength: 6,
-        textCapitalization: TextCapitalization.characters,
-        inputFormatters: [
-          FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9]')),
-          TextInputFormatter.withFunction(
-              (_, v) => v.copyWith(text: v.text.toUpperCase())),
-        ],
-        onChanged: (_) => setState(() {}),
-        style: AppText.monoValue.copyWith(fontSize: 14),
-        decoration: const InputDecoration(hintText: 'GE', counterText: ''),
-      ),
-      confirmLabel: 'Save',
-      onConfirm: _valid ? () => Navigator.pop(context, _c.text.trim()) : null,
     );
   }
 }

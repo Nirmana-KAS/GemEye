@@ -5,8 +5,10 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
-import '../services/storage_service.dart';
+import '../services/api_client.dart';
+import '../services/certificate_api_service.dart';
 import '../services/certificate_service.dart';
+import '../services/history_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_dialog.dart';
@@ -51,6 +53,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   List<GradeResult> _allHistory = [];
   bool _loaded = false;
   List<GradeResult> _filteredHistory = [];
+
+  /// Cursor of the next server page; null when everything is loaded.
+  String? _cursor;
+  bool _loadingMore = false;
+
+  /// True when the server could not be reached and the cache is shown.
+  bool _offline = false;
+  final ScrollController _scroll = ScrollController();
   final TextEditingController _searchController = TextEditingController();
 
   /// 0 = All, 1-7 = grade, 8 = Referred.
@@ -87,6 +97,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   void initState() {
     super.initState();
     _loadHistory();
+    _scroll.addListener(_onScroll);
     _searchController.addListener(_applyFilters);
     // Referred follows the threshold set in Settings.
     SettingsService.referralThreshold.addListener(_applyFilters);
@@ -95,22 +106,90 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void dispose() {
     SettingsService.referralThreshold.removeListener(_applyFilters);
+    _scroll.dispose();
     _searchController.dispose();
     super.dispose();
   }
 
+  /// Grade, referred and date filters, as the server query of GET /gradings.
+  ({int? grade, bool? referred, DateTime? from, DateTime? to}) get _serverQuery {
+    final grade = _chip >= 1 && _chip <= 7 ? _chip : null;
+    bool? referred;
+    if (_chip == 8 || _confidenceFilter == _ConfidenceFilter.borderline) {
+      referred = true;
+    } else if (_confidenceFilter == _ConfidenceFilter.high) {
+      referred = false;
+    }
+    final from = _dateFrom;
+    final to = _dateTo;
+    return (
+      grade: grade,
+      referred: referred,
+      from: from == null ? null : DateTime(from.year, from.month, from.day),
+      to: to == null ? null : DateTime(to.year, to.month, to.day, 23, 59, 59),
+    );
+  }
+
+  /// Loads the first page from the server with the active filters. When the
+  /// server cannot be reached the saved results are shown instead.
   Future<void> _loadHistory() async {
+    final q = _serverQuery;
     try {
-      final history = await StorageService.getGradeHistory();
+      final page = await HistoryService.fetchPage(
+          grade: q.grade, referred: q.referred, from: q.from, to: q.to);
       if (!mounted) return;
       setState(() {
-        _allHistory = history;
+        _allHistory = page.items;
+        _cursor = page.nextCursor;
+        _offline = false;
         _loaded = true;
         _applyFilters();
       });
     } catch (e) {
       debugPrint('History load failed: $e');
-      if (mounted) setState(() => _loaded = true);
+      List<GradeResult> cached = [];
+      try {
+        cached = await HistoryService.load(forceRefresh: false);
+      } catch (e2) {
+        debugPrint('History cache failed: $e2');
+      }
+      if (!mounted) return;
+      setState(() {
+        _allHistory = cached;
+        _cursor = null;
+        _offline = true;
+        _loaded = true;
+        _applyFilters();
+      });
+    }
+  }
+
+  void _onScroll() {
+    if (_scroll.position.extentAfter < 300) _loadMore();
+  }
+
+  Future<void> _loadMore() async {
+    final cursor = _cursor;
+    if (cursor == null || _loadingMore) return;
+    _loadingMore = true;
+    final q = _serverQuery;
+    try {
+      final page = await HistoryService.fetchPage(
+          cursor: cursor,
+          grade: q.grade,
+          referred: q.referred,
+          from: q.from,
+          to: q.to);
+      if (!mounted) return;
+      setState(() {
+        _allHistory = [..._allHistory, ...page.items];
+        _cursor = page.nextCursor;
+        _applyFilters();
+      });
+    } catch (e) {
+      debugPrint('History next page failed: $e');
+    } finally {
+      _loadingMore = false;
     }
   }
 
@@ -196,8 +275,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _filteredHistory = results);
   }
 
-  static bool _isReferred(GradeResult r) =>
-      r.confidence < ConfidenceBadge.referThreshold;
+  static bool _isReferred(GradeResult r) => r.isReferred;
 
   int get _activeFilterCount {
     int count = 0;
@@ -220,6 +298,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   String get _countText {
     final n = _filteredHistory.length;
     final stones = '$n stone${n == 1 ? '' : 's'}';
+    if (_offline) return '$stones · Offline, saved results';
     if (_dateFrom == null && _dateTo == null) return '$stones · All time';
     final from = _dateFrom != null ? _fmtDate(_dateFrom!) : 'Start';
     final to = _dateTo != null ? _fmtDate(_dateTo!) : 'Today';
@@ -227,7 +306,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   String _meta(GradeResult r) {
-    final level = r.confidence >= ConfidenceBadge.referThreshold
+    final level = !r.isReferred
         ? 'High'
         : r.confidence >= ConfidenceBadge.lowThreshold
             ? 'Borderline'
@@ -273,19 +352,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
       icon: Icons.delete_rounded,
     );
     if (!confirmed) return;
-    try {
-      for (final id in _selectedIds) {
-        await StorageService.deleteGradeResult(id);
+    var deleted = 0;
+    String? failure;
+    final targets =
+        _allHistory.where((r) => _selectedIds.contains(r.id)).toList();
+    for (final r in targets) {
+      try {
+        await HistoryService.delete(r);
+        deleted++;
+      } on ApiException catch (e) {
+        failure = e.message;
+        break;
+      } catch (e) {
+        debugPrint('Batch delete failed: $e');
+        failure = 'Could not delete the stones. Try again.';
+        break;
       }
-    } catch (e) {
-      debugPrint('Batch delete failed: $e');
     }
     _exitSelectionMode();
     await _loadHistory();
     if (mounted) {
       AppSnackBar.show(context,
-          message: '$count stone${count > 1 ? 's' : ''} deleted',
-          type: AppSnackBarType.success);
+          message: failure ??
+              '$deleted stone${deleted > 1 ? 's' : ''} deleted',
+          type: failure == null
+              ? AppSnackBarType.success
+              : AppSnackBarType.error);
     }
   }
 
@@ -295,13 +387,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
     if (selectedResults.isEmpty) return;
     int generated = 0;
 
+    String? failure;
     for (final result in selectedResults) {
       try {
-        if (result.certificateNumber == null) {
-          result.certificateNumber =
-              await CertificateService.generateCertificateNumber();
-          await StorageService.saveGradeResult(result);
-        }
+        await CertificateApiService.ensure(result);
 
         Uint8List stoneImageBytes;
         try {
@@ -322,7 +411,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
         final file = File('${certDir.path}/${result.certificateNumber}.pdf');
         await file.writeAsBytes(pdfBytes);
+        if (result.certificateVerifyUrl != null) {
+          await CertificateApiService.uploadPdf(
+              result.certificateNumber!, pdfBytes);
+        }
         generated++;
+      } on ApiException catch (e) {
+        failure = e.message;
+        debugPrint('Export failed for ${result.stoneId}: $e');
       } catch (e) {
         debugPrint('Export failed for ${result.stoneId}: $e');
       }
@@ -332,7 +428,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await _loadHistory();
     if (mounted) {
       AppSnackBar.show(context,
-          message: '$generated certificate${generated == 1 ? '' : 's'} saved',
+          message: generated == 0 && failure != null
+              ? failure
+              : '$generated certificate${generated == 1 ? '' : 's'} saved',
           type:
               generated > 0 ? AppSnackBarType.success : AppSnackBarType.error);
     }
@@ -379,7 +477,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
     if (!confirmed) return false;
     try {
-      await StorageService.deleteGradeResult(result.id);
+      await HistoryService.delete(result);
+    } on ApiException catch (e) {
+      if (mounted) {
+        AppSnackBar.show(context,
+            message: e.message, type: AppSnackBarType.error);
+      }
+      return false;
     } catch (e) {
       debugPrint('Delete failed: $e');
       return false;
@@ -664,7 +768,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 _certificateFilter = tempCertificate;
                                 _sessionFilter = tempSession;
                               });
-                              _applyFilters();
+                              _loadHistory();
                               Navigator.pop(ctx);
                             },
                           ),
@@ -745,10 +849,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Expanded(
                       child: _filteredHistory.isEmpty
                           ? _buildEmptyState()
-                          : ListView.builder(
-                              itemCount: _filteredHistory.length,
-                              itemBuilder: (context, index) =>
-                                  _buildHistoryItem(_filteredHistory[index]),
+                          : RefreshIndicator(
+                              color: AppColors.primary,
+                              onRefresh: _loadHistory,
+                              child: ListView.builder(
+                                controller: _scroll,
+                                physics:
+                                    const AlwaysScrollableScrollPhysics(),
+                                itemCount: _filteredHistory.length,
+                                itemBuilder: (context, index) =>
+                                    _buildHistoryItem(_filteredHistory[index]),
+                              ),
                             ),
                     ),
                     if (_isSelectionMode) _buildBatchActionBar(),
@@ -917,7 +1028,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           onTap: () {
             setState(() => _chip = index);
-            _applyFilters();
+            _loadHistory();
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
@@ -1130,7 +1241,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   _certificateFilter = _CertificateFilter.all;
                   _sessionFilter = _allSessions;
                 });
-                _applyFilters();
+                _loadHistory();
               },
             ),
     );

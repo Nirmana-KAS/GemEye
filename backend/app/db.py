@@ -16,7 +16,8 @@ DEFAULT_APP_CONFIG = {
     "calibration_validity_hours": 8,
     "min_app_version": "1.0.0",
     "maintenance": {"enabled": False, "message": ""},
-    "features": {"repeatability_mode": True, "gradcam": False, "public_verification": True},
+    "features": {"repeatability_mode": True, "gradcam": False, "public_verification": True,
+                 "session_mapping": False},
 }
 CONFIG_CACHE_SECONDS = 60
 DELETED_ACCOUNT_TTL_S = 2 * 3600    # ID tokens live at most 1 hour
@@ -46,6 +47,9 @@ class Database:
 
     def ensure_indexes(self):
         self.gradings.create_index([("uid", ASCENDING), ("created_at", DESCENDING)])
+        # Idempotent /grade retries; only gradings sent with a request_id have the field.
+        self.gradings.create_index([("request_id", ASCENDING)], unique=True, sparse=True,
+                                   name="request_id_unique")
         self.rejections.create_index([("created_at", ASCENDING)])
         self.calibrations.create_index([("uid", ASCENDING), ("created_at", DESCENDING)])
         self.certificates.create_index([("uid", ASCENDING), ("issued_at", DESCENDING)])

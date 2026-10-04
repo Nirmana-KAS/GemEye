@@ -6,7 +6,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:shared_preferences/shared_preferences.dart';
 import '../config/constants.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
@@ -14,7 +13,6 @@ import '../utils/colour_math.dart';
 import '../widgets/confidence_badge.dart';
 import 'calibration_service.dart';
 import 'profile_service.dart';
-import 'settings_service.dart';
 
 /// GemEye Certificate PDF generator (Group E design).
 ///
@@ -44,21 +42,6 @@ class CertificateService {
 
   // Page constants
   static const double _pad = 30;
-
-  /// Generate next sequential certificate number, using the prefix set in
-  /// Settings (default GE).
-  static Future<String> generateCertificateNumber() async {
-    final prefs = await SharedPreferences.getInstance();
-    int counter = prefs.getInt('certificate_counter') ?? 0;
-    counter++;
-    await prefs.setInt('certificate_counter', counter);
-    final now = DateTime.now();
-    final ym = '${now.year}${now.month.toString().padLeft(2, '0')}';
-    final prefix = SettingsService.certificatePrefix.value.trim().isEmpty
-        ? AppConstants.defaultCertificatePrefix
-        : SettingsService.certificatePrefix.value.trim();
-    return '$prefix-$ym-${counter.toString().padLeft(5, '0')}';
-  }
 
   static Future<pw.Font?> _font(String asset) async {
     try {
@@ -102,14 +85,19 @@ class CertificateService {
     final stoneImg = pw.MemoryImage(stoneImage);
     final logoImg = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
 
-    // QR content unchanged.
-    // TODO(backend): encode a verification URL once the verify endpoint exists.
-    final qrData = jsonEncode({
-      'cert': result.certificateNumber,
-      'grade': result.gradeNumber,
-      'stone': result.stoneId,
-      'date': _fmtShort(result.capturedAt),
-    });
+    // The QR is the server's public verification URL. A certificate issued
+    // before the server issued them keeps the old JSON QR and says so.
+    final verifyUrl = result.certificateVerifyUrl;
+    final qrData = verifyUrl ??
+        jsonEncode({
+          'cert': result.certificateNumber,
+          'grade': result.gradeNumber,
+          'stone': result.stoneId,
+          'date': _fmtShort(result.capturedAt),
+        });
+    final qrCaption = verifyUrl != null
+        ? 'Scan to verify'
+        : 'Offline certificate - not verifiable online';
 
     // Calibration session details, when the result's session is known.
     CalibrationSession? calibration;
@@ -607,7 +595,7 @@ class CertificateService {
                             color: _text,
                           ),
                           pw.SizedBox(height: 9),
-                          pw.Text('Scan to view certificate data',
+                          pw.Text(qrCaption,
                               textAlign: pw.TextAlign.center,
                               style: st(poppinsSemi, 9, _text)),
                           pw.SizedBox(height: 3),

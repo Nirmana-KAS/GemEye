@@ -1908,3 +1908,167 @@
   - `~` backend/README.md
 - **Connected edits:** EDIT-094, EDIT-095
 - **Reason:** A token used right after sign-in was rejected whenever the server clock lagged Google's, which broke the test suite and could hit real users on a drifting server.
+
+### EDIT-097 | 05 October 2026 00:45 | IST
+- **Topic:** Phase 5 Step 0 - read-only app report
+- **Summary:** Documented the app's current grading flow, local storage, calibration, photo check, certificates, settings, auth and platform config against the backend, as the basis for Phase 5. No code changed.
+- **What was done:**
+  - GradeResult source with every creation and use site; demo results at grading_service.dart:64 and result_screen.dart:49
+  - Screen-by-screen grading flow, repeatability mode, CalibrationService storage and CCM format
+  - App vs server blur check comparison (threshold 50 vs 29.47, different resize and input)
+  - Full TODO(backend/F2/dataset) list (no TODO(C4) found), settings audit, AuthService token methods
+  - Found: no INTERNET permission in the main AndroidManifest, no iOS camera/photo usage strings, apiBaseUrl is http://localhost:5000
+  - "What Phase 5 must change", grouped by file
+- **Files changed:**
+  - `+` docs/app_phase5_report.md
+- **Connected edits:** EDIT-094, EDIT-095, EDIT-096
+- **Reason:** Phase 5 (app-backend integration) needs an exact picture of the current app first.
+
+### EDIT-098 | 05 October 2026 01:40 | IST
+- **Topic:** Backend Phase 5a - idempotent /grade, session_mapping flag, QA token script
+- **Summary:** /grade accepts a request_id (UUID); a repeated one from the same user returns the original grading instead of a new one. A new remote-config flag features.session_mapping (default false) decides whether session patches drive the model path; patches are always stored. Added scripts/get_token.py for /docs testing. 76/76 tests pass with ENV=test.
+- **What was done:**
+  - /grade: optional form field request_id (UUID, normalised; else 400). Looked up before grading: same uid → original response (same grading_id and stone_id, fresh image_url), no new grading or S3 object; another uid or a deleted grading → 409 {code: duplicate_request}. A concurrent duplicate (DuplicateKeyError) undoes its own S3 upload and returns the original
+  - gradings: unique sparse index request_id_unique; request_id stored only when sent; patches (6x3 or null) always stored
+  - Remote config: features.session_mapping default false (DEFAULT_APP_CONFIG, Features schema). When false, patches are ignored for the model path and calibration_mode is "training_session"; when true, "session_patches"
+  - scripts/get_token.py: --email, password via getpass (never echoed or stored), Identity Toolkit sign-in with the API key in a header, prints only the ID token; refuses ENV=production. docker-compose mounts ./scripts read-only
+  - Tests: tests/test_phase5a.py (repeat request_id, other user 409, non-UUID 400, sparse unique index, session_mapping on/off); test_smoke patches test now expects training_session by default
+  - README: request_id, session_mapping, gradings fields/index, QA token section
+- **Files changed:**
+  - `~` backend/app/main.py
+  - `~` backend/app/db.py
+  - `~` backend/app/schemas.py
+  - `+` backend/scripts/get_token.py
+  - `~` backend/docker-compose.yml
+  - `+` backend/tests/test_phase5a.py
+  - `~` backend/tests/test_smoke.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-094, EDIT-097
+- **Reason:** The app must retry uploads safely without duplicate gradings, session mapping must stay off until it is validated, and /docs testing needs a token.
+
+### EDIT-099 | 05 October 2026 01:55 | IST
+- **Topic:** App Phase 5a - API config, network layer, grading request and models
+- **Summary:** Added the build-time API config, the HTTP ApiClient (Firebase token with one refresh on 401, timeouts, GET-only retry, typed errors), GradingService.gradeStone (multipart POST /grade) and server-shaped models. Screens are unchanged and still use the demo GradingService.grade.
+- **What was done:**
+  - lib/config/app_config.dart: API_ENV dart-define (dev → http://127.0.0.1:8000, prod → PROD_URL placeholder https://api.gemeye.invalid)
+  - Android: INTERNET in the main manifest; debug-only network_security_config (cleartext only for 127.0.0.1 and localhost) referenced from src/debug/AndroidManifest.xml
+  - lib/services/api_client.dart: getJson/postJson/putJson/delete/postMultipart; connect timeout 10 s (HttpClient), receive 60 s; 401 → getIdToken(true) and one retry (not for account_deleted/reauth_required); GET retries once on timeout/5xx, POST/PUT/DELETE never; ApiException codes accountDeleted, reauthRequired, maintenance (server message), offline, timeout, serverError, tooLarge, plus unauthorized, notFound, badRequest, conflict; messages are user-friendly only
+  - GradingService.gradeStone(File, {patches, sessionId, referralThreshold (0.40-0.90), requestId}): JPEG prepared in an isolate (EXIF orientation applied, EXIF dropped, longer side ≤ 2048 px, quality 95), request_id (uuid v4 unless given), app_version, device
+  - lib/models/grading_response.dart: GradingStatus (ok, invalid_image, blurry, no_stone, not_blue, not_recognised, unknown), message, warnings, diagnostics, measuredHue
+  - GradeResult: existing fields kept (confidence and probabilities in percent); added gradingId, imageUrl, probabilities, secondGrade, referred, warnings, ciecam02, colourApproximate, colourHex, modelVersion, calibrationMode, uncertainty getter; fromApi(); older saved history still loads
+  - Tests: grading_response_test.dart (ok, no CIECAM02, round trip, legacy history, 5 rejections, unknown) and api_client_test.dart (bearer, 401 refresh + retry for GET and POST, double 401, account_deleted, reauth_required, maintenance, GET 5xx retry, POST no retry, timeout, offline, 413, signed out, public call)
+  - flutter analyze: no issues. flutter test: 31 passed; widget_test.dart still fails as before (pending splash timer, Firebase not initialised)
+- **Files changed:**
+  - `+` app/lib/config/app_config.dart
+  - `+` app/lib/services/api_client.dart
+  - `+` app/lib/models/grading_response.dart
+  - `~` app/lib/models/grade_result.dart
+  - `~` app/lib/services/grading_service.dart
+  - `~` app/android/app/src/main/AndroidManifest.xml
+  - `~` app/android/app/src/debug/AndroidManifest.xml
+  - `+` app/android/app/src/debug/res/xml/network_security_config.xml
+  - `+` app/test/grading_response_test.dart
+  - `+` app/test/api_client_test.dart
+- **Connected edits:** EDIT-097, EDIT-098
+- **Reason:** Phase 5a network layer, so the screens can switch to the real server in the next step.
+
+### EDIT-100 | 05 October 2026 04:40 | IST
+- **Topic:** Backend Phase 5b - blur threshold in /config, blur reference script
+- **Summary:** GET /config now also returns blur_min_variance (the server's blurry gate) so the app's Photo Check uses the same threshold. Added a dev-only script that prints the server blur variance of image files. 76/76 tests pass with ENV=test.
+- **What was done:**
+  - routers.get_config adds blur_min_variance = gates.BLUR_MIN_VARIANCE (not stored in MongoDB); AppConfig schema field
+  - scripts/blur_variance.py: decodes files exactly as /grade (decode_image) and prints inference.blur_variance; refuses ENV=production
+  - test_config_defaults expects the new field
+  - README: /config field, blur reference script section
+- **Files changed:**
+  - `~` backend/app/routers.py
+  - `~` backend/app/schemas.py
+  - `+` backend/scripts/blur_variance.py
+  - `~` backend/tests/test_phase4b.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-098, EDIT-101
+- **Reason:** The app's blur check must use the same definition and threshold as the server.
+
+### EDIT-101 | 05 October 2026 04:50 | IST
+- **Topic:** App Phase 5b - grading flow wired to the server
+- **Summary:** Processing, Grade Result, Not Accepted, Photo Check and Repeatability now use the real /grade responses; all demo grading values and the mock result are removed. Photo Check blur is bit-identical to the server (5/5 reference values match within 1e-9). Demo history is removed once with a notice. flutter analyze: no issues; 38 tests pass (widget_test.dart fails as before). Debug APK built; not installed because no device was attached.
+- **What was done:**
+  - Processing: GradingService.gradeStone per photo with session patches, session id, referral threshold (setting / 100) and one request id per photo kept across retries; steps follow real progress (upload bytes → server phase advancing to "Running AI ensemble" → done on response); "Photo n of 3" in Repeatability; ApiException mapping: offline → No connection (Retry/Cancel), timeout → Server is taking too long (Retry, same request id), maintenance → server message, account_deleted → Account deleted then logout with local data cleared, unauthorized/reauth_required → Session expired, too_large → Photo too large, other → Something went wrong
+  - ApiClient.postMultipart(onProgress): counts body bytes as the connection pulls them
+  - GradingService: demo grade(), RejectionReason and the old exceptions removed
+  - Result: gradeResult required, mock removed; borderline from server `referred` (falls back to the threshold for older results) naming second_grade; probability bars from probabilities; uncertainty ± from the server; info banner for unusual_image (new StatusBannerType.info); CIECAM02 tiles (J, M, h, s, C) in the colour-values style; approximate note; hex and swatch from colour.hex; model version in the footer; local photo with the presigned image URL as fallback; heatmap placeholder "Heatmap available after Phase 8" while features.gradcam is false
+  - Not Accepted: routed by status (no_stone, blurry, not_blue, not_recognised, invalid_image, unknown) with the server message, the gate measurement (sharpness/short side/stone area with minimum) and the measured hue swatch for not_blue; "Why was this rejected?" lists the 5 checks
+  - Photo Check: exact port of the server blur (cv2 RGB2GRAY 15-bit, INTER_AREA to 512 incl. the integer, non-integer and enlarging paths with OpenCV's float32/fixed-point rounding, central 50%, Laplacian with reflect-101, population variance), computed on the photo exactly as it will be uploaded; threshold from /config (default 29.474166117400628). Verified first with a numpy reimplementation against cv2 on 150 random sizes (0 differences)
+  - test/photo_check_test.dart with 5 PNG fixtures (test/fixtures/blur, 870 KB) and the server values from scripts/blur_variance.py
+  - RemoteConfigService: GET /config at startup (blur threshold, gradcam, session_mapping, maintenance)
+  - Repeatability Summary: max ΔE₀₀ between the 3 captures from the returned L*a*b* (ColourMath.deltaE2000) with verdict (≤1 Excellent, ≤2 Good, else Poor); referred from the server; swatches from colour.hex
+  - Demo history: on the first launch after the update, local results without a server grading id are removed with their photos (and the old local stone counter); an info notification and a one-time Home dialog explain it
+  - Removed the unused AppConstants.minBlurThreshold (100)
+- **Files changed:**
+  - `~` app/lib/screens/processing_screen.dart
+  - `~` app/lib/screens/result_screen.dart
+  - `~` app/lib/screens/not_accepted_screen.dart
+  - `~` app/lib/screens/repeatability_summary_screen.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/services/photo_check_service.dart
+  - `~` app/lib/services/grading_service.dart
+  - `~` app/lib/services/api_client.dart
+  - `~` app/lib/services/storage_service.dart
+  - `+` app/lib/services/remote_config_service.dart
+  - `~` app/lib/widgets/status_banner.dart
+  - `~` app/lib/config/constants.dart
+  - `~` app/lib/main.dart
+  - `+` app/test/photo_check_test.dart
+  - `+` app/test/fixtures/blur/area_1600x1200_sharp.png
+  - `+` app/test/fixtures/blur/fast2x_1024x768_blur.png
+  - `+` app/test/fixtures/blur/fast4x_2048x1536_sharp.png
+  - `+` app/test/fixtures/blur/portrait_700x1050_blur.png
+  - `+` app/test/fixtures/blur/upscale_400x300_sharp.png
+- **Connected edits:** EDIT-099, EDIT-100
+- **Notes:** Repeatability creates 3 server gradings (3 stone ids); only the chosen one is saved locally. History, Home and certificates still read local storage (next phase).
+- **Reason:** Phase 5b: the grading flow must use the real server results.
+
+### EDIT-102 | 05 October 2026 05:05 | IST
+- **Topic:** App Phase 5c - history, calibration, certificates, settings, remote config and feedback synced with the server
+- **Summary:** History, Home stats, Referred chips and Comparison now read the server (local cache for offline). Calibrations, certificates, profile settings, account deletion, remote config and feedback use the API. flutter analyze: no issues; 52 tests pass (widget_test.dart fails as before). Debug APK built; not installed because no Android device was attached.
+- **What was done:**
+  - History: HistoryService (GET /gradings paged with cursor, grade/referred/from/to as query params, certificate numbers from GET /certificates, cache in StorageService per account, offline fallback); History screen loads pages from the server (grade chips, Referred, date and confidence filters sent to the server, infinite scroll, pull to refresh, "Offline, saved results" in the count line); delete (single, batch, Clear history) calls DELETE /gradings/{id} and removes the cached photo; Home (cache first, then server), Profile, Comparison, Notifications and CSV export read the same data; referred = server flag (falls back to the threshold only for results without one: GradeResult.isReferred)
+  - Calibration: POST /calibrations after the wizard saves (session_id, device, ccm 3x3, residual, quality, measured_patches white, black, grey_18, grey_50, blue, red, valid_until); an unsent session is retried from Home; every /grade already sends patches + session_id; wizard text "Use the same Pro-mode exposure for the patches and the stones."
+  - Certificates: export POSTs /certificates (first time) or GETs /certificates/{no} (re-export, same number and QR); QR = verify_url with caption "Scan to verify"; PDF uploaded with POST /certificates/{no}/pdf (409 ignored); local certificate counter removed; numbers issued before this update keep the JSON QR with "Offline certificate - not verifiable online"; Settings "Certificate prefix" removed (the server always issues GE-YYYYMM-NNNNN)
+  - Settings: referral threshold and new toggle "Show my name/company on public certificate" (off by default) saved with PUT /me and restored if the server refuses; both read from GET /me; server status row from GET /health (Connected · N ms / Not connected, tap to re-check); Delete account: re-auth dialog, forced token refresh, DELETE /me (one more re-auth on reauth_required), local wipe, Login
+  - Remote config: maintenance banner on Home, min_app_version prompt (once per launch), repeatability_mode hides the Repeatability toggle, gradcam as before
+  - Feedback sheet: one category, POST /feedback (rating, category, comment, app_version); errors keep the sheet open
+  - Notifications: Grading failed (opens Capture to retry), referred, certificate saved and calibration expired as before
+  - Tests: test/phase5c_test.dart (query mapping, grading item to result, referred rule, calibration body, certificate POST/GET/offline/409, /me settings, DELETE /me reauth_required, remote config and version compare)
+- **Files changed:**
+  - `+` app/lib/services/history_service.dart
+  - `+` app/lib/services/me_service.dart
+  - `+` app/lib/services/certificate_api_service.dart
+  - `+` app/test/phase5c_test.dart
+  - `~` app/lib/models/grade_result.dart
+  - `~` app/lib/services/certificate_service.dart
+  - `~` app/lib/services/calibration_service.dart
+  - `~` app/lib/services/grade_record_service.dart
+  - `~` app/lib/services/settings_service.dart
+  - `~` app/lib/services/storage_service.dart
+  - `~` app/lib/services/remote_config_service.dart
+  - `~` app/lib/services/account_service.dart
+  - `~` app/lib/screens/history_screen.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `~` app/lib/screens/certificate_screen.dart
+  - `~` app/lib/screens/result_screen.dart
+  - `~` app/lib/screens/repeatability_summary_screen.dart
+  - `~` app/lib/screens/calibration_result_screen.dart
+  - `~` app/lib/screens/calibration_screen.dart
+  - `~` app/lib/screens/capture_screen.dart
+  - `~` app/lib/screens/processing_screen.dart
+  - `~` app/lib/screens/feedback_sheet.dart
+  - `~` app/lib/screens/comparison_screen.dart
+  - `~` app/lib/screens/notifications_screen.dart
+  - `~` app/lib/screens/profile_screen.dart
+  - `~` app/lib/widgets/recent_grade_tile.dart
+  - `~` app/pubspec.yaml
+- **Connected edits:** EDIT-099, EDIT-100, EDIT-101
+- **Notes:** Repeatability still creates 3 server gradings, so History now lists all 3 (only the chosen one had been kept locally before). Sorting other than newest applies to the loaded pages only. "Show my name/company" affects the public verify page only; the PDF still prints "Issued to". Added http_parser to pubspec (PDF content type).
+- **Reason:** Phase 5c: the server must be the source of truth for history, calibrations, certificates and settings.

@@ -1,14 +1,13 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../config/constants.dart';
 import '../config/theme.dart';
+import '../services/api_client.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 
-/// Send feedback bottom sheet (22c): rating, categories and a comment.
-/// Stored locally under 'feedback'.
-// TODO(backend): send feedback to the server (MongoDB feedback collection).
+/// Send feedback bottom sheet (22c): rating, one category and a comment,
+/// sent with POST /feedback.
 class FeedbackSheet extends StatefulWidget {
   const FeedbackSheet({super.key});
 
@@ -49,7 +48,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
   ];
 
   int _rating = 0;
-  final Set<String> _categories = {};
+  String? _category;
   final _commentController = TextEditingController();
   bool _sending = false;
 
@@ -67,18 +66,29 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
 
   Future<void> _send() async {
     setState(() => _sending = true);
+    final comment = _commentController.text.trim();
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final feedbackList = prefs.getStringList('feedback') ?? [];
-      feedbackList.add(jsonEncode({
+      await ApiClient.instance.postJson('/feedback', {
         'rating': _rating,
-        'categories': _categories.toList(),
-        'comment': _commentController.text.trim(),
-        'timestamp': DateTime.now().toIso8601String(),
-      }));
-      await prefs.setStringList('feedback', feedbackList);
+        'category': (_category ?? 'Other').toLowerCase(),
+        if (comment.isNotEmpty) 'comment': comment,
+        'app_version': AppConstants.appVersion,
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _sending = false);
+      AppSnackBar.show(context,
+          message: 'Feedback not sent. ${e.message}',
+          type: AppSnackBarType.error);
+      return;
     } catch (e) {
-      if (kDebugMode) debugPrint('Feedback save failed: $e');
+      if (kDebugMode) debugPrint('Feedback failed: $e');
+      if (!mounted) return;
+      setState(() => _sending = false);
+      AppSnackBar.show(context,
+          message: 'Feedback not sent. Please try again.',
+          type: AppSnackBarType.error);
+      return;
     }
     if (!mounted) return;
     // The app-level messenger shows it on the screen below the sheet.
@@ -183,7 +193,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
   }
 
   Widget _chip(String label) {
-    final on = _categories.contains(label);
+    final on = _category == label;
     return Material(
       color: on ? AppColors.primary : AppColors.card,
       shape: RoundedRectangleBorder(
@@ -193,8 +203,7 @@ class _FeedbackSheetState extends State<FeedbackSheet> {
       child: InkWell(
         customBorder:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        onTap: () => setState(
-            () => on ? _categories.remove(label) : _categories.add(label)),
+        onTap: () => setState(() => _category = on ? null : label),
         child: Container(
           height: 32,
           constraints: const BoxConstraints(minWidth: AppSpacing.touchTarget),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
+import '../services/remote_config_service.dart';
 import '../services/calibration_service.dart';
 import '../services/connectivity_service.dart';
 import '../widgets/app_buttons.dart';
@@ -57,7 +58,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
     setState(() => _busySource = source);
     try {
       await PhotoCheckScreen.captureFrom(context, source,
-          repeatability: _repeatability);
+          repeatability:
+              _repeatability && RemoteConfigService.repeatabilityEnabled);
     } finally {
       if (mounted) setState(() => _busySource = null);
     }
@@ -140,12 +142,13 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   _buildChecklist(allTicked),
                   const SizedBox(height: AppSpacing.lg),
-                  ToggleRow(
-                    title: 'Repeatability mode',
-                    subtitle: '3 captures of the same stone',
-                    value: _repeatability,
-                    onChanged: (v) => setState(() => _repeatability = v),
-                  ),
+                  if (RemoteConfigService.repeatabilityEnabled)
+                    ToggleRow(
+                      title: 'Repeatability mode',
+                      subtitle: '3 captures of the same stone',
+                      value: _repeatability,
+                      onChanged: (v) => setState(() => _repeatability = v),
+                    ),
                 ],
               ),
             ),

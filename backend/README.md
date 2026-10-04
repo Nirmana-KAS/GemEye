@@ -91,10 +91,11 @@ The user record is created on the first `/grade`, `/me` or `/calibrations` reque
 | Field | Required | Notes |
 |-------|----------|-------|
 | `image` | yes | JPEG or PNG, at most 15 MB |
-| `patches` | no | JSON 6x3, 0-255, order: white, black, grey_18, grey_50, blue, red |
+| `patches` | no | JSON 6x3, 0-255, order: white, black, grey_18, grey_50, blue, red. Always stored with the grading; used for the model path only when `features.session_mapping` is true |
 | `referral_threshold` | no | 0.40-0.90; default is the user's `settings.referral_threshold` (0.60) |
 | `session_id` | no | calibration session id, stored as `calibration_session_id` |
 | `app_version`, `device` | no | stored with the grading or rejection |
+| `request_id` | no | UUID chosen by the app per grading attempt. A repeated `request_id` from the same user returns the original grading (same `grading_id`, `stone_id`, fresh `image_url`) without grading or storing again; from another user, or for a deleted grading, 409 `{code: "duplicate_request"}`; not a UUID, 400. Unique sparse index `gradings.request_id`; a concurrent duplicate also returns the original |
 | `debug`, `gates` | no | development/test only (see Environments) |
 
 On `status: "ok"` the original upload is stored in S3 and a grading is saved; the
@@ -213,8 +214,17 @@ missing from the stored document fall back to the defaults:
 ```
 referral_threshold_default: 0.60, calibration_validity_hours: 8, min_app_version: "1.0.0",
 maintenance: {enabled: false, message: ""},
-features: {repeatability_mode: true, gradcam: false, public_verification: true}
+features: {repeatability_mode: true, gradcam: false, public_verification: true,
+           session_mapping: false}
 ```
+
+`GET /config` also returns `blur_min_variance` (the `blurry` gate threshold from
+`app/gates.py`, not stored in MongoDB) so the app's Photo Check uses the same value.
+
+`features.session_mapping`: when false (default), `/grade` ignores `patches` for the
+model path and uses the training session (`calibration_mode: "training_session"`);
+the patches are still stored with the grading. When true, sent patches give
+`calibration_mode: "session_patches"`.
 
 Edit the document in MongoDB to change it; each process picks it up within 60 s.
 
@@ -223,7 +233,7 @@ Edit the document in MongoDB to change it; each process picks it up within 60 s.
 | Collection | Fields | Indexes |
 |------------|--------|---------|
 | `users` | `_id` (Firebase uid), `email, display_name, account_type, role` ("user", server-set), `country, phone, company{name, reg_no, industry, address, logo_key}, settings{show_name_on_certificates: false, referral_threshold: 0.60}, created_at, updated_at` | `_id` |
-| `gradings` | `_id, uid, stone_id, created_at, status: "ok", result` (grade response without debug), `image_key, calibration_session_id, app_version, device, referral_threshold_used, deleted` (+ `deleted_at`) | `(uid, created_at desc)` |
+| `gradings` | `_id, uid, stone_id, created_at, status: "ok", result` (grade response without debug), `image_key, calibration_session_id, patches` (6x3 or null), `request_id` (only if sent), `app_version, device, referral_threshold_used, deleted` (+ `deleted_at`) | `(uid, created_at desc)`, unique sparse `request_id` |
 | `rejections` | `_id, uid, created_at, status, message, diagnostics, app_version, device` (no image, privacy decision option 1) | `created_at` |
 | `calibrations` | `_id, uid, session_id, created_at, valid_until, device, ccm, residual, quality, measured_patches` | `(uid, created_at desc)` |
 | `counters` | `_id` (counter name: `stone`, `cert-YYYYMM`), `seq`; atomic `find_one_and_update($inc, upsert)` | `_id` |
@@ -242,7 +252,8 @@ for PNG uploads). Only the original upload of a graded stone is stored.
 
 1. **Model path** (must equal training). If `patches` are sent, a 3x3 session map
    `A = lstsq(P_user/255, P_train/255)` (no offset) maps this session to the
-   training session (`calibration_mode: "session_patches"`); otherwise A is the
+   training session (`calibration_mode: "session_patches"`, only while
+   `features.session_mapping` is true); otherwise A is the
    identity (`"training_session"`). Then the training CCM is applied exactly as
    in training, `clip(rgb/255 @ CCM, 0, 1)*255 -> uint8`, followed by the same
    JPEG round trip (`cv2.imencode('.jpg')` at default quality, then decode).
@@ -279,6 +290,22 @@ values, so the model path reproduces the fallback. Real CIECAM02
 (`colour.XYZ_to_CIECAM02`, XYZ 0-100, L_A=64, Y_b=20, Average surround) is used
 only for the display values. If the export reports NaNs, the API returns
 `ciecam02: null`.
+
+## QA token for /docs
+
+`scripts/get_token.py` prints a Firebase ID token for a QA account (local
+development only; refuses `ENV=production`). The password is prompted without
+echo. Paste the token into Authorize on http://localhost:8000/docs; it lasts 1 hour.
+
+```
+docker compose exec api python scripts/get_token.py --email qa@example.com
+```
+
+## Blur reference values (development)
+
+`scripts/blur_variance.py <files>` prints the server blur variance of images,
+decoded exactly as `/grade` decodes uploads. It produced the reference values in
+`app/test/photo_check_test.dart` (fixtures in `app/test/fixtures/blur/`).
 
 ## Never commit
 

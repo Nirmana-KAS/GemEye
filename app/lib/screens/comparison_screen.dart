@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
-import '../services/storage_service.dart';
+import '../services/history_service.dart';
 import '../utils/colour_math.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/empty_state.dart';
@@ -34,7 +34,7 @@ class _ComparisonScreenState extends State<ComparisonScreen> {
   Future<void> _pickStone(bool isA) async {
     List<GradeResult> history;
     try {
-      history = await StorageService.getGradeHistory();
+      history = await HistoryService.load();
     } catch (e) {
       debugPrint('Comparison history load failed: $e');
       history = [];

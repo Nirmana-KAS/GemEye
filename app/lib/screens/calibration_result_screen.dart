@@ -31,9 +31,13 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
     setState(() => _saving = true);
     try {
       await CalibrationService.save(_s);
+      final sent = await CalibrationService.syncToServer(_s);
       if (!mounted) return;
       AppSnackBar.show(context,
-          message: 'Calibrated - residual ${_s.residual.toStringAsFixed(2)}',
+          message: sent
+              ? 'Calibrated - residual ${_s.residual.toStringAsFixed(2)}'
+              : 'Calibrated on this device. It will be sent to the server '
+                  'when you are online.',
           type: AppSnackBarType.success,
           actionLabel: 'OK',
           onAction: () {});

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
+import '../services/api_client.dart';
 import '../services/grade_record_service.dart';
+import '../utils/colour_math.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/card_container.dart';
@@ -38,9 +40,9 @@ class _RepeatabilitySummaryScreenState
   @override
   void initState() {
     super.initState();
-    // TODO(backend): take the final grade and its confidence from the
-    // server. Until then: majority grade, and the most confident capture
-    // with that grade is the record that is saved.
+    // Each capture is its own server grading. The final grade is the
+    // majority grade; the most confident capture with that grade is the
+    // record that is saved.
     final counts = <int, int>{};
     for (final r in widget.results) {
       counts[r.gradeNumber] = (counts[r.gradeNumber] ?? 0) + 1;
@@ -57,8 +59,30 @@ class _RepeatabilitySummaryScreenState
 
   bool get _consistent => _agree == widget.results.length;
 
+  /// Largest CIEDE2000 difference between any two captures (server L*a*b*).
+  late final double _maxDeltaE = () {
+    var max = 0.0;
+    final r = widget.results;
+    for (var i = 0; i < r.length; i++) {
+      for (var j = i + 1; j < r.length; j++) {
+        final d = ColourMath.deltaE2000(Lab(r[i].labL, r[i].labA, r[i].labB),
+            Lab(r[j].labL, r[j].labA, r[j].labB));
+        if (d > max) max = d;
+      }
+    }
+    return max;
+  }();
+
+  /// Repeatability verdict for [_maxDeltaE].
+  String get _deltaVerdict => _maxDeltaE <= 1.0
+      ? 'Excellent'
+      : _maxDeltaE <= 2.0
+          ? 'Good'
+          : 'Poor';
+
   bool get _referred =>
-      !_consistent || _final.confidence < ConfidenceBadge.referThreshold;
+      !_consistent ||
+      (_final.referred ?? _final.confidence < ConfidenceBadge.referThreshold);
 
   Future<void> _save() async {
     setState(() => _isSaving = true);
@@ -94,6 +118,11 @@ class _RepeatabilitySummaryScreenState
       if (mounted) {
         AppRoutes.push(
             context, CertificateScreen(result: _final, stoneImageBytes: bytes));
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        AppSnackBar.show(context,
+            message: e.message, type: AppSnackBarType.error);
       }
     } catch (e) {
       debugPrint('Certificate failed: $e');
@@ -174,9 +203,8 @@ class _RepeatabilitySummaryScreenState
                           color: AppColors.primary,
                           tint: AppColors.surface,
                           label: 'ΔE₀₀ between captures',
-                          // TODO(backend): max ΔE₀₀ between the 3 captures
-                          // with its verdict (e.g. "max 0.9 - Excellent").
-                          value: Text('-',
+                          value: Text(
+                              'max ${_maxDeltaE.toStringAsFixed(1)} - $_deltaVerdict',
                               style: AppText.monoValue.copyWith(fontSize: 13)),
                         ),
                       ],
@@ -256,7 +284,7 @@ class _RepeatabilitySummaryScreenState
   Widget _buildCapture(int i) {
     final r = widget.results[i];
     final odd = r.gradeNumber != _finalGrade;
-    final rgb = r.measuredRgb;
+    final hex = r.colourHex ?? r.measuredHex;
     return Container(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md, vertical: 10),
@@ -271,7 +299,7 @@ class _RepeatabilitySummaryScreenState
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Color.fromARGB(255, rgb[0], rgb[1], rgb[2]),
+              color: Color(int.parse(hex.replaceFirst('#', '0xFF'))),
               shape: BoxShape.circle,
             ),
           ),

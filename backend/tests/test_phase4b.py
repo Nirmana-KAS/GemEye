@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import pytest
 from firebase_admin import auth as firebase_auth
 
-from app import certificates, routers
+from app import certificates, gates, routers
 from app.certificates import COLOMBO, DISCLAIMER, limiter
 from app.db import DEFAULT_APP_CONFIG
 from tests.conftest import AuthedClient
@@ -318,7 +318,8 @@ def test_deleted_account_token_is_refused(raw_client, app_state):
 def test_config_defaults(raw_client, app_state):
     app_state.db.invalidate_app_config()
     r = raw_client.get("/config")
-    assert r.status_code == 200 and r.json() == DEFAULT_APP_CONFIG
+    assert r.status_code == 200
+    assert r.json() == {**DEFAULT_APP_CONFIG, "blur_min_variance": gates.BLUR_MIN_VARIANCE}
 
 
 def test_maintenance_blocks_grade(client, app_state):

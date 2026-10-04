@@ -3,7 +3,7 @@ import '../config/theme.dart';
 import '../config/routes.dart';
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
-import '../services/storage_service.dart';
+import '../services/history_service.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/gem_app_bar.dart';
@@ -80,7 +80,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _openResult(String? stoneId) async {
-    final history = await StorageService.getGradeHistory();
+    var history = await HistoryService.load(forceRefresh: false);
+    if (!history.any((r) => r.stoneId == stoneId)) {
+      history = await HistoryService.load();
+    }
     final matches = history.where((r) => r.stoneId == stoneId);
     if (!mounted) return;
     if (matches.isEmpty) {

@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/grade_result.dart';
 import 'calibration_service.dart';
+import 'history_service.dart';
 import 'notification_service.dart';
 import 'profile_service.dart';
 import 'settings_service.dart';
@@ -56,7 +57,7 @@ class AccountService {
         r.tradeName,
         r.confidence.toStringAsFixed(1),
         r.uncertaintyRange,
-        SettingsService.isReferred(r.confidence) ? 'Yes' : 'No',
+        r.isReferred ? 'Yes' : 'No',
         r.labL,
         r.labA,
         r.labB,
@@ -77,7 +78,7 @@ class AccountService {
   /// Writes the CSV to Downloads/GemEye (Android) or app documents (iOS)
   /// and returns the file. Throws when there is nothing to export.
   static Future<File> exportCsv() async {
-    final history = await StorageService.getGradeHistory();
+    final history = await HistoryService.load();
     if (history.isEmpty) throw StateError('empty');
     final Directory dir;
     if (Platform.isAndroid) {

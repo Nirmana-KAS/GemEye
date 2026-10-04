@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from firebase_admin import auth as firebase_auth
 
+from app import gates
 from app.auth import active_user, active_user_strict, current_user, current_user_strict, uid_hash
 from app.db import utcnow
 from app.errors import ApiError
@@ -267,4 +268,6 @@ def post_feedback(body: FeedbackIn, user=Depends(active_user), db=Depends(get_db
 
 @router.get("/config", response_model=AppConfig)
 def get_config(db=Depends(get_db)):
-    return db.get_app_config()
+    # blur_min_variance is the server's blurry gate, so the app's Photo Check uses
+    # the same threshold; it is not part of the stored document.
+    return {**db.get_app_config(), "blur_min_variance": gates.BLUR_MIN_VARIANCE}

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,9 +10,12 @@ import '../services/auth_service.dart';
 import '../services/calibration_service.dart';
 import '../services/connectivity_service.dart';
 import '../services/notification_service.dart';
+import '../services/history_service.dart';
+import '../services/me_service.dart';
+import '../services/remote_config_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_buttons.dart';
-import '../widgets/confidence_badge.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/quick_grade_card.dart';
@@ -46,10 +50,29 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   int _todayReferred = 0;
   bool _loaded = false;
 
+  /// The update prompt is shown once per launch.
+  static bool _updatePromptShown = false;
+
   @override
   void initState() {
     super.initState();
     refresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showDemoNotice());
+  }
+
+  /// One-time notice after the demo results were removed (see main.dart).
+  Future<void> _showDemoNotice() async {
+    if (!StorageService.demoNoticePending || !mounted) return;
+    StorageService.demoNoticePending = false;
+    await AppDialog.alert(
+      context,
+      title: 'Demo results removed',
+      message: 'GemEye now grades on the server. The demo results from the '
+          'earlier version have been removed from your history.',
+      actionLabel: 'Got it',
+      type: AppDialogType.info,
+      icon: Icons.cloud_done_rounded,
+    );
   }
 
   @override
@@ -69,31 +92,58 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   @override
   void didPopNext() => refresh();
 
-  /// Reloads stats, recent grades and the unread badge.
+  /// Shows the "update GemEye" prompt when the server asks for a newer app.
+  Future<void> _checkUpdate() async {
+    if (_updatePromptShown || !mounted || !RemoteConfigService.updateRequired) {
+      return;
+    }
+    _updatePromptShown = true;
+    await AppDialog.alert(
+      context,
+      title: 'Update GemEye',
+      message: 'A newer version of GemEye is required '
+          '(${RemoteConfigService.minAppVersion} or later). Please update '
+          'the app to keep grading.',
+      actionLabel: 'OK',
+      type: AppDialogType.warning,
+      icon: Icons.system_update_rounded,
+    );
+  }
+
+  /// Reloads stats, recent grades and the unread badge from the server
+  /// (saved results when it cannot be reached).
   Future<void> refresh() async {
     try {
-      final history = await StorageService.getGradeHistory();
+      // Saved results first, so Home never waits for the network.
+      if (!_loaded) {
+        _apply(await HistoryService.cachedSummary(recentCount: _recentCount));
+      }
+      unawaited(RemoteConfigService.refresh().then((_) => _checkUpdate()));
+      unawaited(MeService.sync());
+      unawaited(CalibrationService.syncPending());
+      final summary = await HistoryService.homeSummary(recentCount: _recentCount);
       await CalibrationService.remindIfExpired();
       await NotificationService.list();
-      final now = DateTime.now();
-      final today = history.where((r) => isSameDay(r.capturedAt, now)).toList();
-      if (!mounted) return;
-      setState(() {
-        _recent = history.take(_recentCount).toList();
-        _todayCount = today.length;
-        _todayAvgConfidence = today.isEmpty
-            ? null
-            : today.map((r) => r.confidence).reduce((a, b) => a + b) /
-                today.length;
-        _todayReferred = today
-            .where((r) => r.confidence < ConfidenceBadge.referThreshold)
-            .length;
-        _loaded = true;
-      });
+      _apply(summary);
     } catch (e) {
       if (kDebugMode) debugPrint('Home refresh failed: $e');
       if (mounted) setState(() => _loaded = true);
     }
+  }
+
+  void _apply(({List<GradeResult> recent, List<GradeResult> today}) summary) {
+    if (!mounted) return;
+    final today = summary.today;
+    setState(() {
+      _recent = summary.recent;
+      _todayCount = today.length;
+      _todayAvgConfidence = today.isEmpty
+          ? null
+          : today.map((r) => r.confidence).reduce((a, b) => a + b) /
+              today.length;
+      _todayReferred = today.where((r) => r.isReferred).length;
+      _loaded = true;
+    });
   }
 
   String _greeting() {
@@ -119,6 +169,26 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
         ? '${parts.first[0]}${parts.last[0]}'
         : parts.first.substring(0, parts.first.length >= 2 ? 2 : 1);
     return letters.toUpperCase();
+  }
+
+  Widget _buildMaintenanceBanner() {
+    return ValueListenableBuilder<int>(
+      valueListenable: RemoteConfigService.changes,
+      builder: (context, _, __) {
+        if (!RemoteConfigService.maintenance) return const SizedBox.shrink();
+        final message = RemoteConfigService.maintenanceMessage.trim();
+        return Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.xl),
+          child: StatusBanner(
+            type: StatusBannerType.warning,
+            icon: Icons.build_rounded,
+            message: message.isEmpty
+                ? 'GemEye is under maintenance. Grading may be unavailable.'
+                : message,
+          ),
+        );
+      },
+    );
   }
 
   void _openCapture() => CalibrationScreen.openGrading(context);
@@ -180,6 +250,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                       _buildHeader(context),
                       const OfflineBanner(
                           padding: EdgeInsets.only(top: AppSpacing.xl)),
+                      _buildMaintenanceBanner(),
                       const SizedBox(height: AppSpacing.xl),
                       _buildCalibrationBanner(),
                       const SizedBox(height: AppSpacing.xl),

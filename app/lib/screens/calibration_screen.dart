@@ -138,9 +138,19 @@ class CalibrationScreen extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.lg),
           Expanded(
-            child: Text(
-              'Your phone changes colours. GemEye measures 6 known colour patches and corrects every photo in this session.',
-              style: AppText.body14.copyWith(height: 1.5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Your phone changes colours. GemEye measures 6 known colour patches and corrects every photo in this session.',
+                  style: AppText.body14.copyWith(height: 1.5),
+                ),
+                const SizedBox(height: AppSpacing.md),
+                Text(
+                  'Use the same Pro-mode exposure for the patches and the stones.',
+                  style: AppText.body14Medium.copyWith(height: 1.5),
+                ),
+              ],
             ),
           ),
         ],

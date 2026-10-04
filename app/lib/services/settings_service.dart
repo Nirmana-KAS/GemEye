@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../config/constants.dart';
 
 /// Default certificate export format.
 enum ExportFormat {
@@ -27,7 +26,7 @@ class SettingsService {
 
   static const String _thresholdKey = 'referral_threshold';
   static const String _exportFormatKey = 'export_format_v2';
-  static const String _prefixKey = 'certificate_prefix';
+  static const String _showNameKey = 'show_name_on_certificates';
   static const String _autoSaveKey = 'auto_save_images';
   static const String _notifyCalibrationKey = 'notify_calibration';
   static const String _notifyReferralKey = 'notify_referral';
@@ -38,8 +37,11 @@ class SettingsService {
       ValueNotifier(defaultReferralThreshold);
   static final ValueNotifier<ExportFormat> exportFormat =
       ValueNotifier(ExportFormat.pdf);
-  static final ValueNotifier<String> certificatePrefix =
-      ValueNotifier(AppConstants.defaultCertificatePrefix);
+
+  /// Show my name/company on the public certificate page (server setting,
+  /// off by default).
+  static final ValueNotifier<bool> showNameOnCertificates =
+      ValueNotifier(false);
   static final ValueNotifier<bool> autoSavePhotos = ValueNotifier(false);
   static final ValueNotifier<bool> notifyCalibration = ValueNotifier(true);
   static final ValueNotifier<bool> notifyReferral = ValueNotifier(true);
@@ -55,8 +57,7 @@ class SettingsService {
         (f) => f.name == prefs.getString(_exportFormatKey),
         orElse: () => ExportFormat.pdf,
       );
-      certificatePrefix.value = prefs.getString(_prefixKey) ??
-          AppConstants.defaultCertificatePrefix;
+      showNameOnCertificates.value = prefs.getBool(_showNameKey) ?? false;
       autoSavePhotos.value = prefs.getBool(_autoSaveKey) ?? false;
       notifyCalibration.value = prefs.getBool(_notifyCalibrationKey) ?? true;
       notifyReferral.value = prefs.getBool(_notifyReferralKey) ?? true;
@@ -86,9 +87,9 @@ class SettingsService {
     await _write((p) => p.setString(_exportFormatKey, f.name));
   }
 
-  static Future<void> setCertificatePrefix(String prefix) async {
-    certificatePrefix.value = prefix;
-    await _write((p) => p.setString(_prefixKey, prefix));
+  static Future<void> setShowNameOnCertificates(bool v) async {
+    showNameOnCertificates.value = v;
+    await _write((p) => p.setBool(_showNameKey, v));
   }
 
   static Future<void> setAutoSavePhotos(bool v) async {

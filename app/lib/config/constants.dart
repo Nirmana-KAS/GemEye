@@ -27,7 +27,6 @@ class AppConstants {
   static const double maxAcceptableDeltaE = 2.0;
 
   // Capture
-  static const double minBlurThreshold = 100.0;
   static const int minLuxGood = 300;
   static const int minLuxLow = 100;
 

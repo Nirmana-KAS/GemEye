@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
-import '../services/settings_service.dart';
-import '../services/storage_service.dart';
+import '../services/history_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/dropdown_field.dart';
@@ -66,7 +65,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _load() async {
     try {
       final profile = await ProfileService.load();
-      final history = await StorageService.getGradeHistory();
+      final history = await HistoryService.load();
       if (!mounted) return;
       setState(() {
         _saved = profile;
@@ -80,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _logo = profile.logoPath == null ? null : File(profile.logoPath!);
         _total = history.length;
         _referred =
-            history.where((r) => SettingsService.isReferred(r.confidence)).length;
+            history.where((r) => r.isReferred).length;
         _certificates =
             history.where((r) => r.certificateNumber != null).length;
         _loaded = true;

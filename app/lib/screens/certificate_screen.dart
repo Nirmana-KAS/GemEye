@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
+import '../services/certificate_api_service.dart';
 import '../services/certificate_service.dart';
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
@@ -55,6 +57,10 @@ class _CertificateScreenState extends State<CertificateScreen> {
       Uint8List? png;
       await for (final page in Printing.raster(bytes, pages: [0], dpi: 200)) {
         png = await page.toPng();
+      }
+      final certNo = widget.result.certificateNumber;
+      if (certNo != null && widget.result.certificateVerifyUrl != null) {
+        unawaited(CertificateApiService.uploadPdf(certNo, bytes));
       }
       if (mounted) {
         setState(() {

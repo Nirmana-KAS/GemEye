@@ -99,7 +99,8 @@ def test_grade_with_patches(client):
     r = post_grade(client, patches=json.dumps(patches), referral_threshold="0.5")
     assert r.status_code == 200, r.text
     require_ok(r)
-    assert r.json()["calibration_mode"] == "session_patches"
+    # features.session_mapping is off by default: patches are stored, not used.
+    assert r.json()["calibration_mode"] == "training_session"
 
 
 def test_bad_inputs(client):

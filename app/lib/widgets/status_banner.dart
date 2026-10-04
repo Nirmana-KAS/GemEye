@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../services/connectivity_service.dart';
 
-enum StatusBannerType { success, warning, error }
+enum StatusBannerType { success, warning, error, info }
 
 /// White bordered row with a coloured status dot (or [icon]), message and
 /// either a chevron ([onTap]) or a text action ([actionLabel]).
@@ -35,6 +35,8 @@ class StatusBanner extends StatelessWidget {
         (AppColors.warning, AppColors.warningTint, AppColors.warningText),
       StatusBannerType.error =>
         (AppColors.error, AppColors.errorTint, AppColors.errorText),
+      StatusBannerType.info =>
+        (AppColors.primary, AppColors.surface, AppColors.primary),
     };
     final hasAction = actionLabel != null && onAction != null;
 

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image/image.dart' as img;
 import '../models/app_notification.dart';
+import 'api_client.dart';
 import 'notification_service.dart';
 import 'settings_service.dart';
 
@@ -163,6 +164,7 @@ class CalibrationService {
   static const String _currentKey = 'calibration_current';
   static const String _historyKey = 'calibration_history';
   static const String _remindedKey = 'calibration_reminded_id';
+  static const String _unsyncedKey = 'calibration_unsynced_id';
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -202,6 +204,7 @@ class CalibrationService {
       await _storage.delete(key: _currentKey);
       await _storage.delete(key: _historyKey);
       await _storage.delete(key: _remindedKey);
+      await _storage.delete(key: _unsyncedKey);
     } catch (e) {
       if (kDebugMode) debugPrint('CalibrationService.clearAll failed: $e');
     }
@@ -238,6 +241,59 @@ class CalibrationService {
       value: jsonEncode(trimmed.map((h) => h.toJson()).toList()),
     );
     session.value = s;
+  }
+
+  /// Body of POST /calibrations. [ccm] is sent as 3x3 rows and
+  /// measured_patches in capture order (white, black, grey_18, grey_50,
+  /// blue, red).
+  static Map<String, dynamic> serverBody(CalibrationSession s) => {
+        'session_id': s.id,
+        'valid_until': s.validUntil.toUtc().toIso8601String(),
+        'device': s.deviceModel,
+        'ccm': [
+          for (var i = 0; i < 3; i++) s.ccm.sublist(i * 3, i * 3 + 3),
+        ],
+        'residual': s.residual,
+        'quality': s.quality.name,
+        'measured_patches': s.measured,
+      };
+
+  /// POST /calibrations for a saved session. When the server cannot be
+  /// reached the session is remembered and sent later by [syncPending]
+  /// (every /grade also carries its patches, so grading is not blocked).
+  static Future<bool> syncToServer(CalibrationSession s,
+      {ApiClient? client}) async {
+    try {
+      await (client ?? ApiClient.instance)
+          .postJson('/calibrations', serverBody(s));
+      if (await _storage.read(key: _unsyncedKey) == s.id) {
+        await _storage.delete(key: _unsyncedKey);
+      }
+      return true;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Calibration not sent: $e');
+      try {
+        await _storage.write(key: _unsyncedKey, value: s.id);
+      } catch (_) {}
+      return false;
+    }
+  }
+
+  /// Sends the session that could not be sent earlier, if any.
+  static Future<void> syncPending() async {
+    try {
+      final id = await _storage.read(key: _unsyncedKey);
+      if (id == null) return;
+      for (final s in await history()) {
+        if (s.id == id) {
+          await syncToServer(s);
+          return;
+        }
+      }
+      await _storage.delete(key: _unsyncedKey);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Calibration sync failed: $e');
+    }
   }
 
   /// Builds an unsaved session from 6 measured patches.

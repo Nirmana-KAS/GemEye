@@ -12,6 +12,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pymongo.errors import DuplicateKeyError
 from slowapi.errors import RateLimitExceeded
 
 from app.assets import load_assets, warm_up
@@ -174,6 +175,28 @@ def _short(v, n):
     return v[:n] or None
 
 
+def _parse_request_id(raw):
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        return str(uuid.UUID(raw.strip()))
+    except ValueError:
+        raise HTTPException(400, "request_id must be a UUID.")
+
+
+def _replay(doc, uid, storage):
+    """Response for a repeated request_id: the original grading, never a new one."""
+    if doc["uid"] != uid or doc.get("deleted"):
+        raise ApiError(409, "duplicate_request", "This request was already used.")
+    url = None
+    if doc.get("image_key"):
+        try:
+            url = storage.presigned_get(doc["image_key"])
+        except Exception:
+            logger.exception("Presign failed")
+    return {**doc["result"], "grading_id": doc["_id"], "stone_id": doc["stone_id"], "image_url": url}
+
+
 @app.post("/grade", response_model=GradeResponse, response_model_exclude_unset=True)
 def grade_stone(
     request: Request,
@@ -185,6 +208,7 @@ def grade_stone(
     session_id: Optional[str] = Form(None),
     app_version: Optional[str] = Form(None),
     device: Optional[str] = Form(None),
+    request_id: Optional[str] = Form(None),
     user: dict = Depends(active_user),
     db: Database = Depends(get_db),
     storage: Storage = Depends(get_storage),
@@ -193,9 +217,19 @@ def grade_stone(
     assets = request.app.state.assets
     if assets is None:
         raise HTTPException(500, "Internal server error.")
-    maintenance = db.get_app_config().get("maintenance") or {}
+    config = db.get_app_config()
+    maintenance = config.get("maintenance") or {}
     if maintenance.get("enabled"):
         raise ApiError(503, "maintenance", maintenance.get("message") or MAINTENANCE)
+    # A retried request (same request_id) gets the original grading back.
+    rid = _parse_request_id(request_id)
+    if rid is not None:
+        prev = db.gradings.find_one({"request_id": rid})
+        if prev is not None:
+            return _replay(prev, user["uid"], storage)
+    # Session patches drive the model path only when features.session_mapping is on;
+    # otherwise the training session is used and the patches are only stored.
+    session_mapping = bool((config.get("features") or {}).get("session_mapping"))
 
     limit = settings.max_upload_mb * 1024 * 1024
     data = image.file.read(limit + 1)
@@ -227,7 +261,8 @@ def grade_stone(
         with _lock:
             # Debug fields and gates=false are honoured only outside production.
             dev = not settings.is_production
-            result = grade(assets, raw_rgb, p, threshold, debug=debug and dev,
+            result = grade(assets, raw_rgb, p if session_mapping else None, threshold,
+                           debug=debug and dev,
                            enforce_gates=gates or not dev)
         del raw_rgb
 
@@ -251,11 +286,14 @@ def grade_stone(
 
     def save_record():
         stone_id = f"GE-STONE-{db.next_seq('stone'):05d}"
-        db.gradings.insert_one({
+        doc = {
             "_id": grading_id, "uid": user["uid"], "stone_id": stone_id, "created_at": utcnow(),
             "status": "ok", "result": stored, "image_key": key,
-            "calibration_session_id": _short(session_id, 100), **meta,
-            "referral_threshold_used": threshold, "deleted": False})
+            "calibration_session_id": _short(session_id, 100), "patches": p, **meta,
+            "referral_threshold_used": threshold, "deleted": False}
+        if rid is not None:
+            doc["request_id"] = rid     # field absent otherwise (sparse unique index)
+        db.gradings.insert_one(doc)
         return stone_id
 
     upload = _io.submit(storage.put, key, data, "image/png" if is_png else "image/jpeg")
@@ -279,6 +317,11 @@ def grade_stone(
                 undo()
             except Exception:
                 logger.exception("%s cleanup failed", name)
+        if rid is not None and record in failed and isinstance(record.exception(), DuplicateKeyError):
+            # The same request_id was saved concurrently: return that grading instead.
+            prev = db.gradings.find_one({"request_id": rid})
+            if prev is not None:
+                return _replay(prev, user["uid"], storage)
         raise HTTPException(500, "Could not save the grading. Please try again.")
     stone_id = record.result()
 

@@ -21,7 +21,7 @@ class RecentGradeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final referred = result.confidence < ConfidenceBadge.referThreshold;
+    final referred = result.isReferred;
 
     return Material(
       color: AppColors.card,
