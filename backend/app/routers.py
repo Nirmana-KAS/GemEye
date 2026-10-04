@@ -2,7 +2,6 @@
 GET /config require a Firebase ID token. Other users' records always give 404
 (never 403), so ids cannot be enumerated."""
 import base64
-import hashlib
 import json
 import logging
 import time
@@ -13,7 +12,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from firebase_admin import auth as firebase_auth
 
-from app.auth import current_user, current_user_strict
+from app.auth import active_user, active_user_strict, current_user, current_user_strict, uid_hash
 from app.db import utcnow
 from app.errors import ApiError
 from app.schemas import (AppConfig, CalibrationIn, CalibrationItem, CalibrationList, FeedbackIn,
@@ -60,12 +59,12 @@ def user_response(doc, user):
 
 
 @router.get("/me", response_model=UserResponse)
-def get_me(user=Depends(current_user), db=Depends(get_db)):
+def get_me(user=Depends(active_user), db=Depends(get_db)):
     return user_response(db.ensure_user(user["uid"], user["email"]), user)
 
 
 @router.put("/me", response_model=UserResponse)
-def put_me(body: ProfileUpdate, user=Depends(current_user_strict), db=Depends(get_db)):
+def put_me(body: ProfileUpdate, user=Depends(active_user_strict), db=Depends(get_db)):
     db.ensure_user(user["uid"], user["email"])
     data = body.model_dump(exclude_unset=True)
     update = {k: v for k, v in data.items() if k not in ("company", "settings")}
@@ -91,6 +90,18 @@ def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Dep
     if not isinstance(auth_time, (int, float)) or time.time() - auth_time > REAUTH_MAX_AGE_S:
         raise ApiError(401, "reauth_required", "Please sign in again to delete your account.")
     uid = user["uid"]
+    # Tombstone first, so the uid's still-valid ID tokens can no longer write or
+    # re-create the user while (and after) the data is deleted. DELETE /me itself
+    # does not check it, so a failed deletion can be retried.
+    db.deleted_accounts.update_one({"_id": uid_hash(uid)},
+                                   {"$set": {"deleted_at": utcnow()}}, upsert=True)
+    try:
+        firebase_auth.revoke_refresh_tokens(uid)
+    except firebase_auth.UserNotFoundError:
+        pass
+    except Exception:
+        logger.exception("Firebase token revoke failed")
+        raise HTTPException(503, UNAVAILABLE)
     try:
         storage.delete_prefix(f"gradings/{uid}/")
         for c in db.certificates.find({"uid": uid}, {"pdf_key": 1, "image_key": 1}):
@@ -115,7 +126,7 @@ def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Dep
         logger.exception("Firebase user delete failed")
         raise HTTPException(503, UNAVAILABLE)
     db.audit_log.insert_one({"_id": uuid.uuid4().hex, "action": "account_deleted",
-                             "uid_hash": hashlib.sha256(uid.encode()).hexdigest(), "at": now})
+                             "uid_hash": uid_hash(uid), "at": now})
     return Response(status_code=204)
 
 
@@ -225,7 +236,7 @@ def calibration_item(doc):
 
 
 @router.post("/calibrations", response_model=CalibrationItem, status_code=201)
-def post_calibration(body: CalibrationIn, user=Depends(current_user), db=Depends(get_db)):
+def post_calibration(body: CalibrationIn, user=Depends(active_user), db=Depends(get_db)):
     db.ensure_user(user["uid"], user["email"])
     doc = {"_id": uuid.uuid4().hex, "uid": user["uid"], "created_at": utcnow(),
            **body.model_dump()}
@@ -243,7 +254,7 @@ def list_calibrations(user=Depends(current_user), db=Depends(get_db)):
 # ---- Feedback ----
 
 @router.post("/feedback", response_model=FeedbackOut, status_code=201)
-def post_feedback(body: FeedbackIn, user=Depends(current_user), db=Depends(get_db)):
+def post_feedback(body: FeedbackIn, user=Depends(active_user), db=Depends(get_db)):
     doc = {"_id": uuid.uuid4().hex, "uid": user["uid"], "created_at": utcnow(),
            **body.model_dump()}
     if doc["comment"] is not None:

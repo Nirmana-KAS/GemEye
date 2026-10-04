@@ -1874,3 +1874,37 @@
   - `~` backend/README.md
 - **Connected edits:** EDIT-092, EDIT-093
 - **Reason:** Phase 4b: certificates with public verification, account deletion, remote config and feedback, and lower /grade latency, before the Flutter integration.
+
+### EDIT-095 | 04 October 2026 23:50 | IST
+- **Topic:** Backend Phase 4c - close the deleted-account token gap
+- **Summary:** DELETE /me now revokes refresh tokens and writes a 2-hour TTL tombstone (sha256(uid)). Writes and user-creating requests refuse a deleted uid's still-valid ID token with 401 account_deleted and never re-create its users document. The full suite was not verified: the first run had 63 passed and 9 failed, because the Docker VM clock is ~1 s behind Google (InvalidIdTokenError "Token used too early"), and a rerun was not possible.
+- **What was done:**
+  - db: new deleted_accounts collection {_id: sha256(uid), deleted_at}, TTL index expireAfterSeconds=7200
+  - auth: active_user / active_user_strict check the tombstone before anything else (401 {code: "account_deleted"}); uid_hash helper
+  - DELETE /me: upserts the tombstone, then firebase_auth.revoke_refresh_tokens(uid), then deletes the data and the Firebase user; DELETE /me itself does not check the tombstone, so a failed deletion can be retried
+  - Tombstone checked on /grade, GET and PUT /me (GET /me creates the user record), POST /calibrations, POST /feedback, POST /certificates, PDF upload and revoke; other reads unchanged
+  - Test test_deleted_account_token_is_refused: after DELETE /me the same token gets 401 account_deleted on /grade, PUT /me, POST /feedback, POST /calibrations and GET /me; no users document, gradings, rejections, calibrations or feedback are created; tombstone and audit entry cleaned up
+  - README: Auth "known gap" note replaced by the fix; account deletion section and data model updated
+- **Files changed:**
+  - `~` backend/app/auth.py
+  - `~` backend/app/db.py
+  - `~` backend/app/main.py
+  - `~` backend/app/routers.py
+  - `~` backend/app/certificates.py
+  - `~` backend/tests/test_phase4b.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-094
+- **Reason:** A deleted user's ID token stayed valid for up to 1 hour and could still write data or re-create the users document.
+
+### EDIT-096 | 05 October 2026 00:10 | IST
+- **Topic:** Backend - tolerate 5 s clock skew in Firebase token verification
+- **Summary:** The EDIT-095 suite run had 9 failures. Each was a fresh test user's first request, rejected with InvalidIdTokenError "Token used too early" because the Docker VM clock is about 1 s behind Google. Token verification now passes clock_skew_seconds=5.
+- **What was done:**
+  - auth._verify: verify_id_token(..., clock_skew_seconds=CLOCK_SKEW_S) with CLOCK_SKEW_S = 5
+  - README: Auth section notes the 5 s skew tolerance
+  - Full suite (ENV=test), run by the developer: 72 passed, including test_deleted_account_token_is_refused (EDIT-095 now verified)
+- **Files changed:**
+  - `~` backend/app/auth.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-094, EDIT-095
+- **Reason:** A token used right after sign-in was rejected whenever the server clock lagged Google's, which broke the test suite and could hit real users on a drifting server.

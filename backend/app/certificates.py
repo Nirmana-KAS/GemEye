@@ -14,7 +14,7 @@ from pymongo.errors import DuplicateKeyError
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.auth import current_user, current_user_strict
+from app.auth import active_user_strict, current_user
 from app.db import utcnow
 from app.routers import NOT_FOUND, UNAVAILABLE, get_db, get_storage
 from app.schemas import (CertificateIn, CertificateIssued, CertificateItem, CertificateList,
@@ -89,7 +89,7 @@ def _issued(doc):
 
 
 @router.post("/certificates", response_model=CertificateIssued, status_code=201)
-def issue_certificate(body: CertificateIn, response: Response, user=Depends(current_user_strict),
+def issue_certificate(body: CertificateIn, response: Response, user=Depends(active_user_strict),
                       db=Depends(get_db), storage=Depends(get_storage)):
     """Idempotent: a grading that already has a valid certificate gets it back (200)."""
     uid = user["uid"]
@@ -154,7 +154,7 @@ def get_certificate(cert_no: str, user=Depends(current_user), db=Depends(get_db)
 
 
 @router.post("/certificates/{cert_no}/pdf", response_model=CertificateItem, status_code=201)
-def upload_pdf(cert_no: str, file: UploadFile = File(...), user=Depends(current_user_strict),
+def upload_pdf(cert_no: str, file: UploadFile = File(...), user=Depends(active_user_strict),
                db=Depends(get_db), storage=Depends(get_storage)):
     """Once only per certificate (409 afterwards). Stored at certificates/{cert_no}.pdf."""
     uid = user["uid"]
@@ -187,7 +187,7 @@ def upload_pdf(cert_no: str, file: UploadFile = File(...), user=Depends(current_
 
 
 @router.post("/certificates/{cert_no}/revoke", response_model=CertificateItem)
-def revoke_certificate(cert_no: str, body: RevokeIn, user=Depends(current_user_strict),
+def revoke_certificate(cert_no: str, body: RevokeIn, user=Depends(active_user_strict),
                        db=Depends(get_db)):
     """Owner only for now (admin revoke comes in Phase 10)."""
     doc = _own_certificate(db, user["uid"], cert_no)

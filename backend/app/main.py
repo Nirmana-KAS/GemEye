@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.assets import load_assets, warm_up
-from app.auth import current_user, init_firebase
+from app.auth import active_user, init_firebase
 from app.certificates import limiter, public_headers
 from app.certificates import router as certificates_router
 from app.config import get_settings
@@ -185,7 +185,7 @@ def grade_stone(
     session_id: Optional[str] = Form(None),
     app_version: Optional[str] = Form(None),
     device: Optional[str] = Form(None),
-    user: dict = Depends(current_user),
+    user: dict = Depends(active_user),
     db: Database = Depends(get_db),
     storage: Storage = Depends(get_storage),
 ):

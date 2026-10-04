@@ -64,12 +64,20 @@ needs `Authorization: Bearer <Firebase ID token>`. Any failure is HTTP 401
 
 - `/grade` and all read endpoints: `verify_id_token(check_revoked=False)`, a local
   signature check against Google's cached public certs (no network call per request).
+- Token times (`iat`, `exp`) allow 5 s of clock skew, so a token used right after
+  sign-in is not rejected as "used too early" when the server clock lags slightly.
 - `PUT /me`, `DELETE /me`, `POST /certificates`, `POST /certificates/{no}/revoke`
   and `POST /certificates/{no}/pdf`: `check_revoked=True` (one call to Firebase).
 - `DELETE /me` also needs a recent sign-in: the token's `auth_time` must be within
   the last 5 minutes, else 401 `{status: "error", code: "reauth_required", ...}`.
-- Without the revocation check, a revoked or deleted user's token is still accepted
-  by the other endpoints until it expires (at most 1 hour).
+- Deleted accounts: `DELETE /me` revokes the user's refresh tokens and writes
+  `deleted_accounts {_id: sha256(uid), deleted_at}` (TTL index, expires after 2 hours,
+  well beyond the 1-hour ID token life). Every write or user-creating request
+  (`/grade`, `GET`/`PUT /me`, `POST /calibrations`, `POST /feedback`, `POST /certificates`,
+  PDF upload, revoke) checks it first, so a deleted user's still-valid token gets 401
+  `{status: "error", code: "account_deleted", ...}` and can never re-create the user.
+  Other reads still accept such a token until it expires (at most 1 hour); the
+  user's data is already gone.
 
 The user record is created on the first `/grade`, `/me` or `/calibrations` request.
 
@@ -193,7 +201,9 @@ Firebase user (admin SDK). Certificates become `status: "withdrawn"`,
 and token are removed. Only `cert_no, issued_at, status`, the reason,
 `withdrawn_at` and the token's SHA-256 remain, so old verify links show
 "withdrawn" instead of a 404. An `audit_log` entry
-`{action: "account_deleted", uid_hash: sha256(uid), at}` is written. Returns 204.
+`{action: "account_deleted", uid_hash: sha256(uid), at}` is written. Before any data
+is deleted, a `deleted_accounts` tombstone is written and the user's refresh tokens
+are revoked (see Auth). Returns 204.
 
 ## Remote config
 
@@ -221,6 +231,7 @@ Edit the document in MongoDB to change it; each process picks it up within 60 s.
 | `feedback` | `_id, uid, created_at, rating, category, comment, app_version` | `(uid, created_at desc)` |
 | `app_config` | `_id: "global"`, remote config (above) | `_id` |
 | `audit_log` | `_id, action, uid_hash, at` | - |
+| `deleted_accounts` | `_id` (sha256(uid)), `deleted_at` | TTL on `deleted_at`, 2 hours |
 
 S3 (private bucket, SSE-S3): `<prefix>gradings/{uid}/{grading_id}.jpg` (`.png`
 for PNG uploads). Only the original upload of a graded stone is stored.

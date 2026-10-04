@@ -285,6 +285,34 @@ def test_delete_me_removes_everything(raw_client, app_state):
         assert u.uid not in str(log)
 
 
+@needs_stone
+def test_deleted_account_token_is_refused(raw_client, app_state):
+    db = app_state.db
+    with FirebaseTestUser() as u:
+        c = AuthedClient(raw_client, u)
+        assert c.get("/me").status_code == 200
+        assert c.delete("/me").status_code == 204
+        uid_hash = hashlib.sha256(u.uid.encode()).hexdigest()
+        tomb = db.deleted_accounts.find_one({"_id": uid_hash})
+        assert tomb["deleted_at"] and set(tomb) == {"_id", "deleted_at"}
+        ttl = [i for i in db.deleted_accounts.list_indexes() if "expireAfterSeconds" in i]
+        assert ttl and ttl[0]["expireAfterSeconds"] == 7200
+
+        # The same, still unexpired ID token.
+        responses = [grade(c, session_id="cal-cert"),
+                     c.put("/me", json={"display_name": "Ghost"}),
+                     c.post("/feedback", json={"rating": 5, "category": "app"}),
+                     c.post("/calibrations", json=calibration("cal-ghost")),
+                     c.get("/me")]
+        for r in responses:
+            assert r.status_code == 401 and r.json()["code"] == "account_deleted", r.text
+        assert db.users.find_one({"_id": u.uid}) is None
+        for coll in ("gradings", "rejections", "calibrations", "feedback"):
+            assert getattr(db, coll).count_documents({"uid": u.uid}) == 0, coll
+        db.deleted_accounts.delete_one({"_id": uid_hash})
+        db.audit_log.delete_many({"uid_hash": uid_hash})
+
+
 # ---- Remote config, maintenance, feedback ----
 
 def test_config_defaults(raw_client, app_state):

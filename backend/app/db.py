@@ -19,6 +19,7 @@ DEFAULT_APP_CONFIG = {
     "features": {"repeatability_mode": True, "gradcam": False, "public_verification": True},
 }
 CONFIG_CACHE_SECONDS = 60
+DELETED_ACCOUNT_TTL_S = 2 * 3600    # ID tokens live at most 1 hour
 
 
 def utcnow():
@@ -39,6 +40,7 @@ class Database:
         self.feedback = self.db["feedback"]
         self.app_config = self.db["app_config"]
         self.audit_log = self.db["audit_log"]
+        self.deleted_accounts = self.db["deleted_accounts"]
         self._config, self._config_at = None, 0.0
         self._config_lock = threading.Lock()
 
@@ -52,6 +54,9 @@ class Database:
                                        partialFilterExpression={"status": "valid"},
                                        name="one_valid_per_grading")
         self.feedback.create_index([("uid", ASCENDING), ("created_at", DESCENDING)])
+        # Tombstones of deleted accounts outlive any ID token issued before the deletion.
+        self.deleted_accounts.create_index([("deleted_at", ASCENDING)],
+                                           expireAfterSeconds=DELETED_ACCOUNT_TTL_S)
         # counters, app_config and certificates (cert_no) are looked up by _id.
 
     def seed_app_config(self):
