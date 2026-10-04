@@ -18,6 +18,8 @@ services:
       - ./models:/srv/models:ro
       - ./export:/srv/export:ro
       - ./secrets:/srv/secrets:ro
+      # Development only: raw dataset for the parity test (tests/parity/run_parity.py).
+      - ../dataset/merged:/data/merged:ro
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/srv/app"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]

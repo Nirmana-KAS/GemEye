@@ -27,7 +27,12 @@ def ciecam02(mean_rgb):
 
 
 def analyse(display_rgb, typical_lab, ciecam02_available):
+    """Returns (colour values, dE00 to typical, segmentation_reliable).
+
+    segmentation_reliable is False when GrabCut fell back to the saturation
+    mask or the centre box; the colour values are then approximate."""
     m = measure(display_rgb)
+    reliable = not m.fallback
     r, g, b = (np.clip(np.rint(m.mean_rgb * 255), 0, 255)).astype(int)
     lab = np.array([m.L, m.a, m.b])
     de = float(colour.delta_E(lab, np.asarray(typical_lab, np.float64), method="CIE 2000"))
@@ -35,4 +40,5 @@ def analyse(display_rgb, typical_lab, ciecam02_available):
         "L": m.L, "a": m.a, "b": m.b, "C": m.C, "H": m.H, "S": m.S, "B": m.B,
         "hex": f"#{r:02X}{g:02X}{b:02X}",
         "ciecam02": ciecam02(m.mean_rgb) if ciecam02_available else None,
-    }, de
+        "approximate": not reliable,
+    }, de, reliable

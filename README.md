@@ -23,7 +23,7 @@ A smartphone macro lens-based automated colour grading system for 1-5 mm cut and
 4. Intense (Intense Cornflower)
 5. Medium Intense (Cornflower Blue)
 6. Light (Pastel Blue)
-7. Very Light (Near-Colourless)
+7. Very Light (Very Light Blue)
 
 ## Development Log
 See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed edit history.

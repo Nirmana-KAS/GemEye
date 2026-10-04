@@ -51,12 +51,30 @@ def test_grade_schema_and_repeatability(client):
     assert b["uncertainty"] > 0
     assert b["calibration_mode"] == "training_session"
     assert b["colour"]["hex"].startswith("#") and len(b["colour"]["hex"]) == 7
-    for k in ("blur_variance", "stone_area_fraction", "hue_physical", "ood_distance", "ood_threshold"):
+    for k in ("blur_variance", "stone_area_fraction", "hue_physical", "hue_gate_min", "hue_gate_max",
+              "hue_in_gate", "segmentation_reliable", "model_segmentation_fallback",
+              "ood_distance", "ood_threshold"):
         assert k in b["diagnostics"]
+    assert "debug" not in b
+    assert b["colour"]["approximate"] is (not b["diagnostics"]["segmentation_reliable"])
 
     r2 = post_grade(client)
     assert r2.status_code == 200
     assert r2.json()["grade"] == b["grade"]
+
+
+def test_debug_block(client):
+    from app.config import get_settings
+    r = post_grade(client, debug="true")
+    assert r.status_code == 200
+    b = r.json()
+    if get_settings().env.lower() == "development":
+        d = b["debug"]
+        assert 1 <= d["rf_grade"] <= 7 and 1 <= d["cnn_mc_grade"] <= 7
+        assert len(d["rf_probabilities"]) == 7 and len(d["cnn_mc_probabilities"]) == 7
+        assert d["model_segmentation_fallback"] == b["diagnostics"]["model_segmentation_fallback"]
+    else:
+        assert "debug" not in b
 
 
 def test_grade_with_patches(client):

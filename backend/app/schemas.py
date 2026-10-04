@@ -22,6 +22,7 @@ class ColourValues(BaseModel):
     B: float
     hex: str
     ciecam02: Optional[Ciecam02]
+    approximate: bool
 
 
 class Timings(BaseModel):
@@ -35,8 +36,23 @@ class Diagnostics(BaseModel):
     blur_variance: float
     stone_area_fraction: float
     hue_physical: float
+    hue_gate_min: float
+    hue_gate_max: float
+    hue_in_gate: bool
+    segmentation_reliable: bool
+    model_segmentation_fallback: bool
     ood_distance: float
     ood_threshold: float
+
+
+class DebugInfo(BaseModel):
+    """Development only (ENV=development and debug=true)."""
+    rf_grade: int
+    rf_probabilities: List[float]
+    cnn_mc_grade: int
+    cnn_mc_probabilities: List[float]
+    cnn_deterministic_grade: int
+    model_segmentation_fallback: bool
 
 
 class GradeResponse(BaseModel):
@@ -55,6 +71,7 @@ class GradeResponse(BaseModel):
     model_version: str
     timings_ms: Timings
     diagnostics: Diagnostics
+    debug: Optional[DebugInfo] = None
 
 
 class HealthResponse(BaseModel):

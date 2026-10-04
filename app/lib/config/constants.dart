@@ -43,7 +43,7 @@ class AppConstants {
 
   static const List<String> tradeNames = [
     'Midnight Blue', 'Twilight Blue', 'Royal Blue', 'Intense Cornflower',
-    'Cornflower Blue', 'Pastel Blue', 'Near-Colourless',
+    'Cornflower Blue', 'Pastel Blue', 'Very Light Blue',
   ];
 
   static const List<String> gradeColors = [

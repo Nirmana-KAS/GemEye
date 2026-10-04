@@ -50,9 +50,15 @@ scikit-learn 1.6.1, joblib 1.6.0, colour-science 0.4.7. OpenCV: training used
 | `referral_threshold` | no | 0.40-0.90, default 0.60 |
 
 Response: `status, grade, grade_name, trade_name, probabilities[7], confidence,
-uncertainty, referred, second_grade, colour{L,a,b,C,H,S,B,hex,ciecam02}, delta_e00_to_typical,
+uncertainty, referred, second_grade, colour{L,a,b,C,H,S,B,hex,ciecam02,approximate}, delta_e00_to_typical,
 calibration_mode, model_version, timings_ms{total,preprocess,rf,cnn},
-diagnostics{blur_variance, stone_area_fraction, hue_physical, ood_distance, ood_threshold}`.
+diagnostics{blur_variance, stone_area_fraction, hue_physical, hue_gate_min,
+hue_gate_max, hue_in_gate, segmentation_reliable, ood_distance, ood_threshold}`.
+
+`hue_physical` is the display-path hue. The hue gate (`HUE_GATE_MIN/MAX` = 170-265 degrees
+in `pipeline/inference.py`) is provisional and will be tuned in Phase 7.
+`segmentation_reliable` is false when GrabCut used either fallback (saturation
+mask or centre box) on the display-path image; `colour.approximate` is its negation.
 
 Errors: 400 invalid input, 413 image too large, 500 generic. Error bodies are
 `{status: "error", detail}` with no stack traces. Images are never stored
@@ -77,8 +83,10 @@ Diagnostics are reported only; nothing is rejected yet (Phase 3).
 ## Inference
 
 - CNN: 224x224 `tf.image.resize`, EfficientNet `preprocess_input`.
-- MC Dropout: one batch of 30 identical images; only the Dropout layers are
-  active, everything else runs in inference mode. Dropout masks use a fixed
+- MC Dropout: Dropout exists only in the classification head, so the EfficientNet
+  backbone + global pooling run once (inference mode) and only the head runs 30
+  times as one batch; only the Dropout layers are active, BatchNorm stays in
+  inference mode. Dropout masks use a fixed
   stateless seed, so the same image always gives the same result. Uncertainty
   is the std across the 30 passes of the expected grade sum(k * p_k).
 - RF: `scaler.transform` -> `predict_proba`.

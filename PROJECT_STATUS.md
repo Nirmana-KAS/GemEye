@@ -1603,3 +1603,50 @@
   - `~` backend/README.md
 - **Connected edits:** EDIT-081
 - **Reason:** Phase 1 of the backend work: serve the v3 grading model locally with results that match training.
+
+### EDIT-083 | 04 October 2026 05:05 | IST
+- **Topic:** Backend Phase 1.1 - MC Dropout speed-up
+- **Summary:** The EfficientNet backbone and global pooling now run once per image; only the classification head runs the 30 MC Dropout passes as one batch.
+- **What was done:**
+  - Added `backbone`, `head_det` and `head_mc` tf.functions; head_mc keeps the same Dropout maths and stateless seeds (keyed by full-model layer index), BatchNorm in inference mode
+  - Verified on the smoke-test image (identity and session patches) before removing the old path: max abs diff mc_mean 1.9e-7, uncertainty 1.3e-7, deterministic 2.4e-7, dense features 9.5e-7 (all below 1e-5)
+  - Removed `mc_forward` and `feature_model`; warm-up uses the new functions
+  - CNN time per call 1.7-1.9 s to about 60 ms; /grade average 968 ms wall over 3 calls (server total 773 ms, previously about 3.7 s)
+- **Files changed:**
+  - `~` backend/app/assets.py
+  - `~` backend/app/pipeline/inference.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-082
+- **Reason:** The full model was being run 30 times although Dropout exists only in the head.
+
+### EDIT-084 | 04 October 2026 05:05 | IST
+- **Topic:** Grade 7 trade name "Very Light Blue"
+- **Summary:** Grade 7 trade name changed from "Near-Colourless" to "Very Light Blue" in the app, backend and project docs.
+- **What was done:**
+  - Replaced "Near-Colourless" in AppConstants.tradeNames and colour_grades.json (guide reads the JSON)
+  - Updated the CLAUDE.md grading table and root README grade list; backend TRADE_NAMES already used "Very Light Blue"
+  - flutter analyze: no issues
+- **Files changed:**
+  - `~` app/lib/config/constants.dart
+  - `~` app/assets/data/colour_grades.json
+  - `~` CLAUDE.md
+  - `~` README.md
+- **Connected edits:** EDIT-082
+- **Reason:** One consistent GEMCLOUD trade name for Grade 7 across server and app.
+
+### EDIT-085 | 04 October 2026 05:05 | IST
+- **Topic:** Backend Phase 1.1 - hue gate and segmentation reliability diagnostics
+- **Summary:** Physical hue diagnostic from the display path with a provisional 170-265 degree gate, plus segmentation reliability flags.
+- **What was done:**
+  - Added `HUE_GATE_MIN = 170`, `HUE_GATE_MAX = 265` (provisional, tune in Phase 7); `hue_wb_range_suggested` from export_wb.json deliberately not used (polluted by GrabCut fallbacks)
+  - New diagnostics: `hue_gate_min`, `hue_gate_max`, `hue_in_gate`, `segmentation_reliable` (false when GrabCut used the saturation or centre-box fallback on the display-path image)
+  - New `colour.approximate` = not segmentation_reliable
+  - Model path unchanged (training CCM + session mapping); smoke tests updated, 4 passed; container restarted and healthy
+- **Files changed:**
+  - `~` backend/app/pipeline/inference.py
+  - `~` backend/app/pipeline/display.py
+  - `~` backend/app/schemas.py
+  - `~` backend/tests/test_smoke.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-082, EDIT-083
+- **Reason:** Prepare a physical hue gate and flag colour values measured on an unreliable stone mask.

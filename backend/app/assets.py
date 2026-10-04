@@ -13,8 +13,9 @@ logger = logging.getLogger("gemeye.assets")
 @dataclass
 class Assets:
     model: object
-    feature_model: object          # outputs [256-D Dense features, deterministic probs]
-    mc_forward: object             # tf.function: batch -> probs, Dropout layers active
+    backbone: object               # tf.function: image batch -> pooled 1280-D (inference mode)
+    head_det: object               # tf.function: pooled -> [256-D features, probs], no Dropout
+    head_mc: object                # tf.function: pooled batch -> probs, Dropout layers active
     rf: object
     rf_class_order: np.ndarray     # column index of each grade 1..7 in predict_proba
     scaler: object
@@ -56,18 +57,40 @@ def load_assets(model_dir, export_dir):
     dense = model.get_layer(ood_stats["feature_layer"])
     if getattr(dense, "units", None) != 256:
         raise RuntimeError("feature layer is not the 256-unit Dense layer")
-    feature_model = keras.Model(model.inputs, [dense.output, model.outputs[0]])
 
     size = int(manifest.get("img_size", 224))
 
+    # Dropout only exists in the classification head, so the backbone and pooling
+    # run once per image in inference mode and only the head runs mc_passes times
+    # as one batch. In head_mc only Dropout is active; BatchNorm stays in inference
+    # mode (same as GemEye_Final_Evaluation_v3 mc_forward). Dropout masks come from
+    # a fixed stateless seed keyed by the full-model layer index (one mask per batch
+    # row), so the same image always gives the same MC result and grade. The maths
+    # is Keras Dropout's: keep with prob 1-rate, scale kept units by 1/(1-rate).
+    split = next(i for i, layer in enumerate(model.layers)
+                 if isinstance(layer, keras.layers.GlobalAveragePooling2D)) + 1
+    if any(isinstance(layer, keras.layers.Dropout) for layer in model.layers[:split]):
+        raise RuntimeError("Dropout found before global pooling")
+    pooled_dim = int(model.layers[split - 1].output.shape[-1])
+
     @tf.function(input_signature=[tf.TensorSpec([None, size, size, 3], tf.float32)])
-    def mc_forward(x):
-        # Only Dropout is active; the backbone and BatchNorm stay in inference
-        # mode (same as GemEye_Final_Evaluation_v3 mc_forward). Dropout masks
-        # come from a fixed stateless seed (one mask per batch row), so the
-        # same image always gives the same MC result and grade. The maths is
-        # Keras Dropout's: keep with prob 1-rate, scale kept units by 1/(1-rate).
-        for i, layer in enumerate(model.layers):
+    def backbone(x):
+        for layer in model.layers[:split]:
+            x = layer(x, training=False)
+        return x
+
+    @tf.function(input_signature=[tf.TensorSpec([None, pooled_dim], tf.float32)])
+    def head_det(x):
+        feat = None
+        for layer in model.layers[split:]:
+            x = layer(x, training=False)
+            if layer is dense:
+                feat = x
+        return feat, x
+
+    @tf.function(input_signature=[tf.TensorSpec([None, pooled_dim], tf.float32)])
+    def head_mc(x):
+        for i, layer in enumerate(model.layers[split:], start=split):
             if isinstance(layer, keras.layers.Dropout):
                 keep = tf.random.stateless_uniform(tf.shape(x), seed=[42, i]) >= layer.rate
                 x = tf.where(keep, x / (1.0 - layer.rate), tf.zeros_like(x))
@@ -87,7 +110,7 @@ def load_assets(model_dir, export_dir):
 
     cam = extra.get("ciecam02_real", {})
     assets = Assets(
-        model=model, feature_model=feature_model, mc_forward=mc_forward,
+        model=model, backbone=backbone, head_det=head_det, head_mc=head_mc,
         rf=rf, rf_class_order=rf_class_order, scaler=scaler,
         config=config, w_cnn=float(config["w_cnn"]),
         manifest=manifest, extra=extra, gate_stats=gate_stats, ood_stats=ood_stats,
@@ -110,5 +133,6 @@ def warm_up(assets):
     """One dummy prediction so the first real request is not slow."""
     size = int(assets.manifest.get("img_size", 224))
     x = np.zeros((1, size, size, 3), np.float32)
-    assets.feature_model(x, training=False)
-    assets.mc_forward(np.repeat(x, assets.mc_passes, axis=0))
+    pooled = assets.backbone(x)
+    assets.head_det(pooled)
+    assets.head_mc(np.repeat(pooled.numpy(), assets.mc_passes, axis=0))

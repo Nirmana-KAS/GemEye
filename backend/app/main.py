@@ -114,12 +114,13 @@ def _parse_patches(raw):
     return [[float(v) for v in r] for r in p]
 
 
-@app.post("/grade", response_model=GradeResponse)
+@app.post("/grade", response_model=GradeResponse, response_model_exclude_unset=True)
 def grade_stone(
     request: Request,
     image: UploadFile = File(...),
     patches: Optional[str] = Form(None),
     referral_threshold: Optional[float] = Form(None),
+    debug: bool = Form(False),
 ):
     settings = get_settings()
     assets = request.app.state.assets
@@ -146,4 +147,6 @@ def grade_stone(
 
     # One request at a time through TF / GrabCut; nothing is written to disk.
     with _lock:
-        return grade(assets, raw_rgb, p, threshold)
+        # Debug fields are never returned outside development.
+        return grade(assets, raw_rgb, p, threshold,
+                     debug=debug and settings.env.lower() == "development")

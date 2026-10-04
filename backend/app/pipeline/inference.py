@@ -14,6 +14,11 @@ TRADE_NAMES = ["Midnight Blue", "Twilight Blue", "Royal Blue", "Intense Cornflow
                "Cornflower Blue", "Pastel Blue", "Very Light Blue"]
 GRADES = np.arange(1, 8, dtype=np.float64)
 
+# Physical (display-path) hue gate in degrees. Provisional, tune in Phase 7.
+# export_wb.json hue_wb_range_suggested is not used: it includes GrabCut fallbacks.
+HUE_GATE_MIN = 170.0
+HUE_GATE_MAX = 265.0
+
 
 def blur_variance(rgb):
     """Gate definition from gate_stats.json, measured on the RAW upload."""
@@ -35,10 +40,10 @@ def cnn_input(rgb, size):
 def predict_cnn(assets, rgb):
     size = int(assets.manifest.get("img_size", 224))
     x = cnn_input(rgb, size)[tf.newaxis]
-    feat, det = assets.feature_model(x, training=False)
-    batch = tf.repeat(x, assets.mc_passes, axis=0)
-    mc = assets.mc_forward(batch).numpy().astype(np.float64)          # (T, 7)
-    expected = (mc * GRADES).sum(axis=1)                             # (T,)
+    pooled = assets.backbone(x)
+    feat, det = assets.head_det(pooled)
+    mc = assets.head_mc(tf.repeat(pooled, assets.mc_passes, axis=0)).numpy().astype(np.float64)  # (T, 7)
+    expected = (mc * GRADES).sum(axis=1)                                                  # (T,)
     return {
         "deterministic": det.numpy()[0].astype(np.float64),
         "mc_mean": mc.mean(axis=0),
@@ -58,7 +63,7 @@ def mahalanobis(assets, e):
     return float(np.sqrt(d @ assets.ood_precision @ d))
 
 
-def grade(assets, raw_rgb, patches, referral_threshold):
+def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
     t0 = time.perf_counter()
 
     # Model path (identical to training) and display path (physical colour).
@@ -89,11 +94,11 @@ def grade(assets, raw_rgb, patches, referral_threshold):
     confidence = float(probs[order[0]])
 
     typical = assets.extra["grade_profiles_physical"][str(g)]["median"]
-    colour_vals, de = display.analyse(display_rgb, [typical["L"], typical["a"], typical["b"]],
+    colour_vals, de, seg_reliable = display.analyse(display_rgb, [typical["L"], typical["a"], typical["b"]],
                                       assets.ciecam02_display_available)
     t4 = time.perf_counter()
 
-    return {
+    result = {
         "status": "ok",
         "grade": g,
         "grade_name": GRADE_NAMES[g - 1],
@@ -117,7 +122,24 @@ def grade(assets, raw_rgb, patches, referral_threshold):
             "blur_variance": blur,
             "stone_area_fraction": stone.area,
             "hue_physical": colour_vals["H"],
+            "hue_gate_min": HUE_GATE_MIN,
+            "hue_gate_max": HUE_GATE_MAX,
+            "hue_in_gate": HUE_GATE_MIN <= colour_vals["H"] <= HUE_GATE_MAX,
+            "segmentation_reliable": seg_reliable,
+            # Information only: GrabCut fallback on the model path (does not affect
+            # segmentation_reliable, which comes from the display path).
+            "model_segmentation_fallback": stone.fallback,
             "ood_distance": mahalanobis(assets, cnn["features"]),
             "ood_threshold": float(assets.ood_stats["threshold_p99"]),
         },
     }
+    if debug:
+        result["debug"] = {
+            "rf_grade": int(np.argmax(rf_p)) + 1,
+            "rf_probabilities": [float(p) for p in rf_p],
+            "cnn_mc_grade": int(np.argmax(cnn["mc_mean"])) + 1,
+            "cnn_mc_probabilities": [float(p) for p in cnn["mc_mean"]],
+            "cnn_deterministic_grade": int(np.argmax(cnn["deterministic"])) + 1,
+            "model_segmentation_fallback": stone.fallback,
+        }
+    return result

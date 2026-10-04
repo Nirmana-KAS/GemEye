@@ -77,7 +77,7 @@
 | 4 | Intense | Intense Cornflower | `#2A408C` |
 | 5 | Medium Intense | Cornflower Blue | `#47619E` |
 | 6 | Light | Pastel Blue | `#718BB7` |
-| 7 | Very Light | Near-Colourless | `#ABBDD6` |
+| 7 | Very Light | Very Light Blue | `#ABBDD6` |
 
 - Always 7 grades — never 10, never any other number
 - Always dark to light (Grade 1 = darkest, Grade 7 = lightest)
