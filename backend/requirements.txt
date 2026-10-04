@@ -14,6 +14,12 @@ python-multipart
 pydantic-settings
 pillow
 
+# Phase 4a: auth, storage, rate limiting
+firebase-admin==7.7.0
+pymongo==4.18.2
+boto3==1.43.108
+slowapi==0.1.10
+
 # Tests
 pytest
 httpx

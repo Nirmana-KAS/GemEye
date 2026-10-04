@@ -1,19 +1,19 @@
 # GemEye Backend
 
-Python REST API for the GemEye app. Phase 1 is the inference server (FastAPI +
-Docker, local). Later phases add storage of users, grades, certificates and
-feedback (MongoDB Atlas, AWS S3). The Flutter app talks to this API over HTTPS
+Python REST API for the GemEye app: the inference server (FastAPI + Docker,
+Phases 1-3) and, from Phase 4a, Firebase authentication, MongoDB Atlas storage
+of users, gradings, rejections and calibrations, and private S3 image storage. The Flutter app talks to this API over HTTPS
 only; it never connects to MongoDB directly.
 
 ## Folders
 
 | Folder | Purpose |
 |--------|---------|
-| `app/` | API source code (`main.py`, `config.py`, `assets.py`, `schemas.py`, `pipeline/`) |
+| `app/` | API source code (`main.py`, `routers.py`, `auth.py`, `db.py`, `storage.py`, `config.py`, `assets.py`, `schemas.py`, `pipeline/`) |
 | `models/` | v3 model files: `efficientnet_v3.keras`, `rf_model_v3.pkl`, `scaler_v3.pkl`, `config_v3.json` (local only) |
 | `export/` | Phase 0 training exports: manifest, extra, gate/OOD stats, grade profiles |
 | `secrets/` | Service account files (local only) |
-| `tests/` | Smoke tests |
+| `tests/` | pytest suite, Firebase test-user helper, parity and gate scripts |
 
 ## Run
 
@@ -21,8 +21,11 @@ only; it never connects to MongoDB directly.
 cp .env.example .env      # fill in values; never commit .env
 docker compose up --build -d
 curl http://localhost:8000/health
-docker compose exec api python -m pytest -q tests
+docker compose exec -e ENV=test api python -m pytest -q tests
 ```
+
+Tests must run with `ENV=test`; they create temporary Firebase users and remove
+all `gemeye_test` data and `test/` S3 objects at the end.
 
 The compose file is for development: `./app` is mounted with `uvicorn --reload`;
 `models/`, `export/` and `secrets/` are mounted read-only. Models load once at
@@ -36,9 +39,32 @@ scikit-learn 1.6.1, joblib 1.6.0, colour-science 0.4.7. OpenCV: training used
 4.14.0; the image installs `opencv-python-headless` 4.14.0.94 (same OpenCV
 4.14.0 library, headless build). No other deviations.
 
+## Environments
+
+`ENV` selects the database and the S3 key prefix:
+
+| ENV | MongoDB database | S3 prefix | debug / gates=false |
+|-----|------------------|-----------|---------------------|
+| `development` | `gemeye_dev` | `dev/` | allowed (with auth) |
+| `test` | `gemeye_test` | `test/` | allowed (with auth) |
+| `production` | `gemeye` | (none) | ignored |
+
+Settings (`app/config.py`, from `.env`): `MONGODB_URI`, `AWS_REGION`,
+`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_BUCKET`, `FIREBASE_CREDENTIALS`
+(service account JSON path), `FIREBASE_WEB_API_KEY` (tests only), `ENV`.
+Secrets are `SecretStr`; startup logs only "set"/"missing" for each.
+
+## Auth
+
+Every endpoint except `GET /health` needs `Authorization: Bearer <Firebase ID
+token>`. The token is verified with `firebase_admin.auth.verify_id_token(...,
+check_revoked=True)`. Any failure is HTTP 401 `{status: "error", detail:
+"Authentication required."}`. There is no bypass. The user record is created on
+the first `/grade`, `/me` or `/calibrations` request.
+
 ## Endpoints
 
-`GET /health` - `{status, model_version, models_loaded, versions, ciecam02_display_available}`.
+`GET /health` (public) - `{status, model_version, models_loaded, versions, ciecam02_display_available}`.
 `versions` are the versions installed in the container.
 
 `POST /grade` (multipart/form-data)
@@ -47,7 +73,16 @@ scikit-learn 1.6.1, joblib 1.6.0, colour-science 0.4.7. OpenCV: training used
 |-------|----------|-------|
 | `image` | yes | JPEG or PNG, at most 15 MB |
 | `patches` | no | JSON 6x3, 0-255, order: white, black, grey_18, grey_50, blue, red |
-| `referral_threshold` | no | 0.40-0.90, default 0.60 |
+| `referral_threshold` | no | 0.40-0.90; default is the user's `settings.referral_threshold` (0.60) |
+| `session_id` | no | calibration session id, stored as `calibration_session_id` |
+| `app_version`, `device` | no | stored with the grading or rejection |
+| `debug`, `gates` | no | development/test only (see Environments) |
+
+On `status: "ok"` the original upload is stored in S3 and a grading is saved; the
+response adds `grading_id`, `stone_id` (`GE-STONE-NNNNN`, global counter `stone`)
+and `image_url` (presigned GET, 10 minutes). On a gate rejection only a
+`rejections` record (diagnostics, no image) is written. If S3 or MongoDB is down
+the response is 503 and nothing is kept.
 
 Response (`status: "ok"`): `status, warnings[], grade, grade_name, trade_name, probabilities[7], confidence,
 uncertainty, referred, second_grade, colour{L,a,b,C,H,S,B,hex,ciecam02,approximate}, delta_e00_to_typical,
@@ -66,9 +101,37 @@ has no grade or probabilities. Test results: `tests/gates/gates_report.md`
 `segmentation_reliable` is false when GrabCut used either fallback (saturation
 mask or centre box) on the tray white-balanced image; `colour.approximate` is its negation.
 
-Errors: 400 invalid input (not a JPEG/PNG signature, bad form fields), 413 image too large, 500 generic. Error bodies are
-`{status: "error", detail}` with no stack traces. Images are never stored
-(uploads stay in memory).
+Other endpoints (all authenticated, own records only):
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/me` | profile + settings + `email_verified` |
+| PUT | `/me` | partial update of `display_name, account_type (individual/company), country, phone, company{name, reg_no, industry, address, logo_key}, settings{show_name_on_certificates, referral_threshold 0.40-0.90}`; unknown fields (including `role`, `email`) are ignored |
+| GET | `/gradings` | `limit` (1-50, default 20), `cursor`, `grade` (1-7), `referred`, `from`, `to` (ISO 8601); newest first, not deleted, each with a fresh `image_url`; `{items, next_cursor}` |
+| GET | `/gradings/{id}` | one grading |
+| DELETE | `/gradings/{id}` | deletes the S3 image, sets `deleted: true`; 204 |
+| POST | `/calibrations` | `{session_id, valid_until?, device?, ccm 3x3, residual?, quality?, measured_patches 6x3}`; 201 |
+| GET | `/calibrations` | newest first, at most 50 |
+
+Another user's id always gives 404 (never 403), so ids cannot be enumerated.
+
+Errors: 400 invalid input (not a JPEG/PNG signature, bad form fields or JSON),
+401 not authenticated, 404 not found, 413 image too large, 503 storage
+unavailable, 500 generic. Error bodies are `{status: "error", detail}` with no
+stack traces.
+
+## Data model (MongoDB, all timestamps UTC)
+
+| Collection | Fields | Indexes |
+|------------|--------|---------|
+| `users` | `_id` (Firebase uid), `email, display_name, account_type, role` ("user", server-set), `country, phone, company{name, reg_no, industry, address, logo_key}, settings{show_name_on_certificates: false, referral_threshold: 0.60}, created_at, updated_at` | `_id` |
+| `gradings` | `_id, uid, stone_id, created_at, status: "ok", result` (grade response without debug), `image_key, calibration_session_id, app_version, device, referral_threshold_used, deleted` (+ `deleted_at`) | `(uid, created_at desc)` |
+| `rejections` | `_id, uid, created_at, status, message, diagnostics, app_version, device` (no image, privacy decision option 1) | `created_at` |
+| `calibrations` | `_id, uid, session_id, created_at, valid_until, device, ccm, residual, quality, measured_patches` | `(uid, created_at desc)` |
+| `counters` | `_id` (counter name), `seq`; atomic `find_one_and_update($inc, upsert)` | `_id` |
+
+S3 (private bucket, SSE-S3): `<prefix>gradings/{uid}/{grading_id}.jpg` (`.png`
+for PNG uploads). Only the original upload of a graded stone is stored.
 
 ## The two colour paths
 

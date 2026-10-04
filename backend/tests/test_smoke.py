@@ -1,19 +1,11 @@
-"""Smoke tests: run inside the container with `python -m pytest -q tests`."""
+"""Smoke tests (authenticated as a temporary Firebase user, see conftest.py).
+Run inside the container: `docker compose exec -e ENV=test api python -m pytest -q tests`."""
 import json
 import os
 
 import cv2
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
-
-from app.main import app
-
-
-@pytest.fixture(scope="module")
-def client():
-    with TestClient(app) as c:
-        yield c
 
 
 # A real test-set stone (development dataset mount). The synthetic disc is rejected
@@ -92,7 +84,7 @@ def test_debug_block(client):
     assert r.status_code == 200
     require_ok(r)
     b = r.json()
-    if get_settings().env.lower() == "development":
+    if not get_settings().is_production:
         d = b["debug"]
         assert 1 <= d["rf_grade"] <= 7 and 1 <= d["cnn_mc_grade"] <= 7
         assert len(d["rf_probabilities"]) == 7 and len(d["cnn_mc_probabilities"]) == 7
@@ -185,7 +177,7 @@ def test_gate_bypass_development_only(client):
                     data={"gates": "false", "debug": "true"})
     assert r.status_code == 200
     b = r.json()
-    if get_settings().env.lower() == "development":
+    if not get_settings().is_production:
         assert b["status"] == "ok"
         assert "no_stone" in b["debug"]["gates_bypassed"]
     else:

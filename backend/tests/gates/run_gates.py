@@ -3,6 +3,9 @@
 Runs INSIDE the container (uses the mounted dataset and the running server):
     docker compose exec api python tests/gates/run_gates.py
 
+Authenticates as a temporary Firebase test user; the user and all its records and
+images are deleted at the end. GATES_REPORT overrides the report path.
+
 a) False rejections: the 112 raw test images (tests/parity/parity_reference.csv).
 b) Synthetic negatives made from the test images (written to /tmp/gemeye_gates
    only, never to the repo): blurred, empty tray, recoloured stone, random.
@@ -23,13 +26,15 @@ import numpy as np
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 from app import gates  # noqa: E402
 from app.pipeline.features import grabcut_mask  # noqa: E402
+from tests.helpers.firebase_test_user import FirebaseTestUser, purge_user_data  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 URL = os.environ.get("GATES_URL", "http://localhost:8000/grade")
 DATA = os.environ.get("GATES_DATA", "/data/merged")
 REF = os.path.join(HERE, "..", "parity", "parity_reference.csv")
 TMP = "/tmp/gemeye_gates"
-REPORT = os.path.join(HERE, "gates_report.md")
+REPORT = os.environ.get("GATES_REPORT", os.path.join(HERE, "gates_report.md"))
+USER = None   # FirebaseTestUser, set below
 CODES = ["invalid_image", "no_stone", "blurry", "not_blue", "not_recognised"]
 KEYS = ["stone_tray_contrast_de00", "gate_centre_fallback", "blur_variance", "hue_wb",
         "chroma_wb", "segmentation_reliable", "ood_distance"]
@@ -40,7 +45,8 @@ def post(img_bytes, name="image.jpg"):
     body = (f"--{b}\r\nContent-Disposition: form-data; name=\"image\"; filename=\"{name}\"\r\n"
             f"Content-Type: image/jpeg\r\n\r\n").encode() + img_bytes + f"\r\n--{b}--\r\n".encode()
     req = urllib.request.Request(URL, data=body, method="POST",
-                                 headers={"Content-Type": f"multipart/form-data; boundary={b}"})
+                                 headers={"Content-Type": f"multipart/form-data; boundary={b}",
+                                          **USER.headers})
     with urllib.request.urlopen(req, timeout=120) as r:
         return json.loads(r.read())
 
@@ -251,4 +257,8 @@ def write_report(real, rejected, warned, synth):
 
 
 if __name__ == "__main__":
-    main()
+    with FirebaseTestUser() as USER:
+        try:
+            main()
+        finally:
+            print(f"cleanup: {purge_user_data(USER.uid)}")

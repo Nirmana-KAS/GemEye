@@ -1,7 +1,10 @@
 """Phase 2 parity test: does the server reproduce the v3 Colab test-set results?
 
-Runs INSIDE the container (stdlib only):
+Runs INSIDE the container against the running development server:
     docker compose exec api python tests/parity/run_parity.py
+
+Authenticates as a temporary Firebase test user (tests/helpers/firebase_test_user.py);
+the user, its gradings and S3 images are deleted at the end.
 
 Posts each of the 112 raw test images to /grade with debug=true and no patches
 (training_session mode, referral_threshold 0.60), then compares with
@@ -20,6 +23,9 @@ import time
 import urllib.request
 import uuid
 
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+from tests.helpers.firebase_test_user import FirebaseTestUser, purge_user_data  # noqa: E402
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 URL = os.environ.get("PARITY_URL", "http://localhost:8000/grade")
 DATA = os.environ.get("PARITY_DATA", "/data/merged")
@@ -32,6 +38,9 @@ EXPECTED_ALL_ACC = 85.71
 REFERRAL = 0.60
 RF_TOL = 1e-6
 CNN_TOL = 0.01
+
+
+USER = None   # FirebaseTestUser, set in main()
 
 
 def post(path):
@@ -50,7 +59,8 @@ def post(path):
         f"--{b}--\r\n".encode(),
     ]
     req = urllib.request.Request(URL, data=b"".join(parts), method="POST",
-                                 headers={"Content-Type": f"multipart/form-data; boundary={b}"})
+                                 headers={"Content-Type": f"multipart/form-data; boundary={b}",
+                                          **USER.headers})
     t = time.perf_counter()
     with urllib.request.urlopen(req, timeout=120) as r:
         body = json.loads(r.read())
@@ -284,4 +294,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with FirebaseTestUser() as USER:
+        try:
+            main()
+        finally:
+            print(f"cleanup: {purge_user_data(USER.uid)}")

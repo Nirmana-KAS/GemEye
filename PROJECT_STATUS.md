@@ -1788,3 +1788,57 @@
   - `~` backend/tests/gates/gates_report.md
 - **Connected edits:** EDIT-089, EDIT-090
 - **Reason:** Record the threshold decisions and test whether the hue gate could also cover unreliable segmentation without new false rejections.
+
+### EDIT-092 | 04 October 2026 14:41 | IST
+- **Topic:** Backend Phase 4a - Firebase auth, MongoDB, S3 and grading history
+- **Summary:** Every endpoint except /health now needs a Firebase ID token (revocation checked). Graded stones are stored (original image in private S3 with SSE-S3, record in MongoDB with a GE-STONE-NNNNN id); gate rejections store diagnostics only. Added /me, /gradings and /calibrations endpoints, per-ENV database and S3 prefix, and a pytest suite with temporary Firebase users. Model path, gates logic and thresholds unchanged.
+- **What was done:**
+  - config.py: ENV is development/test/production and selects DB (gemeye_dev/gemeye_test/gemeye) and S3 prefix (dev/, test/, none); secrets as SecretStr; startup logs only set/missing; MONGODB_DB no longer used
+  - auth.py: current_user dependency, verify_id_token(check_revoked=True), generic 401, returns {uid, email, email_verified}
+  - db.py: one MongoClient in lifespan; indexes gradings/calibrations (uid, created_at desc), rejections (created_at); atomic counters; ensure_user upsert with default profile and settings
+  - storage.py: boto3 put/get/delete/exists/presign (10 min) under the env prefix, SSE-S3 (AES256), regional s3v4 endpoint
+  - /grade: requires auth; new form fields session_id, app_version, device; default referral threshold from the user's settings; ok -> S3 upload + gradings insert + grading_id/stone_id/image_url; rejection -> rejections insert, no image; 503 if storage fails (S3 object removed if the DB insert fails); debug and gates=false now allowed when ENV != production
+  - routers.py: GET/PUT /me (unknown fields and role ignored, threshold 0.40-0.90), GET /gradings (limit <= 50, cursor, grade, referred, from, to), GET/DELETE /gradings/{id} (404 for other users), POST/GET /calibrations
+  - Tests: conftest (ENV=test guard, authed clients, session cleanup of gemeye_test and test/), helpers/firebase_test_user.py (admin SDK user + signInWithPassword, API key sent in a header), test_api.py, smoke tests now authenticated
+  - run_parity.py and run_gates.py authenticate as a temporary test user and purge its data afterwards; run_gates.py accepts GATES_REPORT
+  - requirements: firebase-admin 7.7.0, pymongo 4.18.2, boto3 1.43.108, slowapi 0.1.10 (not wired yet); image rebuilt
+  - Verified: S3 put/exists/delete and Firebase sign-in + verify work; 33 auth tests passed. MongoDB login fails because MONGODB_URI in .env still has a placeholder password, so the DB-dependent tests, parity and gate re-runs are pending
+  - README: environments, auth, endpoints, data model
+- **Files changed:**
+  - `+` backend/app/auth.py
+  - `+` backend/app/db.py
+  - `+` backend/app/storage.py
+  - `+` backend/app/routers.py
+  - `~` backend/app/config.py
+  - `~` backend/app/main.py
+  - `~` backend/app/schemas.py
+  - `~` backend/requirements.txt
+  - `~` backend/.env.example
+  - `+` backend/tests/__init__.py
+  - `+` backend/tests/conftest.py
+  - `+` backend/tests/helpers/__init__.py
+  - `+` backend/tests/helpers/firebase_test_user.py
+  - `+` backend/tests/test_api.py
+  - `~` backend/tests/test_smoke.py
+  - `~` backend/tests/parity/run_parity.py
+  - `~` backend/tests/gates/run_gates.py
+  - `~` backend/README.md
+- **Connected edits:** EDIT-090, EDIT-091
+- **Reason:** The app needs authenticated, per-user grading history with stored images before the Flutter integration (Phase 4a).
+
+### EDIT-093 | 04 October 2026 15:41 | IST
+- **Topic:** Backend Phase 4a - verification with live MongoDB, S3 and Firebase
+- **Summary:** With the corrected .env, MongoDB pings ok and the full suite passes (50/50) with ENV=test. Parity A-D and the gate results are unchanged from EDIT-091. All test data was cleaned up. Average /grade latency is now 2739 ms (was 1191 ms) because of auth, MongoDB and S3 round trips.
+- **What was done:**
+  - Confirmed DB per ENV: development -> gemeye_dev, test -> gemeye_test, production -> gemeye; no code reads MONGODB_DB, so nothing overrides gemeye_test
+  - Container recreated to reload .env; MongoDB ping ok
+  - pytest (ENV=test): 50 passed; after the second MONGODB_URI update, tests/test_api.py re-run in a one-off container: 40 passed
+  - Parity: A PASS (112/112, 4.99e-13), B PASS (112/112, 2.85e-06), C PASS (87.76%), D PASS (9/9); average /grade latency 2739 ms (max 24067 ms, first request)
+  - Gates: false rejections 3/112 and synthetic rejection rates identical to EDIT-091; report written to /tmp so the hand-written sections of gates_report.md are kept
+  - Cleanup: gemeye_test dropped, 0 test/ objects; parity and gate test users purged (112 and 131 gradings + S3 objects, 776 rejections); gemeye_dev has no records apart from the global stone counter, 0 dev/ objects
+  - Container recreated again on the final .env; startup clean
+- **Files changed:**
+  - `~` backend/tests/parity/parity_report.md
+  - `~` backend/tests/parity/parity_mismatches.csv
+- **Connected edits:** EDIT-090, EDIT-091, EDIT-092
+- **Reason:** Verify Phase 4a end to end once the MongoDB credentials were fixed, and confirm the model path and gates are unchanged.

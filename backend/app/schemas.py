@@ -1,7 +1,8 @@
-"""Response schemas."""
-from typing import Dict, List, Optional
+"""Request and response schemas."""
+from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Ciecam02(BaseModel):
@@ -92,6 +93,10 @@ class GradeResponse(BaseModel):
     timings_ms: Optional[Timings] = None
     diagnostics: Diagnostics
     debug: Optional[DebugInfo] = None
+    # Set when status is "ok" and the grading was saved.
+    grading_id: Optional[str] = None
+    stone_id: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -105,3 +110,136 @@ class HealthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     status: str = "error"
     detail: str
+
+
+# ---- Users ----
+
+Text = Optional[str]
+
+
+def _text(n):
+    return Field(None, max_length=n)
+
+
+class CompanyUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: Text = _text(200)
+    reg_no: Text = _text(100)
+    industry: Text = _text(100)
+    address: Text = _text(500)
+    logo_key: Text = _text(300)
+
+
+class UserSettingsUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    show_name_on_certificates: Optional[bool] = None
+    referral_threshold: Optional[float] = Field(None, ge=0.40, le=0.90)
+
+
+class ProfileUpdate(BaseModel):
+    """PUT /me body. Unknown fields (including role, email, uid) are ignored."""
+    model_config = ConfigDict(extra="ignore")
+    display_name: Text = _text(100)
+    account_type: Optional[Literal["individual", "company"]] = None
+    country: Text = _text(100)
+    phone: Text = _text(30)
+    company: Optional[CompanyUpdate] = None
+    settings: Optional[UserSettingsUpdate] = None
+
+
+class Company(BaseModel):
+    name: Text = None
+    reg_no: Text = None
+    industry: Text = None
+    address: Text = None
+    logo_key: Text = None
+
+
+class UserSettings(BaseModel):
+    show_name_on_certificates: bool = False
+    referral_threshold: float = 0.60
+
+
+class UserResponse(BaseModel):
+    uid: str
+    email: Text = None
+    email_verified: bool
+    display_name: Text = None
+    account_type: Text = None
+    role: Text = None
+    country: Text = None
+    phone: Text = None
+    company: Company
+    settings: UserSettings
+    created_at: datetime
+    updated_at: datetime
+
+
+# ---- Gradings ----
+
+class GradingItem(BaseModel):
+    grading_id: str
+    stone_id: str
+    created_at: datetime
+    status: str
+    result: Dict[str, Any]
+    image_url: Optional[str] = None
+    calibration_session_id: Text = None
+    app_version: Text = None
+    device: Text = None
+    referral_threshold_used: float
+
+
+class GradingList(BaseModel):
+    items: List[GradingItem]
+    next_cursor: Optional[str] = None
+
+
+# ---- Calibrations ----
+
+class CalibrationIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    session_id: str = Field(min_length=1, max_length=100)
+    valid_until: Optional[datetime] = None
+    device: Text = _text(200)
+    ccm: List[List[float]]
+    residual: Optional[float] = None
+    quality: Optional[Union[float, str]] = None
+    measured_patches: List[List[float]]
+
+    @field_validator("ccm")
+    @classmethod
+    def _ccm(cls, v):
+        if len(v) != 3 or any(len(r) != 3 for r in v):
+            raise ValueError("ccm must be 3x3")
+        return v
+
+    @field_validator("measured_patches")
+    @classmethod
+    def _patches(cls, v):
+        if len(v) != 6 or any(len(r) != 3 for r in v) or any(not 0 <= x <= 255 for r in v for x in r):
+            raise ValueError("measured_patches must be 6x3, 0-255")
+        return v
+
+    @field_validator("quality")
+    @classmethod
+    def _quality(cls, v):
+        if isinstance(v, str) and len(v) > 50:
+            raise ValueError("quality too long")
+        return v
+
+
+class CalibrationItem(BaseModel):
+    calibration_id: str
+    session_id: str
+    created_at: datetime
+    valid_until: Optional[datetime] = None
+    device: Text = None
+    ccm: List[List[float]]
+    residual: Optional[float] = None
+    quality: Optional[Union[float, str]] = None
+    measured_patches: List[List[float]]
+
+
+class CalibrationList(BaseModel):
+    items: List[CalibrationItem]

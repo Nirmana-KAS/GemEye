@@ -23,7 +23,7 @@ Informational: vs unseeded Colab run (final_per_image_predictions.csv; GrabCut n
 
 - v3 training used cv2 decoding for the RF features and tf.io.decode_jpeg (default settings) for the CNN input. The server now does the same: it reproduces both exactly (RF max abs dp 4.99e-13, CNN deterministic max abs dp 2.85e-06, grade agreement 112/112 and 112/112).
 - Remaining differences vs the original Colab evaluation (final_per_image_predictions.csv) come only from its unseeded GrabCut and unseeded MC Dropout; all 9 final-grade disagreements are below the 0.60 referral threshold on both sides.
-- Average /grade latency (client side): 1191 ms (max 2133 ms).
+- Average /grade latency (client side): 2739 ms (max 24067 ms).
 
 ## Deterministic reference
 
@@ -73,7 +73,7 @@ Worst CNN deterministic: g5_031.jpg (2.85e-06), g1_152.jpg (2.78e-06), g2_106.jp
 | Mean abs(confidence - Colab confidence) | 0.0224 |
 | Pearson r, uncertainty vs Colab MC uncertainty | 0.8816 |
 | Model-path GrabCut fallbacks | 19/112 |
-| Latency avg / max (client side, ms) | 1191 / 2133 |
+| Latency avg / max (client side, ms) | 2739 / 24067 |
 
 ## Disagreeing images (11, any grade differs)
 
