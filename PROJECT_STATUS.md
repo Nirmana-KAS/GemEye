@@ -1842,3 +1842,35 @@
   - `~` backend/tests/parity/parity_mismatches.csv
 - **Connected edits:** EDIT-090, EDIT-091, EDIT-092
 - **Reason:** Verify Phase 4a end to end once the MongoDB credentials were fixed, and confirm the model path and gates are unchanged.
+
+### EDIT-094 | 04 October 2026 16:37 | IST
+- **Topic:** Backend Phase 4b - certificates, public verification, account deletion, remote config, feedback, latency
+- **Summary:** Added certificate issue/list/PDF/revoke endpoints, the public verification endpoint, DELETE /me, remote config with maintenance mode and feedback. /grade now uses local token checks and saves to S3 and MongoDB concurrently; average latency went from 3195 ms to 2241 ms. 71/71 tests pass and parity A-D is unchanged.
+- **What was done:**
+  - Auth: check_revoked=False for /grade and reads; current_user_strict (check_revoked=True) for PUT /me, DELETE /me, POST /certificates, revoke and PDF upload
+  - /grade: grading_id first, S3 upload and MongoDB insert run concurrently; on failure the other is undone and the response is 500; 503 {code: maintenance} while maintenance is enabled
+  - Certificates: GE-YYYYMM-NNNNN (Asia/Colombo month, counter cert-YYYYMM), idempotent per grading (partial unique index on valid), frozen snapshot, owner only if show_name_on_certificates at issue time, token_urlsafe(12) + SHA-256 compared with compare_digest
+  - PDF upload once (409 afterwards), certificates/{cert_no}.pdf + pdf_sha256; revoke (owner only)
+  - GET /public/v/{slug}: identical 404 for unknown/wrong/malformed, 30/minute per IP (slowapi), Cache-Control no-store, CORS for the two allowed origins only, disclaimer
+  - Privacy fix found by the tests: the grading image key contains the uid, so the photo is copied to certificates/{cert_no}.jpg at issue time and the public page links the copy; deleting the grading deletes the copies
+  - DELETE /me: auth_time within 5 minutes (else 401 reauth_required); deletes gradings + images, calibrations, rejections, feedback, certificate PDFs and photo copies, the user and the Firebase user; certificates withdrawn (only cert_no, issued_at, status, reason, withdrawn_at, token hash kept, so old links show "withdrawn"); audit_log with sha256(uid)
+  - Remote config app_config/"global" seeded at startup, GET /config (no auth, 60 s cache); POST /feedback with validation
+  - Tests: tests/test_phase4b.py (21 tests); full suite 71 passed with ENV=test; gemeye_test dropped, 0 test/ and dev/ objects left
+  - Parity: A PASS (112/112, 4.99e-13), B PASS (112/112, 2.85e-06), C PASS (87.76%), D PASS (9/9); mismatches CSV differs only by about 1e-13 float noise in rf_dp
+  - Latency (10 calls, first excluded): 2241 ms (baseline before the change 3195 ms)
+  - README: auth, endpoints, certificate/verification flow, account deletion, remote config, data model
+- **Files changed:**
+  - `+` backend/app/certificates.py
+  - `+` backend/app/errors.py
+  - `~` backend/app/auth.py
+  - `~` backend/app/db.py
+  - `~` backend/app/main.py
+  - `~` backend/app/routers.py
+  - `~` backend/app/schemas.py
+  - `~` backend/app/storage.py
+  - `+` backend/tests/test_phase4b.py
+  - `~` backend/tests/parity/parity_report.md
+  - `~` backend/tests/parity/parity_mismatches.csv
+  - `~` backend/README.md
+- **Connected edits:** EDIT-092, EDIT-093
+- **Reason:** Phase 4b: certificates with public verification, account deletion, remote config and feedback, and lower /grade latency, before the Flutter integration.

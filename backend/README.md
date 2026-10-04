@@ -1,15 +1,17 @@
 # GemEye Backend
 
 Python REST API for the GemEye app: the inference server (FastAPI + Docker,
-Phases 1-3) and, from Phase 4a, Firebase authentication, MongoDB Atlas storage
-of users, gradings, rejections and calibrations, and private S3 image storage. The Flutter app talks to this API over HTTPS
+Phases 1-3); from Phase 4a, Firebase authentication, MongoDB Atlas storage
+of users, gradings, rejections and calibrations, and private S3 image storage;
+from Phase 4b, certificates with public verification, account deletion, remote
+config and feedback. The Flutter app talks to this API over HTTPS
 only; it never connects to MongoDB directly.
 
 ## Folders
 
 | Folder | Purpose |
 |--------|---------|
-| `app/` | API source code (`main.py`, `routers.py`, `auth.py`, `db.py`, `storage.py`, `config.py`, `assets.py`, `schemas.py`, `pipeline/`) |
+| `app/` | API source code (`main.py`, `routers.py`, `certificates.py`, `auth.py`, `errors.py`, `db.py`, `storage.py`, `config.py`, `assets.py`, `schemas.py`, `pipeline/`) |
 | `models/` | v3 model files: `efficientnet_v3.keras`, `rf_model_v3.pkl`, `scaler_v3.pkl`, `config_v3.json` (local only) |
 | `export/` | Phase 0 training exports: manifest, extra, gate/OOD stats, grade profiles |
 | `secrets/` | Service account files (local only) |
@@ -56,11 +58,20 @@ Secrets are `SecretStr`; startup logs only "set"/"missing" for each.
 
 ## Auth
 
-Every endpoint except `GET /health` needs `Authorization: Bearer <Firebase ID
-token>`. The token is verified with `firebase_admin.auth.verify_id_token(...,
-check_revoked=True)`. Any failure is HTTP 401 `{status: "error", detail:
-"Authentication required."}`. There is no bypass. The user record is created on
-the first `/grade`, `/me` or `/calibrations` request.
+Every endpoint except `GET /health`, `GET /config` and `GET /public/v/{slug}`
+needs `Authorization: Bearer <Firebase ID token>`. Any failure is HTTP 401
+`{status: "error", detail: "Authentication required."}`. There is no bypass.
+
+- `/grade` and all read endpoints: `verify_id_token(check_revoked=False)`, a local
+  signature check against Google's cached public certs (no network call per request).
+- `PUT /me`, `DELETE /me`, `POST /certificates`, `POST /certificates/{no}/revoke`
+  and `POST /certificates/{no}/pdf`: `check_revoked=True` (one call to Firebase).
+- `DELETE /me` also needs a recent sign-in: the token's `auth_time` must be within
+  the last 5 minutes, else 401 `{status: "error", code: "reauth_required", ...}`.
+- Without the revocation check, a revoked or deleted user's token is still accepted
+  by the other endpoints until it expires (at most 1 hour).
+
+The user record is created on the first `/grade`, `/me` or `/calibrations` request.
 
 ## Endpoints
 
@@ -80,9 +91,12 @@ the first `/grade`, `/me` or `/calibrations` request.
 
 On `status: "ok"` the original upload is stored in S3 and a grading is saved; the
 response adds `grading_id`, `stone_id` (`GE-STONE-NNNNN`, global counter `stone`)
-and `image_url` (presigned GET, 10 minutes). On a gate rejection only a
-`rejections` record (diagnostics, no image) is written. If S3 or MongoDB is down
-the response is 503 and nothing is kept.
+and `image_url` (presigned GET, 10 minutes). The S3 upload and the MongoDB insert
+(stone counter + grading) run concurrently; the response is sent only when both
+succeeded. If either fails, the other is undone and the response is 500. On a gate
+rejection only a `rejections` record (diagnostics, no image) is written. While
+`maintenance.enabled` is true in the remote config, `/grade` returns 503
+`{status: "error", code: "maintenance", message}`.
 
 Response (`status: "ok"`): `status, warnings[], grade, grade_name, trade_name, probabilities[7], confidence,
 uncertainty, referred, second_grade, colour{L,a,b,C,H,S,B,hex,ciecam02,approximate}, delta_e00_to_typical,
@@ -112,13 +126,87 @@ Other endpoints (all authenticated, own records only):
 | DELETE | `/gradings/{id}` | deletes the S3 image, sets `deleted: true`; 204 |
 | POST | `/calibrations` | `{session_id, valid_until?, device?, ccm 3x3, residual?, quality?, measured_patches 6x3}`; 201 |
 | GET | `/calibrations` | newest first, at most 50 |
+| DELETE | `/me` | deletes the account (recent sign-in required, see Auth and below); 204 |
+| POST | `/feedback` | `{rating 1-5, category accuracy/app/calibration/other, comment? <= 500, app_version? <= 50}`; 201 `{feedback_id, created_at}` |
+| POST | `/certificates` | `{grading_id}` (own, not deleted, status ok); 201 `{cert_no, verify_url, issued_at}`, or 200 with the existing valid certificate |
+| GET | `/certificates` | own certificates, newest first (`limit` 1-100, default 50) |
+| GET | `/certificates/{cert_no}` | own certificate with `verify_url`, snapshot, owner, PDF hash, revocation |
+| POST | `/certificates/{cert_no}/pdf` | multipart `file`, `application/pdf`, at most 5 MB; once only (409 afterwards); 201 |
+| POST | `/certificates/{cert_no}/revoke` | `{reason}` (1-500 chars), owner only (admin in Phase 10); 409 if not valid |
+
+Public endpoints (no auth):
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/config` | remote config (below), cached 60 s in memory |
+| GET | `/public/v/{slug}` | certificate verification (below); 30 requests/minute per IP |
 
 Another user's id always gives 404 (never 403), so ids cannot be enumerated.
 
 Errors: 400 invalid input (not a JPEG/PNG signature, bad form fields or JSON),
-401 not authenticated, 404 not found, 413 image too large, 503 storage
-unavailable, 500 generic. Error bodies are `{status: "error", detail}` with no
-stack traces.
+401 not authenticated, 404 not found, 409 conflict (PDF already uploaded,
+certificate not valid), 413 file too large, 429 rate limited, 503 storage
+unavailable or maintenance, 500 generic. Error bodies are `{status: "error", detail}`
+(plus `code` and `message` for `reauth_required` and `maintenance`) with no stack traces.
+
+## Certificates and verification
+
+1. The app grades a stone, then calls `POST /certificates {grading_id}` on the
+   first export. A grading that already has a valid certificate gets the same one
+   back, so re-exports reuse the number. A revoked certificate is not reused.
+2. `cert_no` is `GE-YYYYMM-NNNNN`: the month is the issue time in Asia/Colombo and
+   NNNNN comes from the atomic counter `cert-YYYYMM` (restarts each month).
+3. The certificate stores a frozen snapshot: `stone_id, grade, grade_name,
+   trade_name, confidence, uncertainty, referred, colour` (including CIECAM02 and
+   `approximate`), `delta_e00_to_typical, model_version, captured_at, issued_at`
+   and `calibration {session_id, residual}` when the grading had a session. The
+   owner's display name and company name are included only if
+   `settings.show_name_on_certificates` was true at issue time.
+4. A random token (`secrets.token_urlsafe(12)`) is generated per certificate. The
+   verify link is `https://gemeye-app-2026.web.app/v/{cert_no}-{token}`; only the
+   owner can read the token (in `verify_url`).
+5. The app renders the PDF and uploads it once with `POST /certificates/{no}/pdf`;
+   the API stores `certificates/{cert_no}.pdf` and its SHA-256.
+6. The verification page calls `GET /public/v/{cert_no}-{token}`. The slug must
+   match `^(GE-\d{6}-\d{5})-(.+)$`; the token is checked with
+   `secrets.compare_digest` (on SHA-256 digests). An unknown number, a wrong token
+   or a malformed slug all give the same 404 body. Responses have
+   `Cache-Control: no-store`; CORS is allowed for this route only, from
+   `https://gemeye-app-2026.web.app` and `http://localhost:3000`. The rate limit
+   (slowapi, in memory, per process) keys on the client address; behind a proxy it
+   must be configured to use the forwarded address.
+7. The response: `cert_no, status` (valid/revoked/withdrawn), `issued_at, snapshot,
+   owner` (only if allowed), `revoked_reason, revoked_at, image_url, pdf_url,
+   pdf_sha256, disclaimer`. It never contains the uid or email. Presigned URLs last
+   10 minutes. The grading photo's S3 key contains the uid, so at issue time the
+   photo is copied (server side) to `certificates/{cert_no}.jpg` and the public
+   page links the copy.
+8. Deleting a grading deletes its photo and these copies; its certificates stay,
+   and the public page shows no photo.
+
+## Account deletion (DELETE /me)
+
+Deletes the user's gradings and their S3 images, calibrations, rejections,
+feedback, certificate PDFs and photo copies, the `users` document and the
+Firebase user (admin SDK). Certificates become `status: "withdrawn"`,
+`revoked_reason: "Owner account deleted"`; the snapshot, owner, uid, grading id
+and token are removed. Only `cert_no, issued_at, status`, the reason,
+`withdrawn_at` and the token's SHA-256 remain, so old verify links show
+"withdrawn" instead of a 404. An `audit_log` entry
+`{action: "account_deleted", uid_hash: sha256(uid), at}` is written. Returns 204.
+
+## Remote config
+
+`app_config/"global"` is created with these defaults at startup if missing; fields
+missing from the stored document fall back to the defaults:
+
+```
+referral_threshold_default: 0.60, calibration_validity_hours: 8, min_app_version: "1.0.0",
+maintenance: {enabled: false, message: ""},
+features: {repeatability_mode: true, gradcam: false, public_verification: true}
+```
+
+Edit the document in MongoDB to change it; each process picks it up within 60 s.
 
 ## Data model (MongoDB, all timestamps UTC)
 
@@ -128,10 +216,16 @@ stack traces.
 | `gradings` | `_id, uid, stone_id, created_at, status: "ok", result` (grade response without debug), `image_key, calibration_session_id, app_version, device, referral_threshold_used, deleted` (+ `deleted_at`) | `(uid, created_at desc)` |
 | `rejections` | `_id, uid, created_at, status, message, diagnostics, app_version, device` (no image, privacy decision option 1) | `created_at` |
 | `calibrations` | `_id, uid, session_id, created_at, valid_until, device, ccm, residual, quality, measured_patches` | `(uid, created_at desc)` |
-| `counters` | `_id` (counter name), `seq`; atomic `find_one_and_update($inc, upsert)` | `_id` |
+| `counters` | `_id` (counter name: `stone`, `cert-YYYYMM`), `seq`; atomic `find_one_and_update($inc, upsert)` | `_id` |
+| `certificates` | `_id` (cert_no), `uid, grading_id, token, token_sha256, status` (valid/revoked/withdrawn), `issued_at, snapshot, owner, image_key, pdf_key, pdf_sha256, pdf_uploaded_at, revoked_reason, revoked_at` (+ `withdrawn_at`) | `(uid, issued_at desc)`, unique `grading_id` where `status: "valid"` |
+| `feedback` | `_id, uid, created_at, rating, category, comment, app_version` | `(uid, created_at desc)` |
+| `app_config` | `_id: "global"`, remote config (above) | `_id` |
+| `audit_log` | `_id, action, uid_hash, at` | - |
 
 S3 (private bucket, SSE-S3): `<prefix>gradings/{uid}/{grading_id}.jpg` (`.png`
 for PNG uploads). Only the original upload of a graded stone is stored.
+`<prefix>certificates/{cert_no}.pdf` is the certificate PDF and
+`<prefix>certificates/{cert_no}.jpg` the photo copy for the public page.
 
 ## The two colour paths
 

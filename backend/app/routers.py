@@ -1,24 +1,30 @@
-"""User, grading history and calibration endpoints. All require a Firebase ID token.
-Other users' records always give 404 (never 403), so ids cannot be enumerated."""
+"""User, grading history, calibration, feedback and remote config endpoints. All but
+GET /config require a Firebase ID token. Other users' records always give 404
+(never 403), so ids cannot be enumerated."""
 import base64
+import hashlib
 import json
 import logging
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from firebase_admin import auth as firebase_auth
 
-from app.auth import current_user
+from app.auth import current_user, current_user_strict
 from app.db import utcnow
-from app.schemas import (CalibrationIn, CalibrationItem, CalibrationList, GradingItem,
-                         GradingList, ProfileUpdate, UserResponse)
+from app.errors import ApiError
+from app.schemas import (AppConfig, CalibrationIn, CalibrationItem, CalibrationList, FeedbackIn,
+                         FeedbackOut, GradingItem, GradingList, ProfileUpdate, UserResponse)
 
 logger = logging.getLogger("gemeye.api")
 router = APIRouter()
 
 NOT_FOUND = "Not found."
 UNAVAILABLE = "Service temporarily unavailable. Please try again."
+REAUTH_MAX_AGE_S = 300      # DELETE /me needs a sign-in within the last 5 minutes
 
 
 def get_db(request: Request):
@@ -59,7 +65,7 @@ def get_me(user=Depends(current_user), db=Depends(get_db)):
 
 
 @router.put("/me", response_model=UserResponse)
-def put_me(body: ProfileUpdate, user=Depends(current_user), db=Depends(get_db)):
+def put_me(body: ProfileUpdate, user=Depends(current_user_strict), db=Depends(get_db)):
     db.ensure_user(user["uid"], user["email"])
     data = body.model_dump(exclude_unset=True)
     update = {k: v for k, v in data.items() if k not in ("company", "settings")}
@@ -72,6 +78,45 @@ def put_me(body: ProfileUpdate, user=Depends(current_user), db=Depends(get_db)):
     update["updated_at"] = utcnow()
     db.users.update_one({"_id": user["uid"]}, {"$set": update})
     return user_response(db.users.find_one({"_id": user["uid"]}), user)
+
+
+@router.delete("/me", status_code=204)
+def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Depends(get_storage)):
+    """Deletes the account: gradings + images, calibrations, rejections, feedback,
+    certificate PDFs, the profile and the Firebase user. Certificates are kept as
+    "withdrawn" with only cert_no, issued_at, status and the reason."""
+    from app.certificates import PRIVATE_FIELDS, WITHDRAWN_REASON
+
+    auth_time = user.get("auth_time")
+    if not isinstance(auth_time, (int, float)) or time.time() - auth_time > REAUTH_MAX_AGE_S:
+        raise ApiError(401, "reauth_required", "Please sign in again to delete your account.")
+    uid = user["uid"]
+    try:
+        storage.delete_prefix(f"gradings/{uid}/")
+        for c in db.certificates.find({"uid": uid}, {"pdf_key": 1, "image_key": 1}):
+            for key in (c.get("pdf_key"), c.get("image_key")):
+                if key:
+                    storage.delete(key)
+    except Exception:
+        logger.exception("S3 delete failed")
+        raise HTTPException(503, UNAVAILABLE)
+    for coll in (db.gradings, db.calibrations, db.rejections, db.feedback):
+        coll.delete_many({"uid": uid})
+    now = utcnow()
+    db.certificates.update_many({"uid": uid}, {
+        "$set": {"status": "withdrawn", "revoked_reason": WITHDRAWN_REASON, "withdrawn_at": now},
+        "$unset": {f: "" for f in PRIVATE_FIELDS}})
+    db.users.delete_one({"_id": uid})
+    try:
+        firebase_auth.delete_user(uid)
+    except firebase_auth.UserNotFoundError:
+        pass
+    except Exception:
+        logger.exception("Firebase user delete failed")
+        raise HTTPException(503, UNAVAILABLE)
+    db.audit_log.insert_one({"_id": uuid.uuid4().hex, "action": "account_deleted",
+                             "uid_hash": hashlib.sha256(uid.encode()).hexdigest(), "at": now})
+    return Response(status_code=204)
 
 
 # ---- Gradings ----
@@ -153,12 +198,19 @@ def get_grading(grading_id: str, user=Depends(current_user), db=Depends(get_db),
 def delete_grading(grading_id: str, user=Depends(current_user), db=Depends(get_db),
                    storage=Depends(get_storage)):
     doc = _own_grading(db, user["uid"], grading_id)
-    if doc.get("image_key"):
-        try:
-            storage.delete(doc["image_key"])
-        except Exception:
-            logger.exception("S3 delete failed")
-            raise HTTPException(503, UNAVAILABLE)
+    # The photo goes, including the copies its certificates link (they stay, without photo).
+    certs = list(db.certificates.find({"grading_id": doc["_id"], "image_key": {"$ne": None}},
+                                      {"image_key": 1}))
+    try:
+        for key in [doc.get("image_key")] + [c["image_key"] for c in certs]:
+            if key:
+                storage.delete(key)
+    except Exception:
+        logger.exception("S3 delete failed")
+        raise HTTPException(503, UNAVAILABLE)
+    if certs:
+        db.certificates.update_many({"_id": {"$in": [c["_id"] for c in certs]}},
+                                    {"$set": {"image_key": None}})
     db.gradings.update_one({"_id": doc["_id"]},
                            {"$set": {"deleted": True, "deleted_at": utcnow(), "image_key": None}})
     return Response(status_code=204)
@@ -186,3 +238,22 @@ def post_calibration(body: CalibrationIn, user=Depends(current_user), db=Depends
 def list_calibrations(user=Depends(current_user), db=Depends(get_db)):
     docs = db.calibrations.find({"uid": user["uid"]}).sort([("created_at", -1), ("_id", -1)]).limit(50)
     return {"items": [calibration_item(d) for d in docs]}
+
+
+# ---- Feedback ----
+
+@router.post("/feedback", response_model=FeedbackOut, status_code=201)
+def post_feedback(body: FeedbackIn, user=Depends(current_user), db=Depends(get_db)):
+    doc = {"_id": uuid.uuid4().hex, "uid": user["uid"], "created_at": utcnow(),
+           **body.model_dump()}
+    if doc["comment"] is not None:
+        doc["comment"] = doc["comment"].strip() or None
+    db.feedback.insert_one(doc)
+    return {"feedback_id": doc["_id"], "created_at": doc["created_at"]}
+
+
+# ---- Remote config (public) ----
+
+@router.get("/config", response_model=AppConfig)
+def get_config(db=Depends(get_db)):
+    return db.get_app_config()

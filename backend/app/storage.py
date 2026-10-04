@@ -20,6 +20,11 @@ class Storage:
     def grading_key(self, uid, grading_id, ext="jpg"):
         return f"{self.prefix}gradings/{uid}/{grading_id}.{ext}"
 
+    def certificate_key(self, cert_no, ext="pdf"):
+        """Certificate PDF, or (ext jpg/png) the copy of the stone photo that the
+        public page links; these keys contain no uid."""
+        return f"{self.prefix}certificates/{cert_no}.{ext}"
+
     def _check(self, key):
         if not key.startswith(self.prefix):
             raise ValueError("key outside the environment prefix")
@@ -32,6 +37,12 @@ class Storage:
     def get(self, key):
         self._check(key)
         return self.s3.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+
+    def copy(self, src, dst):
+        self._check(src)
+        self._check(dst)
+        self.s3.copy_object(Bucket=self.bucket, Key=dst, CopySource={"Bucket": self.bucket, "Key": src},
+                            ServerSideEncryption="AES256", MetadataDirective="COPY")
 
     def delete(self, key):
         self._check(key)

@@ -1,23 +1,29 @@
-"""GemEye API: inference (Phases 1-3), auth, MongoDB and S3 storage (Phase 4a)."""
+"""GemEye API: inference (Phases 1-3), auth, MongoDB and S3 storage (Phase 4a),
+certificates, public verification, remote config and feedback (Phase 4b)."""
 import json
 import logging
 import platform
 import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from app.assets import load_assets, warm_up
 from app.auth import current_user, init_firebase
+from app.certificates import limiter, public_headers
+from app.certificates import router as certificates_router
 from app.config import get_settings
 from app.db import Database, utcnow
+from app.errors import ApiError
 from app.pipeline.colour import decode_image
 from app.pipeline.inference import grade, rejection
-from app.routers import UNAVAILABLE, get_db, get_storage, router
+from app.routers import get_db, get_storage, router
 from app.schemas import GradeResponse, HealthResponse
 from app.storage import Storage
 
@@ -25,6 +31,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 logger = logging.getLogger("gemeye.api")
 
 _lock = threading.Lock()
+# S3 upload and MongoDB insert of a grading run concurrently.
+_io = ThreadPoolExecutor(max_workers=8, thread_name_prefix="gemeye-io")
+MAINTENANCE = "GemEye is under maintenance. Please try again later."
 
 # Keep uploads up to the size limit in memory (Starlette spools >1 MB to a temp file).
 try:
@@ -54,6 +63,7 @@ async def lifespan(app: FastAPI):
         try:
             app.state.db = Database(settings.mongodb_uri.get_secret_value(), settings.db_name)
             app.state.db.ensure_indexes()
+            app.state.db.seed_app_config()
         except Exception as e:
             logger.error("MongoDB init failed (%s)", type(e).__name__)
             app.state.db = None
@@ -67,28 +77,46 @@ async def lifespan(app: FastAPI):
         app.state.db.close()
 
 
-app = FastAPI(title="GemEye API", version="1.1.0", lifespan=lifespan)
+app = FastAPI(title="GemEye API", version="1.2.0", lifespan=lifespan)
+app.state.limiter = limiter
 app.include_router(router)
+app.include_router(certificates_router)
 
 
-def _error(code, detail):
-    return JSONResponse(status_code=code, content={"status": "error", "detail": detail})
+def _error(request, code, detail, extra=None, headers=None):
+    h = dict(headers or {})
+    if request.url.path.startswith("/public/"):
+        h.update(public_headers(request))
+    return JSONResponse(status_code=code, headers=h,
+                        content={"status": "error", **(extra or {}), "detail": detail})
 
 
 @app.exception_handler(HTTPException)
 async def http_error(request: Request, exc: HTTPException):
-    return _error(exc.status_code, str(exc.detail))
+    return _error(request, exc.status_code, str(exc.detail), headers=exc.headers)
+
+
+@app.exception_handler(ApiError)
+async def api_error(request: Request, exc: ApiError):
+    return _error(request, exc.status_code, exc.detail,
+                  {"code": exc.code, "message": exc.detail})
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limited(request: Request, exc: RateLimitExceeded):
+    return _error(request, 429, "Too many requests. Please try again later.",
+                  headers={"Retry-After": "60"})
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
-    return _error(400, "Invalid request.")
+    return _error(request, 400, "Invalid request.")
 
 
 @app.exception_handler(Exception)
 async def generic_error(request: Request, exc: Exception):
     logger.exception("Unhandled error")
-    return _error(500, "Internal server error.")
+    return _error(request, 500, "Internal server error.")
 
 
 def _runtime_versions():
@@ -165,6 +193,9 @@ def grade_stone(
     assets = request.app.state.assets
     if assets is None:
         raise HTTPException(500, "Internal server error.")
+    maintenance = db.get_app_config().get("maintenance") or {}
+    if maintenance.get("enabled"):
+        raise ApiError(503, "maintenance", maintenance.get("message") or MAINTENANCE)
 
     limit = settings.max_upload_mb * 1024 * 1024
     data = image.file.read(limit + 1)
@@ -213,30 +244,43 @@ def grade_stone(
             logger.exception("Could not record rejection")
         return result
 
-    # Status ok: store the original upload, then the grading record.
+    # Status ok: store the original upload and the grading record concurrently;
+    # respond only when both succeeded, otherwise undo the one that did.
     grading_id = uuid.uuid4().hex
     key = storage.grading_key(user["uid"], grading_id, "png" if is_png else "jpg")
-    try:
-        storage.put(key, data, "image/png" if is_png else "image/jpeg")
-    except Exception:
-        logger.exception("S3 upload failed")
-        raise HTTPException(503, UNAVAILABLE)
-    finally:
-        del data
-    try:
+
+    def save_record():
         stone_id = f"GE-STONE-{db.next_seq('stone'):05d}"
         db.gradings.insert_one({
             "_id": grading_id, "uid": user["uid"], "stone_id": stone_id, "created_at": utcnow(),
             "status": "ok", "result": stored, "image_key": key,
             "calibration_session_id": _short(session_id, 100), **meta,
             "referral_threshold_used": threshold, "deleted": False})
-    except Exception:
-        logger.exception("Could not save grading")
+        return stone_id
+
+    upload = _io.submit(storage.put, key, data, "image/png" if is_png else "image/jpeg")
+    record = _io.submit(save_record)
+    failed = []
+    for name, future in (("S3 upload", upload), ("MongoDB insert", record)):
         try:
-            storage.delete(key)
+            future.result()
         except Exception:
-            logger.exception("S3 cleanup failed")
-        raise HTTPException(503, UNAVAILABLE)
+            logger.exception("%s failed", name)
+            failed.append(future)
+    del data
+    if failed:
+        cleanups = []
+        if upload not in failed:
+            cleanups.append(("S3", lambda: storage.delete(key)))
+        if record not in failed:
+            cleanups.append(("MongoDB", lambda: db.gradings.delete_one({"_id": grading_id})))
+        for name, undo in cleanups:
+            try:
+                undo()
+            except Exception:
+                logger.exception("%s cleanup failed", name)
+        raise HTTPException(500, "Could not save the grading. Please try again.")
+    stone_id = record.result()
 
     result.update(grading_id=grading_id, stone_id=stone_id, image_url=storage.presigned_get(key))
     return result

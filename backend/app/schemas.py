@@ -243,3 +243,117 @@ class CalibrationItem(BaseModel):
 
 class CalibrationList(BaseModel):
     items: List[CalibrationItem]
+
+
+# ---- Certificates ----
+
+class CertificateIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    grading_id: str = Field(min_length=1, max_length=100)
+
+
+class RevokeIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class CalibrationRef(BaseModel):
+    session_id: str
+    residual: Optional[float] = None
+
+
+class CertificateSnapshot(BaseModel):
+    """Frozen at issue time; later changes to the grading or profile do not affect it."""
+    stone_id: str
+    grade: int
+    grade_name: str
+    trade_name: str
+    confidence: float
+    uncertainty: float
+    referred: bool
+    colour: ColourValues
+    delta_e00_to_typical: Optional[float] = None
+    model_version: str
+    captured_at: datetime
+    issued_at: datetime
+    calibration: Optional[CalibrationRef] = None
+
+
+class CertificateOwner(BaseModel):
+    display_name: Text = None
+    company: Text = None
+
+
+class CertificateIssued(BaseModel):
+    cert_no: str
+    verify_url: str
+    issued_at: datetime
+
+
+class CertificateItem(BaseModel):
+    cert_no: str
+    grading_id: str
+    status: Literal["valid", "revoked"]
+    issued_at: datetime
+    verify_url: str
+    snapshot: CertificateSnapshot
+    owner: Optional[CertificateOwner] = None
+    pdf_sha256: Text = None
+    pdf_uploaded_at: Optional[datetime] = None
+    revoked_reason: Text = None
+    revoked_at: Optional[datetime] = None
+
+
+class CertificateList(BaseModel):
+    items: List[CertificateItem]
+
+
+class PublicCertificate(BaseModel):
+    """GET /public/v/{slug}. Never contains the owner's uid or email."""
+    cert_no: str
+    status: Literal["valid", "revoked", "withdrawn"]
+    issued_at: datetime
+    snapshot: Optional[CertificateSnapshot] = None
+    owner: Optional[CertificateOwner] = None
+    revoked_reason: Text = None
+    revoked_at: Optional[datetime] = None
+    image_url: Text = None
+    pdf_url: Text = None
+    pdf_sha256: Text = None
+    disclaimer: str
+
+
+# ---- Remote config and feedback ----
+
+class Maintenance(BaseModel):
+    enabled: bool
+    message: str
+
+
+class Features(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    repeatability_mode: bool
+    gradcam: bool
+    public_verification: bool
+
+
+class AppConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    referral_threshold_default: float
+    calibration_validity_hours: int
+    min_app_version: str
+    maintenance: Maintenance
+    features: Features
+
+
+class FeedbackIn(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    rating: int = Field(ge=1, le=5)
+    category: Literal["accuracy", "app", "calibration", "other"]
+    comment: Text = _text(500)
+    app_version: Text = _text(50)
+
+
+class FeedbackOut(BaseModel):
+    feedback_id: str
+    created_at: datetime
