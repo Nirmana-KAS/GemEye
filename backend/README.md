@@ -49,22 +49,26 @@ scikit-learn 1.6.1, joblib 1.6.0, colour-science 0.4.7. OpenCV: training used
 | `patches` | no | JSON 6x3, 0-255, order: white, black, grey_18, grey_50, blue, red |
 | `referral_threshold` | no | 0.40-0.90, default 0.60 |
 
-Response: `status, grade, grade_name, trade_name, probabilities[7], confidence,
+Response (`status: "ok"`): `status, warnings[], grade, grade_name, trade_name, probabilities[7], confidence,
 uncertainty, referred, second_grade, colour{L,a,b,C,H,S,B,hex,ciecam02,approximate}, delta_e00_to_typical,
-calibration_mode, model_version, timings_ms{total,preprocess,rf,cnn},
-diagnostics{blur_variance, stone_area_fraction, hue_physical, hue_gate_min,
-hue_gate_max, hue_in_gate, segmentation_reliable, ood_distance, ood_threshold}`.
+calibration_mode, model_version, timings_ms{total,preprocess,rf,cnn}, diagnostics{...}`.
+`warnings` may contain `unusual_image` (OOD distance between OOD_WARN and OOD_REJECT).
 
-`hue_physical` is the display-path hue. The hue gate (`HUE_GATE_MIN/MAX` = 170-265 degrees
-in `pipeline/inference.py`) is provisional and will be tuned in Phase 7.
+Quality gates (Phase 3, thresholds in `app/gates.py`, provisional, tune in Phase 7) run in
+this order and stop at the first failure: `invalid_image` (undecodable or short side
+< 300 px), `no_stone`, `blurry`, `not_blue` (skipped when segmentation is unreliable;
+`diagnostics.hue_gate_skipped`), `not_recognised` (OOD). A rejection is HTTP 200 with
+`status` = the code, a short `message` and the diagnostics measured up to that gate; it
+has no grade or probabilities. Test results: `tests/gates/gates_report.md`
+(`docker compose exec api python tests/gates/run_gates.py`).
+
+`hue_wb` and `chroma_wb` are the tray white-balanced stone hue and C*.
 `segmentation_reliable` is false when GrabCut used either fallback (saturation
-mask or centre box) on the display-path image; `colour.approximate` is its negation.
+mask or centre box) on the tray white-balanced image; `colour.approximate` is its negation.
 
-Errors: 400 invalid input, 413 image too large, 500 generic. Error bodies are
+Errors: 400 invalid input (not a JPEG/PNG signature, bad form fields), 413 image too large, 500 generic. Error bodies are
 `{status: "error", detail}` with no stack traces. Images are never stored
 (uploads stay in memory).
-
-Diagnostics are reported only; nothing is rejected yet (Phase 3).
 
 ## The two colour paths
 
@@ -75,10 +79,14 @@ Diagnostics are reported only; nothing is rejected yet (Phase 3).
    in training, `clip(rgb/255 @ CCM, 0, 1)*255 -> uint8`, followed by the same
    JPEG round trip (`cv2.imencode('.jpg')` at default quality, then decode).
    The RF features (v3 GrabCut + 12-D) and the CNN input both come from this image.
-2. **Display path** (physical colour). A 4x3 affine correction with offset is
-   fitted from the user's patches to the CCC reference RGB (or the exported
-   `ccm_affine_4x3` if no patches). L*, a*, b*, C*, H, S, B, hex, CIECAM02 and
-   ΔE00 to the predicted grade's typical colour come from this image.
+2. **Display path** (tray white balance, `export_wb.json` method,
+   `pipeline/display.py tray_balanced_measure`). The raw upload is resized to 256 px,
+   GrabCut (seed 42) finds the stone, the tray is the non-stone pixels at least 8 px
+   from the stone in the brightest 50% V, and each channel is scaled so the tray
+   median becomes 229.5. L*, a*, b*, C*, H, S, B, hex, CIECAM02, ΔE00 to the predicted
+   grade's typical colour (`grade_profiles_wb` median) and the gate hue, chroma and
+   stone-tray contrast all come from this image. Patches do not change it. The
+   earlier affine display path is superseded (commented out in `pipeline/colour.py`).
 
 ## Inference
 

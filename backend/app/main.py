@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from app.assets import load_assets, warm_up
 from app.config import get_settings
 from app.pipeline.colour import decode_image
-from app.pipeline.inference import grade
+from app.pipeline.inference import grade, rejection
 from app.schemas import GradeResponse, HealthResponse
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -121,6 +121,7 @@ def grade_stone(
     patches: Optional[str] = Form(None),
     referral_threshold: Optional[float] = Form(None),
     debug: bool = Form(False),
+    gates: bool = Form(True),
 ):
     settings = get_settings()
     assets = request.app.state.assets
@@ -136,7 +137,7 @@ def grade_stone(
     try:
         raw_rgb = decode_image(data)
     except ValueError:
-        raise HTTPException(400, "Image could not be read.")
+        raw_rgb = None
     finally:
         del data
 
@@ -144,9 +145,13 @@ def grade_stone(
     if not 0.40 <= threshold <= 0.90:
         raise HTTPException(400, "referral_threshold must be between 0.40 and 0.90.")
     p = _parse_patches(patches)
+    if raw_rgb is None:
+        # JPEG/PNG signature, but the image cannot be decoded.
+        return rejection("invalid_image", {})
 
     # One request at a time through TF / GrabCut; nothing is written to disk.
     with _lock:
-        # Debug fields are never returned outside development.
-        return grade(assets, raw_rgb, p, threshold,
-                     debug=debug and settings.env.lower() == "development")
+        # Debug fields and gates=false are honoured only in development.
+        dev = settings.env.lower() == "development"
+        return grade(assets, raw_rgb, p, threshold, debug=debug and dev,
+                     enforce_gates=gates or not dev)

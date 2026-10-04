@@ -43,6 +43,9 @@ def post(path):
         f"--{b}\r\nContent-Disposition: form-data; name=\"image\"; "
         f"filename=\"{os.path.basename(path)}\"\r\nContent-Type: {ctype}\r\n\r\n".encode() + img + b"\r\n",
         f"--{b}\r\nContent-Disposition: form-data; name=\"debug\"\r\n\r\ntrue\r\n".encode(),
+        # Development only: grade every image even if a quality gate fails, so the
+        # model path is compared on all 112 images (Phase 3).
+        f"--{b}\r\nContent-Disposition: form-data; name=\"gates\"\r\n\r\nfalse\r\n".encode(),
         f"--{b}\r\nContent-Disposition: form-data; name=\"referral_threshold\"\r\n\r\n0.60\r\n".encode(),
         f"--{b}--\r\n".encode(),
     ]

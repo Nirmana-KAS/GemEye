@@ -1714,3 +1714,77 @@
   - `~` backend/tests/parity/parity_mismatches.csv
 - **Connected edits:** EDIT-086, EDIT-087
 - **Reason:** The server decoded the CNN input with cv2 while training used TF, which shifted CNN probabilities by up to 0.335.
+
+### EDIT-089 | 04 October 2026 07:10 | IST
+- **Topic:** Backend Phase 3 - quality gates (invalid_image, blurry, no_stone, not_blue, not_recognised)
+- **Summary:** /grade now runs five quality gates in order and stops at the first failure, returning HTTP 200 with the gate code, a short message and the diagnostics measured up to that gate. On the 112 test images 69 are falsely rejected (65 by not_blue, 4 by no_stone), above the target of 2. The thresholds are unchanged; fixes are proposed in gates_report.md and wait for approval.
+- **What was done:**
+  - New app/gates.py: all thresholds as named constants with their export source (MIN_SHORT_SIDE_PX 300, BLUR_MIN_VARIANCE 29.47, NO_STONE_MIN_AREA 0.0157, NO_STONE_MIN_CONTRAST_DE00 8.0, HUE_GATE 170-265, MIN_CHROMA 2.7, OOD_WARN 20.65, OOD_REJECT 25.69), the user messages, and the tray-balanced stone check (export_wb method: stone area, stone-tray dE00, stone C*, centre-box fallback)
+  - inference.grade: gates run before the models where possible (size, blur, stone check, display-path hue) and the model path, RF, CNN and OOD after; ok responses gain `warnings` (`unusual_image` when OOD_WARN < distance <= OOD_REJECT); model path and model maths unchanged
+  - display.py: measurement split from analyse so the display-path GrabCut runs once
+  - schemas: grade fields optional, new `message`, `warnings` and gate diagnostics (short_side_px, gate_stone_area, stone_tray_contrast_de00, gate_centre_fallback, chroma_wb, min_chroma, hue_gate_skipped, ood_warn, thresholds)
+  - main.py: a file with a JPEG/PNG signature that cannot be decoded now returns status invalid_image (HTTP 200); a wrong signature is still HTTP 400
+  - tests/gates/run_gates.py: false rejections on the 112 raw test images plus synthetic negatives (blur sigma 3/6, tray crops, near-white, hue-rotated and greyscale stones, noise, checkerboards, grey); synthetic files written to /tmp only
+  - Results: false rejections 69/112 (not_blue 65, no_stone 4). Synthetic rejection: blur sigma3 96.4%, sigma6 100%, tray crops 100% (all by blurry), near-white 2/2, red 94.6%, green 95.5%, yellow 95.5%, grey 98.2%, random 9/9
+  - Cause: the display affine clips dark stone pixels to black (S = 0, H = 0), so the display-path median hue is 0 degrees for most grade 1-3 stones
+  - Proposals (not applied): hue gate on the tray-balanced stone hue; MIN_CHROMA 0.5; NO_STONE_MIN_CONTRAST_DE00 5.0. Simulated: 2/112 false rejections, recoloured stones 109-111/112 rejected
+  - Smoke tests: ok-path tests use a real test image (g6_010) from the dataset mount because the synthetic disc is now rejected as not_recognised; new tests for invalid_image, blurry, no_stone and not_blue; 9 passed
+  - README: gate order, rejection format and warnings documented
+- **Files changed:**
+  - `+` backend/app/gates.py
+  - `~` backend/app/main.py
+  - `~` backend/app/schemas.py
+  - `~` backend/app/pipeline/inference.py
+  - `~` backend/app/pipeline/display.py
+  - `~` backend/tests/test_smoke.py
+  - `~` backend/README.md
+  - `+` backend/tests/gates/run_gates.py
+  - `+` backend/tests/gates/gates_report.md
+- **Connected edits:** EDIT-086, EDIT-087, EDIT-088
+- **Reason:** Reject photos that cannot be graded reliably (blurry, empty tray, non-blue or unfamiliar images) instead of returning a grade for them.
+
+### EDIT-090 | 04 October 2026 08:02 | IST
+- **Topic:** Backend Phase 3.1 - tray white-balanced colour values, gate fixes and new gate order
+- **Summary:** Every user-facing colour value and the gate hue, chroma and contrast now come from the tray white-balanced image (export_wb method); the affine display path is commented out as superseded. With the approved threshold changes and the new gate order, false rejections fall from 69/112 to 3/112. Parity A-D still pass. Two further proposals wait for approval.
+- **What was done:**
+  - display.py: new tray_balanced_measure (256 px, GrabCut seed 42, tray median, gain 229.5/tray) gives L*, a*, b*, C*, H, S, B, mean RGB (hex, CIECAM02), stone area, stone-tray dE00 and fallback flags; analyse uses it and dE00 to typical now uses the grade_profiles_wb median
+  - colour.py: fit_affine and display_path_image commented out as superseded; assets loads export_wb.json (affine assets marked unused)
+  - gates.py: thresholds and decisions only; hue gate on the tray-balanced hue (170-265), MIN_CHROMA 2.7 -> 0.5, NO_STONE_MIN_CONTRAST_DE00 8.0 -> 5.0, NO_STONE_MIN_AREA kept and commented as a safety net
+  - Gate order now invalid_image, no_stone, blurry, not_blue, not_recognised; segmentation_reliable and hue_gate_skipped come from the tray-balanced GrabCut; diagnostics.hue_physical renamed hue_wb
+  - Development-only form field gates=false: every gate is evaluated but the image is graded anyway, failed gates listed in debug.gates_bypassed; run_parity.py sends it so all 112 images are compared
+  - Gate test: false rejections 3/112 (no_stone g1_030 and g7_067, not_recognised g6_085 OOD 28.76); synthetic rejection: blur sigma3 95.5%, sigma6 100%, tray crops 100% (no_stone), near-white 2/2 (no_stone), red 92.9%, green 96.4%, yellow 96.4%, grey 99.1%, random 9/9
+  - Parity: A PASS (112/112, 4.99e-13), B PASS (112/112, 2.85e-6), C PASS (87.76%), D PASS (9/9)
+  - gates_report.md regenerated with "Changes from first run", the output field-source table, parity and proposals (keep OOD_REJECT and accept 3/112, or raise to 30; apply a wider hue band when segmentation is unreliable)
+  - Smoke tests: hue_wb key, blur test accepts blurry or no_stone, new gate-bypass test; 10 passed
+  - README: display path, gate order and field names updated
+- **Files changed:**
+  - `~` backend/app/gates.py
+  - `~` backend/app/assets.py
+  - `~` backend/app/main.py
+  - `~` backend/app/schemas.py
+  - `~` backend/app/pipeline/display.py
+  - `~` backend/app/pipeline/colour.py
+  - `~` backend/app/pipeline/inference.py
+  - `~` backend/tests/test_smoke.py
+  - `~` backend/tests/gates/run_gates.py
+  - `~` backend/tests/gates/gates_report.md
+  - `~` backend/tests/parity/run_parity.py
+  - `~` backend/tests/parity/parity_report.md
+  - `~` backend/tests/parity/parity_mismatches.csv
+  - `~` backend/README.md
+- **Connected edits:** EDIT-088, EDIT-089
+- **Reason:** The affine display path turned dark stones black and broke the hue gate (65 false rejections); one consistent white-balanced measurement fixes the gates and the colour values shown to the user.
+
+### EDIT-091 | 04 October 2026 12:09 | IST
+- **Topic:** Backend Phase 3.2 - gate decisions (OOD kept, wide hue band tried and reverted)
+- **Summary:** OOD_REJECT stays at the validation p99 (25.69), accepting 3/112 false rejections. The wider hue band for unreliable segmentation (150-285) was tried, newly rejected one real grade 1 stone (g1_016), and was reverted as agreed. Code is back to the EDIT-090 state; gates_report.md now has a Decisions section.
+- **What was done:**
+  - Tried: HUE_GATE_WIDE_MIN/MAX = 150/285 applied when segmentation_reliable is false (chroma check reliable-only); smoke tests 10 passed
+  - Gate test with B: false rejections 4/112 (new: g1_016 not_blue, hue_wb 0, chroma_wb 0, segmentation unreliable); recolour red 99.1%, green 100%, yellow 100%, grey 99.1%
+  - Condition (no new real rejection) failed, so B was reverted in gates.py, inference.py, schemas.py and run_gates.py; smoke tests 10 passed
+  - Gate test re-run without B: 3/112 (g1_030, g7_067 no_stone; g6_085 not_recognised); recolour red 92.9%, green 96.4%, yellow 96.4%, grey 99.1%; identical to EDIT-090
+  - gates_report.md regenerated, with Parity and Decisions sections (A kept at p99, no test-set tuning, g6_085 confidence 0.31 so referred anyway; B result table and reason for revert)
+- **Files changed:**
+  - `~` backend/tests/gates/gates_report.md
+- **Connected edits:** EDIT-089, EDIT-090
+- **Reason:** Record the threshold decisions and test whether the hue gate could also cover unreliable segmentation without new false rejections.

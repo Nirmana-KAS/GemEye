@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import tensorflow as tf
 
+from app import gates
 from app.pipeline import colour as colour_path
 from app.pipeline import display
 from app.pipeline.features import model_features
@@ -13,11 +14,6 @@ GRADE_NAMES = ["Dark", "Deep", "Vivid", "Intense", "Medium Intense", "Light", "V
 TRADE_NAMES = ["Midnight Blue", "Twilight Blue", "Royal Blue", "Intense Cornflower",
                "Cornflower Blue", "Pastel Blue", "Very Light Blue"]
 GRADES = np.arange(1, 8, dtype=np.float64)
-
-# Physical (display-path) hue gate in degrees. Provisional, tune in Phase 7.
-# export_wb.json hue_wb_range_suggested is not used: it includes GrabCut fallbacks.
-HUE_GATE_MIN = 170.0
-HUE_GATE_MAX = 265.0
 
 
 def blur_variance(rgb):
@@ -66,22 +62,67 @@ def mahalanobis(assets, e):
     return float(np.sqrt(d @ assets.ood_precision @ d))
 
 
-def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
-    t0 = time.perf_counter()
+def rejection(code, diagnostics):
+    """Gate failure: status code, message and the diagnostics measured so far."""
+    return {"status": code, "message": gates.MESSAGES[code], "diagnostics": diagnostics}
 
-    # Model path (identical to training) and display path (physical colour).
+
+def grade(assets, raw_rgb, patches, referral_threshold, debug=False, enforce_gates=True):
+    """Gates in order, stopping at the first failure: invalid_image, no_stone,
+    blurry, not_blue, not_recognised. The cheap gates run before the models.
+
+    All user-facing colour values and the gate hue/chroma/contrast come from the
+    tray white-balanced image (display.tray_balanced_measure). The model path
+    below is unchanged and still identical to training.
+
+    enforce_gates=False (development only, for the parity test) evaluates every
+    gate but grades anyway; the failed gates are listed in debug.gates_bypassed."""
+    t0 = time.perf_counter()
+    h, w = raw_rgb.shape[:2]
+    diag = {"short_side_px": int(min(h, w)), "min_short_side_px": gates.MIN_SHORT_SIDE_PX}
+    bypassed = []
+    if min(h, w) < gates.MIN_SHORT_SIDE_PX:
+        if enforce_gates:
+            return rejection("invalid_image", diag)
+        bypassed.append("invalid_image")
+
+    wb = display.tray_balanced_measure(raw_rgb)
+    diag.update(gate_stone_area=wb.area, no_stone_min_area=gates.NO_STONE_MIN_AREA,
+                stone_tray_contrast_de00=wb.contrast,
+                no_stone_min_contrast_de00=gates.NO_STONE_MIN_CONTRAST_DE00,
+                gate_centre_fallback=wb.centre_fallback)
+    if gates.no_stone(wb):
+        if enforce_gates:
+            return rejection("no_stone", diag)
+        bypassed.append("no_stone")
+
+    blur = blur_variance(raw_rgb)
+    diag.update(blur_variance=blur, blur_min_variance=gates.BLUR_MIN_VARIANCE)
+    if blur < gates.BLUR_MIN_VARIANCE:
+        if enforce_gates:
+            return rejection("blurry", diag)
+        bypassed.append("blurry")
+
+    # The hue gate runs only when GrabCut segmented the stone (no fallback).
+    seg_reliable = not wb.fallback
+    diag.update(hue_wb=wb.H, hue_gate_min=gates.HUE_GATE_MIN, hue_gate_max=gates.HUE_GATE_MAX,
+                hue_in_gate=gates.HUE_GATE_MIN <= wb.H <= gates.HUE_GATE_MAX,
+                chroma_wb=wb.C, min_chroma=gates.MIN_CHROMA,
+                segmentation_reliable=seg_reliable, hue_gate_skipped=not seg_reliable)
+    if seg_reliable and gates.not_blue(wb):
+        if enforce_gates:
+            return rejection("not_blue", diag)
+        bypassed.append("not_blue")
+
+    # Model path (identical to training).
     if patches is None:
         session = colour_path.session_matrix(None, None)
-        affine = assets.affine_default
         mode = "training_session"
     else:
         session = colour_path.session_matrix(patches, assets.train_patches)
-        affine = colour_path.fit_affine(patches, assets.ccc_reference)
         mode = "session_patches"
     model_rgb, model_jpeg = colour_path.model_path_image(raw_rgb, assets.ccm_training, session)
     feats, stone = model_features(model_rgb)
-    display_rgb = colour_path.display_path_image(raw_rgb, affine)
-    blur = blur_variance(raw_rgb)
     t1 = time.perf_counter()
 
     rf_p = predict_rf(assets, feats)
@@ -90,19 +131,32 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
     cnn = predict_cnn(assets, model_jpeg)
     t3 = time.perf_counter()
 
+    ood = mahalanobis(assets, cnn["features"])
+    diag.update(stone_area_fraction=stone.area,
+                # Information only: GrabCut fallback on the model path (does not affect
+                # segmentation_reliable, which comes from the tray-balanced image).
+                model_segmentation_fallback=stone.fallback,
+                ood_distance=ood, ood_warn=gates.OOD_WARN, ood_threshold=gates.OOD_REJECT)
+    if ood > gates.OOD_REJECT:
+        if enforce_gates:
+            return rejection("not_recognised", diag)
+        bypassed.append("not_recognised")
+    warnings = ["unusual_image"] if ood > gates.OOD_WARN else []
+
     probs = assets.w_cnn * cnn["mc_mean"] + (1.0 - assets.w_cnn) * rf_p
     probs = probs / probs.sum()
     order = np.argsort(probs)[::-1]
     g = int(order[0]) + 1
     confidence = float(probs[order[0]])
 
-    typical = assets.extra["grade_profiles_physical"][str(g)]["median"]
-    colour_vals, de, seg_reliable = display.analyse(display_rgb, [typical["L"], typical["a"], typical["b"]],
+    typical = assets.export_wb["grade_profiles_wb"][str(g)]["median"]
+    colour_vals, de = display.analyse(wb, [typical["L"], typical["a"], typical["b"]],
                                       assets.ciecam02_display_available)
     t4 = time.perf_counter()
 
     result = {
         "status": "ok",
+        "warnings": warnings,
         "grade": g,
         "grade_name": GRADE_NAMES[g - 1],
         "trade_name": TRADE_NAMES[g - 1],
@@ -121,20 +175,7 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
             "rf": (t2 - t1) * 1000.0,
             "cnn": (t3 - t2) * 1000.0,
         },
-        "diagnostics": {
-            "blur_variance": blur,
-            "stone_area_fraction": stone.area,
-            "hue_physical": colour_vals["H"],
-            "hue_gate_min": HUE_GATE_MIN,
-            "hue_gate_max": HUE_GATE_MAX,
-            "hue_in_gate": HUE_GATE_MIN <= colour_vals["H"] <= HUE_GATE_MAX,
-            "segmentation_reliable": seg_reliable,
-            # Information only: GrabCut fallback on the model path (does not affect
-            # segmentation_reliable, which comes from the display path).
-            "model_segmentation_fallback": stone.fallback,
-            "ood_distance": mahalanobis(assets, cnn["features"]),
-            "ood_threshold": float(assets.ood_stats["threshold_p99"]),
-        },
+        "diagnostics": diag,
     }
     if debug:
         result["debug"] = {
@@ -145,5 +186,6 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
             "cnn_deterministic_grade": int(np.argmax(cnn["deterministic"])) + 1,
             "cnn_deterministic_probabilities": [float(p) for p in cnn["deterministic"]],
             "model_segmentation_fallback": stone.fallback,
+            "gates_bypassed": bypassed,
         }
     return result

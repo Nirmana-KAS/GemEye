@@ -26,10 +26,11 @@ class Assets:
     gate_stats: dict
     ood_stats: dict
     grade_profiles: dict
+    export_wb: dict                # tray white-balance method and grade_profiles_wb
     ccm_training: np.ndarray       # 3x3
     train_patches: np.ndarray      # 6x3, 0-255
-    ccc_reference: np.ndarray      # 6x3, 0-255
-    affine_default: np.ndarray     # 4x3
+    ccc_reference: np.ndarray      # 6x3, 0-255 (superseded affine display path, unused)
+    affine_default: np.ndarray     # 4x3 (superseded affine display path, unused)
     ood_mean: np.ndarray
     ood_precision: np.ndarray
     ciecam02_display_available: bool
@@ -50,6 +51,7 @@ def load_assets(model_dir, export_dir):
     gate_stats = _json(os.path.join(export_dir, "gate_stats.json"))
     ood_stats = _json(os.path.join(export_dir, "ood_stats.json"))
     grade_profiles = _json(os.path.join(export_dir, "grade_profiles.json"))
+    export_wb = _json(os.path.join(export_dir, "export_wb.json"))
     npz = np.load(os.path.join(export_dir, "ood_stats.npz"))
     config = _json(os.path.join(model_dir, "config_v3.json"))
 
@@ -114,7 +116,7 @@ def load_assets(model_dir, export_dir):
         rf=rf, rf_class_order=rf_class_order, scaler=scaler,
         config=config, w_cnn=float(config["w_cnn"]),
         manifest=manifest, extra=extra, gate_stats=gate_stats, ood_stats=ood_stats,
-        grade_profiles=grade_profiles,
+        grade_profiles=grade_profiles, export_wb=export_wb,
         ccm_training=np.asarray(manifest["ccm_training"], np.float64),
         train_patches=np.asarray(extra["training_patch_rgb_0_255"], np.float64),
         ccc_reference=np.asarray([manifest["ccc_reference_rgb"][k] for k in extra["patch_order"]], np.float64),

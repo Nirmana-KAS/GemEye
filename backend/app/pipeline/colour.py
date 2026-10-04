@@ -1,4 +1,7 @@
-"""Colour correction: the model path (must equal training) and the display path."""
+"""Colour correction for the model path (must equal training).
+
+User-facing colour values come from the tray white-balanced image
+(display.tray_balanced_measure), not from this module."""
 import cv2
 import numpy as np
 
@@ -42,17 +45,23 @@ def model_path_image(raw_rgb, ccm_training, session):
 
 
 # -------------------------------------------------------------- display path
-
-def fit_affine(p_user, reference):
-    """4x3 affine (with offset) from measured patches to the CCC reference, 0-1 units."""
-    x = np.asarray(p_user, np.float64) / 255.0
-    x = np.hstack([x, np.ones((x.shape[0], 1))])
-    m, _, _, _ = np.linalg.lstsq(x, np.asarray(reference, np.float64) / 255.0, rcond=None)
-    return m
-
-
-def display_path_image(raw_rgb, affine):
-    h, w, c = raw_rgb.shape
-    f = raw_rgb.astype(np.float64).reshape(-1, 3) / 255.0
-    f = np.hstack([f, np.ones((f.shape[0], 1))]) @ affine
-    return (np.clip(f, 0, 1) * 255).astype(np.uint8).reshape(h, w, c)
+#
+# SUPERSEDED (Phase 3): the affine display path clipped dark stone pixels to
+# black (S = 0, H = 0), which broke the hue of grade 1-3 stones. All output
+# colour values and gate measurements now come from the tray white-balanced
+# image (display.tray_balanced_measure). Kept for reference only.
+#
+#
+# def fit_affine(p_user, reference):
+#     """4x3 affine (with offset) from measured patches to the CCC reference, 0-1 units."""
+#     x = np.asarray(p_user, np.float64) / 255.0
+#     x = np.hstack([x, np.ones((x.shape[0], 1))])
+#     m, _, _, _ = np.linalg.lstsq(x, np.asarray(reference, np.float64) / 255.0, rcond=None)
+#     return m
+#
+#
+# def display_path_image(raw_rgb, affine):
+#     h, w, c = raw_rgb.shape
+#     f = raw_rgb.astype(np.float64).reshape(-1, 3) / 255.0
+#     f = np.hstack([f, np.ones((f.shape[0], 1))]) @ affine
+#     return (np.clip(f, 0, 1) * 255).astype(np.uint8).reshape(h, w, c)
