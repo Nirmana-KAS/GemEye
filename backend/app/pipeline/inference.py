@@ -37,8 +37,11 @@ def cnn_input(rgb, size):
     return tf.keras.applications.efficientnet.preprocess_input(img)
 
 
-def predict_cnn(assets, rgb):
+def predict_cnn(assets, jpeg_bytes):
+    """jpeg_bytes: the model-path JPEG, decoded with tf.io.decode_jpeg (default settings)
+    exactly as training did. cv2 decoding differs slightly and shifts CNN probabilities."""
     size = int(assets.manifest.get("img_size", 224))
+    rgb = tf.io.decode_jpeg(jpeg_bytes, channels=3)
     x = cnn_input(rgb, size)[tf.newaxis]
     pooled = assets.backbone(x)
     feat, det = assets.head_det(pooled)
@@ -75,7 +78,7 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
         session = colour_path.session_matrix(patches, assets.train_patches)
         affine = colour_path.fit_affine(patches, assets.ccc_reference)
         mode = "session_patches"
-    model_rgb = colour_path.model_path_image(raw_rgb, assets.ccm_training, session)
+    model_rgb, model_jpeg = colour_path.model_path_image(raw_rgb, assets.ccm_training, session)
     feats, stone = model_features(model_rgb)
     display_rgb = colour_path.display_path_image(raw_rgb, affine)
     blur = blur_variance(raw_rgb)
@@ -84,7 +87,7 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
     rf_p = predict_rf(assets, feats)
     t2 = time.perf_counter()
 
-    cnn = predict_cnn(assets, model_rgb)
+    cnn = predict_cnn(assets, model_jpeg)
     t3 = time.perf_counter()
 
     probs = assets.w_cnn * cnn["mc_mean"] + (1.0 - assets.w_cnn) * rf_p
@@ -140,6 +143,7 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False):
             "cnn_mc_grade": int(np.argmax(cnn["mc_mean"])) + 1,
             "cnn_mc_probabilities": [float(p) for p in cnn["mc_mean"]],
             "cnn_deterministic_grade": int(np.argmax(cnn["deterministic"])) + 1,
+            "cnn_deterministic_probabilities": [float(p) for p in cnn["deterministic"]],
             "model_segmentation_fallback": stone.fallback,
         }
     return result

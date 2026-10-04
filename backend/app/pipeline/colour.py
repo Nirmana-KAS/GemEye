@@ -27,7 +27,10 @@ def session_matrix(p_user, p_train):
 
 def model_path_image(raw_rgb, ccm_training, session):
     """Session mapping, then the training CCM exactly as training applied it, then
-    the same JPEG round trip the training images went through (cv2.imwrite .jpg)."""
+    the same JPEG round trip the training images went through (cv2.imwrite .jpg).
+
+    Returns (rgb, jpeg_bytes): rgb is the cv2-decoded image used for the RF features,
+    jpeg_bytes are decoded separately for the CNN, which training read with tf.io.decode_jpeg."""
     h, w, c = raw_rgb.shape
     f = raw_rgb.astype(np.float64).reshape(-1, 3) / 255.0
     f = np.clip(f @ session, 0, 1)
@@ -35,7 +38,7 @@ def model_path_image(raw_rgb, ccm_training, session):
     ok, enc = cv2.imencode(".jpg", cv2.cvtColor(out, cv2.COLOR_RGB2BGR))
     if not ok:
         raise RuntimeError("jpeg encode failed")
-    return cv2.cvtColor(cv2.imdecode(enc, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+    return cv2.cvtColor(cv2.imdecode(enc, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB), enc.tobytes()
 
 
 # -------------------------------------------------------------- display path

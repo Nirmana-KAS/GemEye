@@ -1675,3 +1675,42 @@
   - `+` backend/tests/parity/parity_investigation.md
 - **Connected edits:** EDIT-082, EDIT-083, EDIT-084, EDIT-085
 - **Reason:** Show that the server reproduces the v3 Colab test results before building further phases on it.
+
+### EDIT-087 | 04 October 2026 06:17 | IST
+- **Topic:** Backend Phase 2.1 - parity re-run against the deterministic Colab reference
+- **Summary:** run_parity.py now compares the server with parity_reference.csv (seeded GrabCut RF, deterministic CNN) and applies new criteria A-D. A (RF exact), C (clean-98 accuracy) and D (all disagreements below the referral threshold on both sides) pass. B (deterministic CNN) fails because the server decodes the JPEG round trip with cv2 instead of TF. The server is unchanged pending approval.
+- **What was done:**
+  - Debug block now also returns `cnn_deterministic_probabilities` (7 values); smoke tests 5 passed
+  - run_parity.py: checks that clean_summary.json has clean_test_n 98 and 14 leak names, then compares each image with parity_reference.csv (RF and CNN deterministic max abs dp and grade agreement); lists every final-grade disagreement with both confidences and whether both are below 0.60; the old criteria are kept as "informational: vs unseeded Colab run"
+  - Results: A PASS (112/112, max abs dp 4.99e-13); B FAIL (108/112, max abs dp 0.335); C PASS (clean-98 86.73%); D PASS (7/7 disagreements both below 0.60)
+  - investigate_cnn_det.py: tested each CNN input step separately against the reference. Decoding the round-tripped JPEG with tf.io.decode_jpeg (dct_method INTEGER_FAST) instead of cv2.imdecode gives max abs dp 2.85e-6 and 112/112 agreement. Resize, CCM, channel order, EXIF, full vs split model and preprocess_input are not the cause
+  - Proposed fix (not applied): decode the JPEG round trip with tf.io.decode_jpeg (INTEGER_FAST) for the CNN input only; keep cv2 decoding for the RF/GrabCut path, which is already exact
+- **Files changed:**
+  - `~` backend/app/pipeline/inference.py
+  - `~` backend/app/schemas.py
+  - `~` backend/tests/parity/run_parity.py
+  - `~` backend/tests/parity/parity_report.md
+  - `~` backend/tests/parity/parity_mismatches.csv
+  - `+` backend/tests/parity/investigate_cnn_det.py
+  - `+` backend/tests/parity/parity_investigation_cnn.md
+- **Connected edits:** EDIT-086
+- **Reason:** Replace the unseeded Colab comparison with a deterministic reference, so parity can be checked exactly rather than within noise.
+
+### EDIT-088 | 04 October 2026 06:45 | IST
+- **Topic:** Backend Phase 2.1 - CNN input decoded with tf.io.decode_jpeg (parity fix)
+- **Summary:** The CNN input is now decoded from the model-path JPEG with tf.io.decode_jpeg (default settings), as in training; the RF path keeps cv2. All four parity criteria pass: the server reproduces the deterministic Colab reference for both RF and CNN.
+- **What was done:**
+  - `model_path_image` returns (cv2-decoded RGB, JPEG bytes); `predict_cnn` decodes the bytes with tf.io.decode_jpeg; RF/GrabCut unchanged
+  - run_parity.py: "Disagreeing images" now lists only rows where a grade differs; new "Findings" section (decoders, unseeded Colab noise, average latency)
+  - Smoke tests 5 passed; full parity re-run: A PASS (112/112, max abs dp 4.99e-13), B PASS (112/112, max abs dp 2.85e-6), C PASS (clean-98 87.76%, was 86.73%), D PASS (9/9 disagreements with the unseeded Colab run below 0.60 on both sides)
+  - Informational (vs the unseeded Colab run): final 103/112, RF 110/112, CNN-MC 111/112; average /grade latency 1226 ms (max 1859 ms)
+  - investigate_cnn_det.py: relabelled the cv2 variant as the pre-fix server
+- **Files changed:**
+  - `~` backend/app/pipeline/colour.py
+  - `~` backend/app/pipeline/inference.py
+  - `~` backend/tests/parity/run_parity.py
+  - `~` backend/tests/parity/investigate_cnn_det.py
+  - `~` backend/tests/parity/parity_report.md
+  - `~` backend/tests/parity/parity_mismatches.csv
+- **Connected edits:** EDIT-086, EDIT-087
+- **Reason:** The server decoded the CNN input with cv2 while training used TF, which shifted CNN probabilities by up to 0.335.

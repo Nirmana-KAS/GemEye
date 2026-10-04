@@ -52,6 +52,7 @@ class DebugInfo(BaseModel):
     cnn_mc_grade: int
     cnn_mc_probabilities: List[float]
     cnn_deterministic_grade: int
+    cnn_deterministic_probabilities: List[float]
     model_segmentation_fallback: bool
 
 
