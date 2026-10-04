@@ -1650,3 +1650,28 @@
   - `~` backend/README.md
 - **Connected edits:** EDIT-082, EDIT-083
 - **Reason:** Prepare a physical hue gate and flag colour values measured on an unreliable stone mask.
+
+### EDIT-086 | 04 October 2026 00:09 | IST
+- **Topic:** Backend Phase 2 - parity test against the v3 Colab results
+- **Summary:** Added development-only debug fields to /grade and a parity harness that runs the 112 v3 test images through the server and compares the results with Colab. RF and CNN-MC agreement pass; final-grade agreement is 105/112 (target 107). The investigation traces the gap to unseeded MC Dropout/GrabCut noise in the Colab reference, not to a preprocessing difference.
+- **What was done:**
+  - /grade accepts form field `debug`; when ENV=development the response adds `debug` (rf_grade, rf_probabilities, cnn_mc_grade, cnn_mc_probabilities, cnn_deterministic_grade, model_segmentation_fallback); omitted otherwise (response_model_exclude_unset)
+  - New diagnostics field `model_segmentation_fallback` (information only, does not change segmentation_reliable)
+  - docker-compose mounts ../dataset/merged at /data/merged:ro (development only); container recreated and healthy
+  - run_parity.py (stdlib): all 112 images found; server accuracy 86.61% (Colab 85.71%), macro-F1 0.8651, within 1 grade 100%; final agreement 105/112 FAIL, RF 110/112 PASS, CNN-MC 108/112 PASS; mean confidence difference 0.030; uncertainty r = 0.866; latency avg 1385 ms, max 2103 ms
+  - Clean-98 check BLOCKED: tests/parity/clean_summary.json (leak lists) is not in the repo; the script uses it automatically once added
+  - investigate_parity.py: tested JPEG, resize, CCM rounding, BGR order, EXIF, tf decode, GrabCut and MC seeds, and preprocess_input; no step differs from training; MC seed alone moves final agreement between 104 and 108/112; no model logic changed
+  - Smoke tests: new debug test, 5 passed (development); with ENV=production the debug block is absent
+- **Files changed:**
+  - `~` backend/app/main.py
+  - `~` backend/app/schemas.py
+  - `~` backend/app/pipeline/inference.py
+  - `~` backend/docker-compose.yml
+  - `~` backend/tests/test_smoke.py
+  - `+` backend/tests/parity/run_parity.py
+  - `+` backend/tests/parity/investigate_parity.py
+  - `+` backend/tests/parity/parity_report.md
+  - `+` backend/tests/parity/parity_mismatches.csv
+  - `+` backend/tests/parity/parity_investigation.md
+- **Connected edits:** EDIT-082, EDIT-083, EDIT-084, EDIT-085
+- **Reason:** Show that the server reproduces the v3 Colab test results before building further phases on it.
