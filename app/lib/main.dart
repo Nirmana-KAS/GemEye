@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'firebase_options.dart';
+import 'config/app_config.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
 import 'screens/splash_screen.dart';
@@ -26,6 +27,7 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   SystemChrome.setSystemUIOverlayStyle(AppSystemUi.darkIcons);
+  await AppConfig.load();
   await SettingsService.init();
   await NotificationService.init();
   await CalibrationService.init();

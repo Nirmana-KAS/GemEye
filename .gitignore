@@ -85,3 +85,6 @@ backend/models/*
 backend/secrets/*
 !backend/secrets/.gitkeep
 backend/**/__pycache__/
+
+# Demo launcher local state
+launcher/.launcher_state.json

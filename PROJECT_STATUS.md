@@ -2279,3 +2279,96 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-110
 - **Reason:** Demo the app on a phone over Wi-Fi against the local Docker server, without a USB cable or adb reverse.
+
+### EDIT-113 | 05 October 2026 13:00 | IST
+- **Topic:** Final year presentation guide (Markdown)
+- **Summary:** Added a slide-by-slide Markdown guide covering the problem, solution, workflow, features, colour-science techniques, the v3 model, results, backend, security, technologies and a demo script. No code changed.
+- **What was done:**
+  - Wrote docs/GemEye_Presentation.md from the backend README, export manifests, parity/gate/Grad-CAM reports, training logs and this log
+  - Included mermaid diagrams for the architecture, the end-to-end workflow and the model ensemble
+- **Files changed:**
+  - `+` docs/GemEye_Presentation.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-086, EDIT-088, EDIT-090, EDIT-108, EDIT-112
+- **Reason:** Source material for the final year project presentation.
+
+### EDIT-114 | 05 October 2026 14:00 | IST
+- **Topic:** API reference (Markdown)
+- **Summary:** Added a short point-by-point reference of all 19 API endpoints and every request/response schema, generated from the running server's OpenAPI spec. No code changed.
+- **What was done:**
+  - Read /openapi.json from the local server and the backend README
+  - Wrote docs/GemEye_API_Reference.md: Part 1 endpoints grouped by area (auth marker, purpose, request/response schema), common errors; Part 2 all schemas with fields, types and meanings
+- **Files changed:**
+  - `+` docs/GemEye_API_Reference.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-113
+- **Reason:** A clear API and schema reference for the presentation and the developer.
+
+### EDIT-115 | 05 October 2026 14:30 | IST
+- **Topic:** Run-on-phone command sheet (Markdown)
+- **Summary:** Added a commands-only sheet for running the backend locally and the app on a phone over Wi-Fi, with the API links at the bottom. No code changed.
+- **What was done:**
+  - Wrote docs/RUN_ON_PHONE.md: Docker start, backend up, IP checks, Atlas check, firewall, adb over Wi-Fi, release build with API_BASE_URL, install/launch, hot reload, logs, reconnect, test token, stop
+  - API links table (docs, redoc, health, config, openapi.json) with the current IPs
+- **Files changed:**
+  - `+` docs/RUN_ON_PHONE.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-112, EDIT-114
+- **Reason:** One repeatable checklist to run the local demo on the phone over Wi-Fi.
+
+### EDIT-116 | 05 October 2026 15:00 | IST
+- **Topic:** Cold-start run guide and demo check script for the viva
+- **Summary:** Rewrote docs/RUN_ON_PHONE.md as a self-contained cold-start runbook (Wi-Fi mode, USB adb-reverse backup mode, cable-free pairing, viva checklist, troubleshooting, API links) and added demo_check.ps1, which starts Docker and the backend and reports Docker, backend, database, network, adb devices and whether the Wi-Fi APK matches the current PC IP. No app or backend code changed.
+- **What was done:**
+  - demo_check.ps1: starts Docker Desktop if needed, docker compose up, waits for /health, checks /config (database), prints Wi-Fi name/category, PC and public IP, firewall rule, adb devices, last Wi-Fi APK URL; tested on this PC (all OK)
+  - RUN_ON_PHONE.md: steps 0-8, options 3A/3B (connect) and 4A/4B (build/install), viva day checklist, troubleshooting table, API links
+  - Built gemeye-wifi.apk (API_BASE_URL http://192.168.1.195:8000) and gemeye-usb.apk (default 127.0.0.1:8000 for adb reverse) in app/build/
+- **Files changed:**
+  - `+` demo_check.ps1
+  - `~` docs/RUN_ON_PHONE.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-112, EDIT-115
+- **Reason:** The developer must be able to start the demo alone after a shutdown, including at the viva venue.
+
+### EDIT-117 | 05 October 2026 15:20 | IST
+- **Topic:** Quick run sheet
+- **Summary:** Added docs/RUN_QUICK.md with only the minimum numbered commands (7 steps) to run the app on the phone, plus the IP-changed rebuild and USB-only fallback blocks. RUN_ON_PHONE.md stays as the full guide and links to it. No code changed.
+- **What was done:**
+  - New RUN_QUICK.md: numbered commands only, no explanations
+  - RUN_ON_PHONE.md title renamed to "Full Guide" with a link to the quick sheet
+- **Files changed:**
+  - `+` docs/RUN_QUICK.md
+  - `~` docs/RUN_ON_PHONE.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-116
+- **Reason:** A minimal command list for the viva, separate from the full guide.
+
+### EDIT-118 | 05 October 2026 17:30 | IST
+- **Topic:** Demo launcher, adb tunnel over Wi-Fi and in-app server address
+- **Summary:** Added a Windows launcher (one window, status lights, START EVERYTHING) that starts Docker and the backend, checks the database, connects the phone (USB to wireless, last IP, mDNS, or pairing code), creates an adb reverse tunnel (works over wireless debugging), installs the app only when changed and opens it. One APK with the default 127.0.0.1:8000 now works on any network. Settings > API base URL is now editable as a backup. Grading, gates and backend logic unchanged.
+- **What was done:**
+  - Verified adb reverse tcp:8000 works over wireless adb (phone got /health 200 via 127.0.0.1)
+  - AppConfig: saved server address (SharedPreferences, not sensitive) has priority over API_BASE_URL and API_ENV; normalise() adds http:// and :8000; load() in main before services
+  - ApiClient.baseUrl is now a getter, so a changed address applies at once
+  - Settings: API base URL row is tappable; dialog with validation, Use default, Save; re-checks the server and shows a snackbar
+  - test/app_config_test.dart: normalise accepts/rejects cases
+  - launcher/GemEyeLauncher.ps1 (WinForms) + "Start GemEye Demo.bat"; state in launcher/.launcher_state.json (git-ignored); tested headless: full START sequence over Wi-Fi, reconnect after adb disconnect via saved IP, window opens from the .bat
+  - Built app/build/gemeye.apk (single universal APK); removed the old wifi/usb APKs
+  - demo_check.ps1: removed the Wi-Fi APK IP check; firewall now informational
+  - RUN_QUICK.md and RUN_ON_PHONE.md rewritten for the launcher, tunnel and single APK
+  - flutter analyze: 0 issues; flutter test: 75 passed
+- **Files changed:**
+  - `~` app/lib/config/app_config.dart
+  - `~` app/lib/services/api_client.dart
+  - `~` app/lib/main.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `+` app/test/app_config_test.dart
+  - `+` launcher/GemEyeLauncher.ps1
+  - `+` Start GemEye Demo.bat
+  - `~` demo_check.ps1
+  - `~` .gitignore
+  - `~` docs/RUN_QUICK.md
+  - `~` docs/RUN_ON_PHONE.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-112, EDIT-116, EDIT-117
+- **Reason:** Start the viva demo quickly and reliably without help, on any network, without rebuilding the app for a new IP.

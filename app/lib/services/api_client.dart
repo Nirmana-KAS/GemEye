@@ -65,7 +65,10 @@ class ApiClient {
 
   final http.Client _client;
   final TokenProvider _token;
-  final String baseUrl;
+  final String? _baseUrl;
+
+  /// Read on every request, so a server address changed in Settings applies at once.
+  String get baseUrl => _baseUrl ?? AppConfig.apiBaseUrl;
   final Duration _receiveTimeout;
 
   ApiClient({
@@ -76,7 +79,7 @@ class ApiClient {
   })  : _client = client ??
             IOClient(HttpClient()..connectionTimeout = connectTimeout),
         _token = tokenProvider ?? _firebaseToken,
-        baseUrl = baseUrl ?? AppConfig.apiBaseUrl,
+        _baseUrl = baseUrl,
         _receiveTimeout = receiveTimeout ?? ApiClient.receiveTimeout;
 
   static Future<String?> _firebaseToken(bool forceRefresh) async =>

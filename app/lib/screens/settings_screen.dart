@@ -19,6 +19,7 @@ import '../widgets/app_dialog.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/calibration_history_sheet.dart';
 import '../widgets/gem_app_bar.dart';
+import '../widgets/input_field.dart';
 import '../widgets/password_field.dart';
 import '../widgets/toggle_row.dart';
 import 'calibration_screen.dart';
@@ -74,6 +75,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _connected = ok;
       _latencyMs = watch.elapsedMilliseconds;
     });
+  }
+
+  /// Lets the developer point the app at another server (local demo).
+  Future<void> _editServerUrl() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => const _ServerUrlDialog(),
+    );
+    if (result == null || !mounted) return;
+    await AppConfig.saveUrl(result.isEmpty ? null : result);
+    if (!mounted) return;
+    await _checkServer();
+    if (!mounted) return;
+    AppSnackBar.show(
+      context,
+      message: _connected == true
+          ? 'Server address saved. Connected.'
+          : 'Server address saved, but the server is not reachable.',
+      type: _connected == true ? AppSnackBarType.success : AppSnackBarType.warning,
+    );
   }
 
   Future<void> _saveThreshold(double v) async {
@@ -726,26 +747,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
       ),
-      // Developer row: which server this build talks to.
-      Padding(
-        padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
-        child: Row(
-          children: [
-            const Icon(Icons.dns_rounded, size: 20, color: AppColors.primary),
-            const SizedBox(width: AppSpacing.lg),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('API base URL', style: AppText.body14),
-                  const SizedBox(height: AppSpacing.xs),
-                  SelectableText(AppConfig.apiBaseUrl,
-                      style: AppText.secondary),
-                ],
+      // Developer row: which server the app talks to; tap to change it.
+      InkWell(
+        onTap: _editServerUrl,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+          child: Row(
+            children: [
+              const Icon(Icons.dns_rounded, size: 20, color: AppColors.primary),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('API base URL', style: AppText.body14),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                        AppConfig.hasSavedUrl
+                            ? '${AppConfig.apiBaseUrl} (set in app)'
+                            : AppConfig.apiBaseUrl,
+                        style: AppText.secondary),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const Icon(Icons.edit_rounded,
+                  size: 18, color: AppColors.textMuted),
+            ],
+          ),
         ),
       ),
     ]);
@@ -982,6 +1011,57 @@ class _PasswordPromptDialogState extends State<_PasswordPromptDialog> {
       confirmLabel: 'Delete account',
       danger: true,
       onConfirm: _c.text.isEmpty ? null : () => Navigator.pop(context, _c.text),
+    );
+  }
+}
+
+class _ServerUrlDialog extends StatefulWidget {
+  const _ServerUrlDialog();
+
+  @override
+  State<_ServerUrlDialog> createState() => _ServerUrlDialogState();
+}
+
+class _ServerUrlDialogState extends State<_ServerUrlDialog> {
+  final _c = TextEditingController(text: AppConfig.apiBaseUrl);
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final url = AppConfig.normalise(_c.text);
+    return _FormDialog(
+      title: 'API base URL',
+      message: 'Enter the PC address, for example 192.168.1.195. '
+          'Default: ${AppConfig.buildBaseUrl}',
+      field: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InputField(
+            controller: _c,
+            label: 'Server address',
+            hintText: 'http://192.168.1.195:8000',
+            keyboardType: TextInputType.url,
+            errorText: _c.text.trim().isNotEmpty && url == null
+                ? 'Enter a valid address'
+                : null,
+            onChanged: (_) => setState(() {}),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => Navigator.pop(context, ''),
+              child: const Text('Use default'),
+            ),
+          ),
+        ],
+      ),
+      confirmLabel: 'Save',
+      onConfirm: url == null ? null : () => Navigator.pop(context, url),
     );
   }
 }
