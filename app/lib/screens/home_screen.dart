@@ -13,7 +13,6 @@ import '../services/notification_service.dart';
 import '../services/history_service.dart';
 import '../services/me_service.dart';
 import '../services/remote_config_service.dart';
-import '../services/storage_service.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/empty_state.dart';
@@ -57,22 +56,6 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   void initState() {
     super.initState();
     refresh();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _showDemoNotice());
-  }
-
-  /// One-time notice after the demo results were removed (see main.dart).
-  Future<void> _showDemoNotice() async {
-    if (!StorageService.demoNoticePending || !mounted) return;
-    StorageService.demoNoticePending = false;
-    await AppDialog.alert(
-      context,
-      title: 'Demo results removed',
-      message: 'GemEye now grades on the server. The demo results from the '
-          'earlier version have been removed from your history.',
-      actionLabel: 'Got it',
-      type: AppDialogType.info,
-      icon: Icons.cloud_done_rounded,
-    );
   }
 
   @override
@@ -226,7 +209,10 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
   void _openResult(GradeResult result) {
     AppRoutes.push(
       context,
-      ResultScreen(imagePath: result.capturedImagePath, gradeResult: result),
+      ResultScreen(
+          imagePath: result.capturedImagePath,
+          gradeResult: result,
+          fromHistory: true),
     );
   }
 

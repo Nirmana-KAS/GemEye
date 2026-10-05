@@ -8,9 +8,7 @@ import '../config/theme.dart';
 import '../models/grade_result.dart';
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
-import '../services/account_service.dart';
 import '../services/api_client.dart';
-import '../services/auth_service.dart';
 import '../services/calibration_service.dart';
 import '../services/grading_service.dart';
 import '../services/settings_service.dart';
@@ -184,20 +182,11 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
         await _notifyFailed(e.message);
         if (mounted) Navigator.of(context).pop();
       case ApiErrorCode.accountDeleted:
-        await AppDialog.alert(
-          context,
-          title: 'Account deleted',
-          message: 'This account has been deleted. You will be signed out.',
-          actionLabel: 'OK',
-          type: AppDialogType.danger,
-          icon: Icons.person_off_rounded,
-          barrierDismissible: false,
-        );
-        await AuthService.endSession(
-            beforeSignOut: AccountService.clearLocalData);
       case ApiErrorCode.unauthorized:
       case ApiErrorCode.reauthRequired:
-        await AuthService.showSessionExpired();
+        // The shared handler (ApiClient.sessionLostHandler) shows the dialog,
+        // clears local data and opens Login.
+        break;
       case ApiErrorCode.tooLarge:
         await AppDialog.alert(
           context,

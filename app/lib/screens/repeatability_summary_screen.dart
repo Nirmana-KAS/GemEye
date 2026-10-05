@@ -1,13 +1,13 @@
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
+import '../services/certificate_service.dart';
 import '../services/api_client.dart';
 import '../services/grade_record_service.dart';
 import '../utils/colour_math.dart';
 import '../widgets/app_buttons.dart';
+import '../widgets/export_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/card_container.dart';
 import '../widgets/confidence_badge.dart';
@@ -35,7 +35,9 @@ class _RepeatabilitySummaryScreenState
   late final int _agree;
   late GradeResult _final;
   bool _isSaving = false;
-  bool _isExporting = false;
+  CertificateFile? _exporting;
+
+  bool get _isExporting => _exporting != null;
 
   @override
   void initState() {
@@ -82,7 +84,7 @@ class _RepeatabilitySummaryScreenState
 
   bool get _referred =>
       !_consistent ||
-      (_final.referred ?? _final.confidence < ConfidenceBadge.referThreshold);
+      _final.isReferred;
 
   Future<void> _save() async {
     setState(() => _isSaving = true);
@@ -105,19 +107,16 @@ class _RepeatabilitySummaryScreenState
     }
   }
 
-  Future<void> _export() async {
-    setState(() => _isExporting = true);
+  Future<void> _export(CertificateFile file) async {
+    setState(() => _exporting = file);
     try {
       _final = await GradeRecordService.prepareCertificate(_final);
-      Uint8List bytes;
-      try {
-        bytes = await File(_final.capturedImagePath).readAsBytes();
-      } catch (_) {
-        bytes = Uint8List(0);
-      }
+      final bytes = await CertificateService.stoneImageBytes(_final);
       if (mounted) {
         AppRoutes.push(
-            context, CertificateScreen(result: _final, stoneImageBytes: bytes));
+            context,
+            CertificateScreen(
+                result: _final, stoneImageBytes: bytes, file: file));
       }
     } on ApiException catch (e) {
       if (mounted) {
@@ -132,7 +131,7 @@ class _RepeatabilitySummaryScreenState
             type: AppSnackBarType.error);
       }
     } finally {
-      if (mounted) setState(() => _isExporting = false);
+      if (mounted) setState(() => _exporting = null);
     }
   }
 
@@ -225,7 +224,9 @@ class _RepeatabilitySummaryScreenState
                                 : 'No agreement',
                       ),
                       ConfidenceBadge(
-                          confidence: _final.confidence, onDark: true),
+                          confidence: _final.confidence,
+                          referred: _final.isReferred,
+                          onDark: true),
                     ],
                   ),
                 ],
@@ -264,13 +265,9 @@ class _RepeatabilitySummaryScreenState
                           onPressed: _isExporting ? null : _save,
                         ),
                         const SizedBox(height: 10),
-                        SecondaryButton(
-                          label: _isExporting
-                              ? 'Preparing...'
-                              : 'Export Certificate',
-                          icon: Icons.workspace_premium_rounded,
-                          onPressed:
-                              _isExporting || _isSaving ? null : _export,
+                        ExportButtons(
+                          onExport: _isSaving ? null : _export,
+                          busy: _exporting,
                         ),
                       ],
               ),

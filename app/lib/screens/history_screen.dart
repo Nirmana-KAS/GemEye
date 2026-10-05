@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
@@ -16,6 +15,7 @@ import '../widgets/app_snack_bar.dart';
 import '../widgets/confidence_badge.dart';
 import '../widgets/dropdown_field.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/export_buttons.dart';
 import '../widgets/gem_app_bar.dart';
 import '../widgets/skeleton.dart';
 import 'calibration_screen.dart';
@@ -388,16 +388,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
     int generated = 0;
 
     String? failure;
+    final files = ExportButtons.filesFor(SettingsService.exportFormat.value);
     for (final result in selectedResults) {
       try {
         await CertificateApiService.ensure(result);
-
-        Uint8List stoneImageBytes;
-        try {
-          stoneImageBytes = await File(result.capturedImagePath).readAsBytes();
-        } catch (_) {
-          stoneImageBytes = Uint8List(0);
-        }
+        final stoneImageBytes =
+            await CertificateService.stoneImageBytes(result);
 
         final pdfBytes = await CertificateService.generateCertificatePdf(
           result: result,
@@ -409,8 +405,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
         if (!await certDir.exists()) {
           await certDir.create(recursive: true);
         }
-        final file = File('${certDir.path}/${result.certificateNumber}.pdf');
-        await file.writeAsBytes(pdfBytes);
+        final base = '${certDir.path}/${result.certificateNumber}';
+        if (files.contains(CertificateFile.pdf)) {
+          await File('$base.pdf').writeAsBytes(pdfBytes);
+        }
+        if (files.contains(CertificateFile.image)) {
+          await File('$base.png')
+              .writeAsBytes(await CertificateService.renderPng(pdfBytes));
+        }
         if (result.certificateVerifyUrl != null) {
           await CertificateApiService.uploadPdf(
               result.certificateNumber!, pdfBytes);
@@ -502,6 +504,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
         builder: (_) => ResultScreen(
           imagePath: result.capturedImagePath,
           gradeResult: result,
+          fromHistory: true,
         ),
       ),
     );

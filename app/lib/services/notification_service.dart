@@ -8,8 +8,6 @@ import 'settings_service.dart';
 // Local in-app notification store (SharedPreferences, newest first, max 100).
 //
 // Planned events not wired yet:
-// TODO(backend): error "Grading failed" when the grading request fails
-//   (action openCapture).
 // TODO: info "Privacy policy updated" when the policy version changes
 //   (action openPrivacy).
 class NotificationService {

@@ -372,3 +372,18 @@ def test_grade_save_failure_cleans_up(client, app_state, monkeypatch):
     assert grade(client).status_code == 500
     monkeypatch.undo()
     assert db.gradings.count_documents({"uid": client.user.uid}) == n
+
+
+@needs_stone
+def test_certificate_list_pages_with_a_cursor(client):
+    made = [issue(client, graded(client)["grading_id"]).json()["cert_no"] for _ in range(3)]
+    p1 = client.get("/certificates", params={"limit": 2}).json()
+    assert len(p1["items"]) == 2 and p1["next_cursor"]
+    p2 = client.get("/certificates", params={"limit": 2, "cursor": p1["next_cursor"]}).json()
+    seen = [i["cert_no"] for i in p1["items"] + p2["items"]]
+    assert len(seen) == len(set(seen))
+    assert set(made) <= set(seen)
+    last = client.get("/certificates", params={"limit": 100}).json()
+    assert last["next_cursor"] is None
+    assert client.get("/certificates", params={"cursor": "bad"}).status_code == 400
+

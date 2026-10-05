@@ -16,8 +16,6 @@ class AccountService {
 
   /// Removes everything GemEye keeps on this device: grading history and
   /// photos, calibration sessions, notifications, profile and preferences.
-  // TODO(backend): delete the user's server data (grades, certificates,
-  // feedback, S3 images) before the Firebase user is deleted.
   static Future<void> clearLocalData() async {
     await StorageService.clearHistory(deletePhotos: true);
     await CalibrationService.clearAll();

@@ -7,6 +7,7 @@ import hashlib
 import logging
 import re
 import secrets
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile
@@ -16,7 +17,7 @@ from slowapi.util import get_remote_address
 
 from app.auth import active_user_strict, current_user
 from app.db import utcnow
-from app.routers import NOT_FOUND, UNAVAILABLE, get_db, get_storage
+from app.routers import NOT_FOUND, UNAVAILABLE, _decode_cursor, _encode_cursor, get_db, get_storage
 from app.schemas import (CertificateIn, CertificateIssued, CertificateItem, CertificateList,
                          PublicCertificate, RevokeIn)
 
@@ -142,10 +143,19 @@ def issue_certificate(body: CertificateIn, response: Response, user=Depends(acti
 
 
 @router.get("/certificates", response_model=CertificateList)
-def list_certificates(limit: int = Query(50, ge=1, le=100), user=Depends(current_user),
-                      db=Depends(get_db)):
-    docs = db.certificates.find({"uid": user["uid"]}).sort([("issued_at", -1), ("_id", -1)]).limit(limit)
-    return {"items": [certificate_item(d) for d in docs]}
+def list_certificates(limit: int = Query(50, ge=1, le=100), cursor: Optional[str] = None,
+                      user=Depends(current_user), db=Depends(get_db)):
+    q = {"uid": user["uid"]}
+    if cursor:
+        t, cid = _decode_cursor(cursor)
+        q = {"$and": [q, {"$or": [{"issued_at": {"$lt": t}},
+                                  {"issued_at": t, "_id": {"$lt": cid}}]}]}
+    docs = list(db.certificates.find(q).sort([("issued_at", -1), ("_id", -1)]).limit(limit + 1))
+    more = len(docs) > limit
+    docs = docs[:limit]
+    return {"items": [certificate_item(d) for d in docs],
+            "next_cursor": _encode_cursor({"created_at": docs[-1]["issued_at"],
+                                           "_id": docs[-1]["_id"]}) if more else None}
 
 
 @router.get("/certificates/{cert_no}", response_model=CertificateItem)

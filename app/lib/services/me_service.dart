@@ -51,5 +51,5 @@ class MeService {
   /// DELETE /me: removes the account and all its server data. Throws
   /// [ApiException] (reauthRequired when the sign-in is older than 5 minutes).
   static Future<void> deleteAccount({ApiClient? client}) =>
-      (client ?? ApiClient.instance).delete('/me');
+      (client ?? ApiClient.instance).delete('/me', guardSession: false);
 }

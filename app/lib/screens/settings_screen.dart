@@ -593,8 +593,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const Text('Default export format',
                   style: AppText.body14Medium),
               const SizedBox(height: AppSpacing.md),
-              // TODO(backend): Image / Both exports; certificate export
-              // currently always produces the PDF.
               _Segments<ExportFormat>(
                 options: {for (final e in ExportFormat.values) e: e.label},
                 selected: f,

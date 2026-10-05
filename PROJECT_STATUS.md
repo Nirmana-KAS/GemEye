@@ -2072,3 +2072,107 @@
 - **Connected edits:** EDIT-099, EDIT-100, EDIT-101
 - **Notes:** Repeatability still creates 3 server gradings, so History now lists all 3 (only the chosen one had been kept locally before). Sorting other than newest applies to the loaded pages only. "Show my name/company" affects the public verify page only; the PDF still prints "Issued to". Added http_parser to pubspec (PDF content type).
 - **Reason:** Phase 5c: the server must be the source of truth for history, calibrations, certificates and settings.
+
+### EDIT-103 | 05 October 2026 06:10 | IST
+- **Topic:** Backend Phase 6 part 1 - downscale parity (run_parity.py --downscale 2048)
+- **Summary:** run_parity.py can grade every test image as the app uploads it (EXIF orientation applied, longer side at most 2048 px, JPEG quality 95, no metadata) and compare with the normal run. Result: 109/112 grades agree; accuracy 98/112 normal vs 97/112 downscaled (difference 1, within +/-1 image: PASS). No bug list from the manual E2E test, so part 2 is closed.
+- **What was done:**
+  - run_parity.py: --downscale N option, app_upload_bytes() (OpenCV area resize, JPEG q95), main_downscale() writes parity_downscale_report.md; the normal run and its report are unchanged
+  - Grade changes: g2_148 2 to 3, g3_010 3 to 4, g6_016 7 to 6 (all confidence below 0.61)
+- **Files changed:**
+  - `~` backend/tests/parity/run_parity.py
+  - `+` backend/tests/parity/parity_downscale_report.md
+- **Connected edits:** EDIT-101, EDIT-102
+- **Notes:** The resize is OpenCV INTER_AREA, which approximates the app's Dart resize but is not bit-identical.
+- **Reason:** Phase 6: confirm that the app's 2048 px JPEG upload does not change grading.
+
+### EDIT-104 | 05 October 2026 06:40 | IST
+- **Topic:** Backend Phase 6 fixes - unique calibration session, paged certificate list
+- **Summary:** POST /calibrations is now unique per (user, session_id): a repeated session returns 409 (code duplicate_session) with the stored one. GET /certificates takes a cursor and returns next_cursor. Backend suite with ENV=test: 78 passed (2 new tests).
+- **What was done:**
+  - db.ensure_indexes: unique index uid_session_unique on calibrations (uid, session_id)
+  - routers.post_calibration: DuplicateKeyError becomes 409 {code: duplicate_session, calibration: existing}
+  - certificates.list_certificates: cursor and next_cursor (issued_at, _id), CertificateList.next_cursor
+  - Tests: duplicate calibration session (409, same id, other user allowed), certificate list paging with a cursor
+- **Files changed:**
+  - `~` backend/app/db.py
+  - `~` backend/app/routers.py
+  - `~` backend/app/certificates.py
+  - `~` backend/app/schemas.py
+  - `~` backend/tests/test_api.py
+  - `~` backend/tests/test_phase4b.py
+- **Connected edits:** EDIT-099, EDIT-102, EDIT-103
+- **Notes:** The unique index fails to build if a database already holds two calibrations with the same (uid, session_id); the development and test databases had none.
+- **Reason:** The app retries unsent calibrations, so the server must not store duplicates; History needs every certificate badge.
+
+### EDIT-105 | 05 October 2026 06:45 | IST
+- **Topic:** App Phase 6 fixes - owner on the PDF, revoked certificates, shared dead-session handler, referred flag, calibration queue, cleanup
+- **Summary:** The PDF prints "Issued to" and the company only when the server certificate has owner fields (same as the public page). A revoked or withdrawn certificate cannot be exported. account_deleted or a failed token refresh now runs one shared handler. Referred uses the stone's own flag everywhere. Unsent calibrations are a queue. flutter analyze: no issues; 64 tests pass.
+- **What was done:**
+  - PDF: Issued to and Company come from GradeResult.certificateOwnerName/Company (read from GET /certificates/{no} at export, stored in the cache); lines omitted when empty; High/Borderline/Low from isReferred
+  - CertificateApiService.ensure: always GETs the certificate (after POST on first export); revoked or other non-valid status throws an ApiException; 404, or a number that belongs to another stone, stays an offline certificate (issued before the server issued them)
+  - ApiClient.sessionLostHandler (set in main.dart to AuthService.handleDeadSession): called once per failed request on account_deleted, or 401/reauth_required after the refresh; shows one dialog, clears local data, opens Login; DELETE /me passes guardSession false; duplicate handling removed from processing_screen
+  - ConfidenceBadge takes referred; Result, Repeatability summary, Recent tile, History and the PDF use GradeResult.isReferred
+  - CalibrationService: list of pending sessions (secure storage), one attempt per Home refresh, 409 counts as sent, network/5xx kept, other 4xx dropped
+  - HistoryService reads every page of GET /certificates; ownership check no longer needs Firebase (tests)
+  - Cleanup: widget_test.dart deleted, stale TODOs removed (notification_service, account_service), demo-history notice code removed (main.dart, home_screen.dart, StorageService.removeDemoHistory, stone counter key)
+  - Tests added to phase5c_test.dart: owner fields, revoked/withdrawn/404/mismatch, certificate paging in History, dead-session handler, calibration queue
+- **Files changed:**
+  - `~` app/lib/services/certificate_service.dart
+  - `~` app/lib/services/certificate_api_service.dart
+  - `~` app/lib/services/api_client.dart
+  - `~` app/lib/services/auth_service.dart
+  - `~` app/lib/services/me_service.dart
+  - `~` app/lib/services/calibration_service.dart
+  - `~` app/lib/services/history_service.dart
+  - `~` app/lib/services/storage_service.dart
+  - `~` app/lib/services/notification_service.dart
+  - `~` app/lib/services/account_service.dart
+  - `~` app/lib/models/grade_result.dart
+  - `~` app/lib/widgets/confidence_badge.dart
+  - `~` app/lib/widgets/recent_grade_tile.dart
+  - `~` app/lib/screens/result_screen.dart
+  - `~` app/lib/screens/repeatability_summary_screen.dart
+  - `~` app/lib/screens/processing_screen.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/main.dart
+  - `~` app/test/phase5c_test.dart
+  - `-` app/test/widget_test.dart
+- **Connected edits:** EDIT-102, EDIT-104
+- **Notes:** Repeatability still stores all 3 gradings (needed for Phase 7). Saved PDFs in Downloads are kept. Certificates issued on the device before the update now print without "Issued to" (no server owner record).
+- **Reason:** Approved Phase 6 fixes from the Phase 5c review.
+
+### EDIT-106 | 05 October 2026 07:20 | IST
+- **Topic:** Certificate export follows the Settings export format (PDF / Image / Both); Result opened from History
+- **Summary:** The export button(s) on Grade Result, Repeatability summary and History "Export Batch" now follow Settings > Default export format: PDF gives "Export PDF", Image gives "Export Image" (PNG of the certificate page), Both gives two separate buttons. Results opened from Home, History or a notification show only the export button(s) and Share. flutter analyze: no issues; 64 tests pass.
+- **What was done:**
+  - New ExportButtons widget (widgets/export_buttons.dart) and CertificateFile enum; reads SettingsService.exportFormat live
+  - CertificateScreen file parameter: Image mode saves/shares {cert_no}.png (page rendered at 200 dpi), no Print; the PDF is still uploaded to the server once for the verify page
+  - ResultScreen fromHistory (Home, History, Notifications): export button(s) + Share, no Save & Grade Next / Retake; referred stones keep their existing buttons (no export), unchanged by request
+  - History Export Batch writes .pdf, .png or both per stone
+  - CertificateService.stoneImageBytes: local photo, else the server photo (presigned URL); an empty photo gives a plain panel instead of failing; CertificateService.renderPng
+  - Removed the stale export-format TODO in settings_screen.dart
+- **Files changed:**
+  - `+` app/lib/widgets/export_buttons.dart
+  - `~` app/lib/services/certificate_service.dart
+  - `~` app/lib/screens/certificate_screen.dart
+  - `~` app/lib/screens/result_screen.dart
+  - `~` app/lib/screens/repeatability_summary_screen.dart
+  - `~` app/lib/screens/history_screen.dart
+  - `~` app/lib/screens/home_screen.dart
+  - `~` app/lib/screens/notifications_screen.dart
+  - `~` app/lib/screens/settings_screen.dart
+- **Connected edits:** EDIT-102, EDIT-105
+- **Notes:** Referred is the server flag from grading time; changing the threshold in Settings applies to stones graded afterwards only.
+- **Reason:** Manual E2E test: the export format setting had no effect and Result opened from History showed grading buttons.
+
+### EDIT-107 | 05 October 2026 07:45 | IST
+- **Topic:** Phase 5c/6 closed - manual E2E test on a device passed
+- **Summary:** The developer ran the full manual E2E checklist on an Android 13 phone (DN2103, USB, adb reverse tcp:8000 to the local Docker server). All steps passed, including the export format changes from EDIT-106. No code changed in this entry.
+- **What was done:**
+  - E2E checklist: login and server status, calibration (POST /calibrations, including the retry of an earlier unsent session), grading and rejections, Repeatability, History filters/paging/delete, Home stats, Stone Comparison, certificate export (PDF, Image, Both; same number and QR on re-export; public verify page), Settings (threshold, show-name toggle, feedback), offline behaviour, account deletion and re-login
+- **Files changed:**
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-102, EDIT-103, EDIT-104, EDIT-105, EDIT-106
+- **Notes:** Testing on the phone needs the USB cable and `adb reverse tcp:8000 tcp:8000` after every reconnect (the dev API URL is 127.0.0.1:8000).
+- **Reason:** Record that Phases 5c and 6 are verified end to end.

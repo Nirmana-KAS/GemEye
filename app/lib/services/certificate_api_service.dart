@@ -19,7 +19,8 @@ class CertificateApiService {
   /// before certificates came from the server) is kept as an offline
   /// certificate: verify URL stays null.
   ///
-  /// Throws [ApiException] when the server cannot be reached.
+  /// Throws [ApiException] when the server cannot be reached, or when the
+  /// certificate was revoked or withdrawn.
   static Future<GradeResult> ensure(GradeResult r, {ApiClient? client}) async {
     final c = client ?? ApiClient.instance;
     final gradingId = r.gradingId;
@@ -27,27 +28,51 @@ class CertificateApiService {
       throw const ApiException(ApiErrorCode.badRequest,
           'This stone has no server record, so it cannot be certified.');
     }
-    final existing = r.certificateNumber;
-    if (existing != null) {
-      try {
-        final json = await c.getJson('/certificates/$existing');
-        if (json['grading_id'] == gradingId && json['status'] == 'valid') {
-          r.certificateVerifyUrl = json['verify_url'] as String?;
-        } else {
-          r.certificateVerifyUrl = null;
-        }
-      } on ApiException catch (e) {
-        if (e.code != ApiErrorCode.notFound) rethrow;
-        r.certificateVerifyUrl = null;
-      }
-    } else {
-      final json = await c.postJson('/certificates', {'grading_id': gradingId});
-      r.certificateNumber = json['cert_no'] as String;
-      r.certificateVerifyUrl = json['verify_url'] as String?;
+    var number = r.certificateNumber;
+    if (number == null) {
+      final issued =
+          await c.postJson('/certificates', {'grading_id': gradingId});
+      number = issued['cert_no'] as String;
       HistoryService.invalidateCertificates();
+    }
+    // Owner fields and status come from the stored certificate. The same
+    // number and verify URL come back on every export.
+    try {
+      final json = await c.getJson('/certificates/$number');
+      if (json['grading_id'] == gradingId) {
+        final status = json['status'];
+        if (status == 'revoked') {
+          throw const ApiException(ApiErrorCode.conflict,
+              'This certificate was revoked, so it cannot be exported again.');
+        }
+        if (status != 'valid') {
+          throw const ApiException(ApiErrorCode.conflict,
+              'This certificate is no longer valid, so it cannot be exported.');
+        }
+        final owner = (json['owner'] as Map?)?.cast<String, dynamic>();
+        r.certificateNumber = number;
+        r.certificateVerifyUrl = json['verify_url'] as String?;
+        r.certificateOwnerName = owner?['display_name'] as String?;
+        r.certificateOwnerCompany = owner?['company'] as String?;
+      } else {
+        // The number belongs to another stone: it was issued on this device
+        // before certificates came from the server.
+        _offline(r, number);
+      }
+    } on ApiException catch (e) {
+      // No server record: a certificate issued before this update.
+      if (e.code != ApiErrorCode.notFound) rethrow;
+      _offline(r, number);
     }
     await StorageService.saveGradeResult(r);
     return r;
+  }
+
+  static void _offline(GradeResult r, String number) {
+    r.certificateNumber = number;
+    r.certificateVerifyUrl = null;
+    r.certificateOwnerName = null;
+    r.certificateOwnerCompany = null;
   }
 
   /// POST /certificates/{no}/pdf. The server keeps the first PDF only; an

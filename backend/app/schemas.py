@@ -306,6 +306,7 @@ class CertificateItem(BaseModel):
 
 class CertificateList(BaseModel):
     items: List[CertificateItem]
+    next_cursor: Optional[str] = None
 
 
 class PublicCertificate(BaseModel):

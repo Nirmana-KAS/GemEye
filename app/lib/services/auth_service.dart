@@ -5,6 +5,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../config/routes.dart';
 import '../screens/login_screen.dart';
 import '../widgets/app_dialog.dart';
+import 'account_service.dart';
+import 'api_client.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -169,6 +171,39 @@ class AuthService {
       _sessionDialogOpen = false;
     }
     await endSession();
+  }
+
+  static bool _deadSessionHandling = false;
+
+  /// The shared handler for a dead server session (ApiClient.sessionLostHandler):
+  /// the account was deleted, or the token could not be refreshed. Shows the
+  /// dialog once, clears local data and goes to Login. Does nothing when
+  /// nobody is signed in or it is already running.
+  static Future<void> handleDeadSession(ApiException e) async {
+    if (_deadSessionHandling || FirebaseAuth.instance.currentUser == null) {
+      return;
+    }
+    _deadSessionHandling = true;
+    try {
+      final context = AppRoutes.navigatorKey.currentContext;
+      if (context != null) {
+        final deleted = e.code == ApiErrorCode.accountDeleted;
+        await AppDialog.alert(
+          context,
+          title: deleted ? 'Account deleted' : 'Session expired',
+          message: deleted
+              ? 'This account has been deleted. You will be signed out.'
+              : 'Please log in again.',
+          actionLabel: 'Log in',
+          type: deleted ? AppDialogType.danger : AppDialogType.warning,
+          icon: deleted ? Icons.person_off_rounded : Icons.lock_clock_rounded,
+          blocking: true,
+        );
+      }
+      await endSession(beforeSignOut: AccountService.clearLocalData);
+    } finally {
+      _deadSessionHandling = false;
+    }
   }
 
   /// Reloads the signed-in user; an expired or disabled account shows the

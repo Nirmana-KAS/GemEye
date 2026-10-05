@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -10,11 +9,13 @@ import '../config/theme.dart';
 import '../config/routes.dart';
 import '../models/grade_result.dart';
 import '../services/api_client.dart';
+import '../services/certificate_service.dart';
 import '../services/grade_record_service.dart';
 import '../services/remote_config_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/confidence_badge.dart';
+import '../widgets/export_buttons.dart';
 import '../widgets/gem_app_bar.dart';
 import '../widgets/grade_badge_card.dart';
 import '../widgets/probability_bar.dart';
@@ -26,10 +27,15 @@ class ResultScreen extends StatefulWidget {
   final String imagePath;
   final GradeResult gradeResult;
 
+  /// Opened from Home, History or a notification (an earlier grading):
+  /// no Save / Retake, only export and share.
+  final bool fromHistory;
+
   const ResultScreen({
     super.key,
     required this.imagePath,
     required this.gradeResult,
+    this.fromHistory = false,
   });
 
   @override
@@ -40,7 +46,9 @@ class _ResultScreenState extends State<ResultScreen> {
   final GlobalKey _repaintKey = GlobalKey();
   late GradeResult _result;
   bool _isSaving = false;
-  bool _isExporting = false;
+  CertificateFile? _exporting;
+
+  bool get _isExporting => _exporting != null;
 
   @override
   void initState() {
@@ -50,9 +58,7 @@ class _ResultScreenState extends State<ResultScreen> {
 
   /// Referred by the server at grading time; older local results fall back
   /// to the current threshold.
-  bool get _borderline =>
-      _result.referred ??
-      _result.confidence < ConfidenceBadge.referThreshold;
+  bool get _borderline => _result.isReferred;
 
   /// Per-grade probabilities (percent, G1-G7) from the server.
   List<double>? get _probabilities {
@@ -100,17 +106,12 @@ class _ResultScreenState extends State<ResultScreen> {
     }
   }
 
-  Future<void> _exportCertificate() async {
-    setState(() => _isExporting = true);
+  Future<void> _exportCertificate(CertificateFile file) async {
+    setState(() => _exporting = file);
     try {
       _result = await GradeRecordService.prepareCertificate(_result);
-
-      Uint8List stoneImageBytes;
-      try {
-        stoneImageBytes = await File(widget.imagePath).readAsBytes();
-      } catch (_) {
-        stoneImageBytes = Uint8List(0);
-      }
+      final stoneImageBytes =
+          await CertificateService.stoneImageBytes(_result);
 
       if (mounted) {
         AppRoutes.push(
@@ -118,6 +119,7 @@ class _ResultScreenState extends State<ResultScreen> {
           CertificateScreen(
             result: _result,
             stoneImageBytes: stoneImageBytes,
+            file: file,
           ),
         );
       }
@@ -134,7 +136,7 @@ class _ResultScreenState extends State<ResultScreen> {
             type: AppSnackBarType.error);
       }
     } finally {
-      if (mounted) setState(() => _isExporting = false);
+      if (mounted) setState(() => _exporting = null);
     }
   }
 
@@ -230,7 +232,9 @@ class _ResultScreenState extends State<ResultScreen> {
                           UncertaintyPill(
                               text: '± ${_result.uncertaintyRange.toStringAsFixed(2)} grade'),
                           ConfidenceBadge(
-                              confidence: _result.confidence, onDark: true),
+                              confidence: _result.confidence,
+                              referred: _result.isReferred,
+                              onDark: true),
                         ],
                       ),
                       if (probabilities != null) ...[
@@ -249,7 +253,18 @@ class _ResultScreenState extends State<ResultScreen> {
                 ),
               ),
               const SizedBox(height: AppSpacing.xl),
-              if (_borderline) ...[
+              if (widget.fromHistory) ...[
+                if (!_borderline) ...[
+                  ExportButtons(
+                      onExport: _exportCertificate, busy: _exporting),
+                  const SizedBox(height: 10),
+                ],
+                SecondaryButton(
+                  label: 'Share',
+                  icon: Icons.share_rounded,
+                  onPressed: _isExporting ? null : _shareResult,
+                ),
+              ] else if (_borderline) ...[
                 PrimaryButton(
                   label: 'Save as Referred',
                   icon: Icons.outgoing_mail,
@@ -270,11 +285,9 @@ class _ResultScreenState extends State<ResultScreen> {
                   onPressed: _isExporting ? null : _saveAndGradeNext,
                 ),
                 const SizedBox(height: 10),
-                SecondaryButton(
-                  label: _isExporting ? 'Preparing...' : 'Export Certificate',
-                  icon: Icons.workspace_premium_rounded,
-                  onPressed:
-                      _isExporting || _isSaving ? null : _exportCertificate,
+                ExportButtons(
+                  onExport: _isSaving ? null : _exportCertificate,
+                  busy: _exporting,
                 ),
               ],
               const SizedBox(height: AppSpacing.xl),

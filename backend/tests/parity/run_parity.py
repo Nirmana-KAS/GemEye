@@ -2,6 +2,7 @@
 
 Runs INSIDE the container against the running development server:
     docker compose exec api python tests/parity/run_parity.py
+    docker compose exec api python tests/parity/run_parity.py --downscale 2048
 
 Authenticates as a temporary Firebase test user (tests/helpers/firebase_test_user.py);
 the user, its gradings and S3 images are deleted at the end.
@@ -43,9 +44,34 @@ CNN_TOL = 0.01
 USER = None   # FirebaseTestUser, set in main()
 
 
-def post(path):
+UPLOAD_JPEG_QUALITY = 95
+
+
+def app_upload_bytes(path, max_side):
+    """The photo as the app uploads it: EXIF orientation applied, longer side at
+    most max_side (area averaging), JPEG quality 95, no metadata."""
+    import cv2
+    import numpy as np
     with open(path, "rb") as f:
-        img = f.read()
+        img = cv2.imdecode(np.frombuffer(f.read(), np.uint8), cv2.IMREAD_COLOR)  # applies EXIF
+    h, w = img.shape[:2]
+    longer = max(h, w)
+    if longer > max_side:
+        k = max_side / longer
+        img = cv2.resize(img, (round(w * k), round(h * k)), interpolation=cv2.INTER_AREA)
+    ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, UPLOAD_JPEG_QUALITY])
+    if not ok:
+        sys.exit(f"JPEG encoding failed for {path}")
+    return buf.tobytes()
+
+
+def post(path, downscale=None):
+    if downscale:
+        img = app_upload_bytes(path, downscale)
+        path = os.path.splitext(path)[0] + ".jpg"
+    else:
+        with open(path, "rb") as f:
+            img = f.read()
     b = uuid.uuid4().hex
     ctype = "image/png" if path.lower().endswith(".png") else "image/jpeg"
     parts = [
@@ -117,6 +143,52 @@ def max_abs(a, b):
 
 def acc(rows, key="srv_final"):
     return 100.0 * sum(r["true"] == r[key] for r in rows) / len(rows)
+
+
+def main_downscale(max_side):
+    """Grades every image as uploaded by the app (downscaled, JPEG 95) and as the
+    original, and compares. Writes parity_downscale_report.md only."""
+    with open(CSV_IN, newline="") as f:
+        rows_in = list(csv.DictReader(f))
+    rows = []
+    for i, r in enumerate(rows_in, 1):
+        path = find_image(r["image"], r["true_grade"])
+        if path is None:
+            sys.exit(f"FAIL: {r['image']} not found under {DATA}")
+        a, _ = post(path)
+        b, _ = post(path, downscale=max_side)
+        if a.get("status") != "ok" or b.get("status") != "ok":
+            sys.exit(f"Bad response for {r['image']}: {a.get('detail')} / {b.get('detail')}")
+        rows.append({"image": r["image"], "true": int(r["true_grade"]),
+                     "normal": a["grade"], "down": b["grade"],
+                     "conf_normal": a["confidence"], "conf_down": b["confidence"]})
+        print(f"[{i:3d}/{len(rows_in)}] {r['image']:<14} true={r['true_grade']} "
+              f"normal={a['grade']} down={b['grade']}", flush=True)
+    n = len(rows)
+    agree = sum(r["normal"] == r["down"] for r in rows)
+    ok_n = sum(r["true"] == r["normal"] for r in rows)
+    ok_d = sum(r["true"] == r["down"] for r in rows)
+    diff = [r for r in rows if r["normal"] != r["down"]]
+    passed = abs(ok_n - ok_d) <= 1
+    out = [f"# Downscale parity (longer side <= {max_side}, JPEG q{UPLOAD_JPEG_QUALITY})", "",
+           "Each image graded as the original and as the app uploads it "
+           "(`run_parity.py --downscale`). Same server, gates off, no patches.", "",
+           "| Metric | Value |", "|---|---|",
+           f"| Grade agreement, downscaled vs normal | {agree}/{n} ({100.0 * agree / n:.2f}%) |",
+           f"| Correct, normal | {ok_n}/{n} ({100.0 * ok_n / n:.2f}%) |",
+           f"| Correct, downscaled | {ok_d}/{n} ({100.0 * ok_d / n:.2f}%) |",
+           f"| Mean abs confidence change | "
+           f"{sum(abs(r['conf_normal'] - r['conf_down']) for r in rows) / n:.4f} |",
+           f"| Accuracy within +/-1 image | **{verdict(passed)}** (difference {ok_d - ok_n:+d}) |",
+           "", f"## Grade changes ({len(diff)})", "",
+           "| Image | True | Normal | Downscaled | Conf normal | Conf downscaled |",
+           "|---|---|---|---|---|---|"]
+    out += [f"| {r['image']} | {r['true']} | {r['normal']} | {r['down']} | "
+            f"{r['conf_normal']:.4f} | {r['conf_down']:.4f} |" for r in diff]
+    with open(os.path.join(HERE, "parity_downscale_report.md"), "w") as f:
+        f.write("\n".join(out) + "\n")
+    print(f"agreement {agree}/{n}; correct normal {ok_n}, downscaled {ok_d}; "
+          f"within +/-1 image: {verdict(passed)}")
 
 
 def verdict(ok):
@@ -294,8 +366,11 @@ def main():
 
 
 if __name__ == "__main__":
+    ds = None
+    if "--downscale" in sys.argv:
+        ds = int(sys.argv[sys.argv.index("--downscale") + 1])
     with FirebaseTestUser() as USER:
         try:
-            main()
+            main_downscale(ds) if ds else main()
         finally:
             print(f"cleanup: {purge_user_data(USER.uid)}")

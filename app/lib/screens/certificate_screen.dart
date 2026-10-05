@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../config/theme.dart';
 import '../models/grade_result.dart';
@@ -13,20 +14,24 @@ import '../services/notification_service.dart';
 import '../services/settings_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
+import '../widgets/export_buttons.dart';
 import '../widgets/gem_app_bar.dart';
 
 /// Certificate Preview: scaled A4 page with pinch to zoom, Save to
-/// Downloads, Share and Print.
+/// Downloads, Share and (PDF only) Print. [file] picks the exported file:
+/// the PDF, or the page as a PNG image.
 class CertificateScreen extends StatefulWidget {
   final GradeResult result;
   final Uint8List stoneImageBytes;
   final Uint8List? gradcamImageBytes;
+  final CertificateFile file;
 
   const CertificateScreen({
     super.key,
     required this.result,
     required this.stoneImageBytes,
     this.gradcamImageBytes,
+    this.file = CertificateFile.pdf,
   });
 
   @override
@@ -38,8 +43,10 @@ class _CertificateScreenState extends State<CertificateScreen> {
   Uint8List? _pagePng;
   bool _isLoading = true;
 
+  bool get _isImage => widget.file == CertificateFile.image;
+
   String get _fileName =>
-      '${widget.result.certificateNumber ?? 'certificate'}.pdf';
+      '${widget.result.certificateNumber ?? 'certificate'}.${_isImage ? 'png' : 'pdf'}';
 
   @override
   void initState() {
@@ -54,10 +61,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
         stoneImage: widget.stoneImageBytes,
         gradcamImage: widget.gradcamImageBytes,
       );
-      Uint8List? png;
-      await for (final page in Printing.raster(bytes, pages: [0], dpi: 200)) {
-        png = await page.toPng();
-      }
+      final png = await CertificateService.renderPng(bytes);
       final certNo = widget.result.certificateNumber;
       if (certNo != null && widget.result.certificateVerifyUrl != null) {
         unawaited(CertificateApiService.uploadPdf(certNo, bytes));
@@ -75,14 +79,15 @@ class _CertificateScreenState extends State<CertificateScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         AppSnackBar.show(context,
-            message: 'Failed to generate certificate PDF',
+            message: 'Failed to generate the certificate',
             type: AppSnackBarType.error);
       }
     }
   }
 
   Future<void> _savePdf() async {
-    if (_pdfBytes == null) return;
+    final bytes = _isImage ? _pagePng : _pdfBytes;
+    if (bytes == null) return;
     try {
       final certNum = widget.result.certificateNumber ?? 'certificate';
       Directory saveDir;
@@ -98,12 +103,12 @@ class _CertificateScreenState extends State<CertificateScreen> {
         await saveDir.create(recursive: true);
       }
 
-      final file = File('${saveDir.path}/$certNum.pdf');
-      await file.writeAsBytes(_pdfBytes!);
+      final file = File('${saveDir.path}/$_fileName');
+      await file.writeAsBytes(bytes);
       await NotificationService.add(
         type: AppNotificationType.success,
         title: 'Certificate saved',
-        message: '$certNum saved to Downloads.',
+        message: '$certNum ${_isImage ? 'image' : 'PDF'} saved to Downloads.',
         action: AppNotificationAction.openHistory,
         category: NotificationCategory.certificate,
       );
@@ -118,8 +123,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
       debugPrint('Certificate save failed: $e');
       if (mounted) {
         AppSnackBar.show(context,
-            message: 'Failed to save certificate',
-            type: AppSnackBarType.error);
+            message: 'Failed to save certificate', type: AppSnackBarType.error);
       }
     }
   }
@@ -127,6 +131,14 @@ class _CertificateScreenState extends State<CertificateScreen> {
   Future<void> _sharePdf() async {
     if (_pdfBytes == null) return;
     try {
+      if (_isImage) {
+        final png = _pagePng;
+        if (png == null) return;
+        await Share.shareXFiles(
+            [XFile.fromData(png, mimeType: 'image/png', name: _fileName)],
+            fileNameOverrides: [_fileName]);
+        return;
+      }
       await Printing.sharePdf(bytes: _pdfBytes!, filename: _fileName);
     } catch (e) {
       debugPrint('Certificate share failed: $e');
@@ -155,11 +167,11 @@ class _CertificateScreenState extends State<CertificateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final ready = _pdfBytes != null;
+    final ready = _pdfBytes != null && (!_isImage || _pagePng != null);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: GemAppBar(
-        title: 'Certificate',
+        title: _isImage ? 'Certificate Image' : 'Certificate',
         leading: GemAppBarLeading.back,
         onLeadingPressed: () => Navigator.of(context).pop(),
       ),
@@ -194,25 +206,29 @@ class _CertificateScreenState extends State<CertificateScreen> {
                       onPressed: ready ? _sharePdf : null,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  SizedBox(
-                    width: AppSpacing.controlHeight,
-                    height: AppSpacing.controlHeight,
-                    child: OutlinedButton(
-                      onPressed: ready ? _printPdf : null,
-                      style: OutlinedButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        foregroundColor: AppColors.primary,
-                        side: BorderSide(
-                            color: ready ? AppColors.primary : AppColors.border,
-                            width: 1.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppRadius.lg)),
+                  if (!_isImage) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    SizedBox(
+                      width: AppSpacing.controlHeight,
+                      height: AppSpacing.controlHeight,
+                      child: OutlinedButton(
+                        onPressed: ready ? _printPdf : null,
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          foregroundColor: AppColors.primary,
+                          side: BorderSide(
+                              color:
+                                  ready ? AppColors.primary : AppColors.border,
+                              width: 1.5),
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                                  BorderRadius.circular(AppRadius.lg)),
+                        ),
+                        child: const Icon(Icons.print_rounded,
+                            size: 20, semanticLabel: 'Print'),
                       ),
-                      child: const Icon(Icons.print_rounded,
-                          size: 20, semanticLabel: 'Print'),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
@@ -238,7 +254,7 @@ class _CertificateScreenState extends State<CertificateScreen> {
     }
     if (_pdfBytes == null) {
       return Center(
-        child: Text('Failed to generate PDF',
+        child: Text('Failed to generate the certificate',
             style: AppText.body14.copyWith(color: AppColors.error)),
       );
     }
@@ -255,7 +271,8 @@ class _CertificateScreenState extends State<CertificateScreen> {
                         .copyWith(fontWeight: FontWeight.w500)),
               ),
               const SizedBox(width: AppSpacing.md),
-              const Text('A4 · 1 page', style: AppText.secondary),
+              Text(_isImage ? 'PNG · A4 page' : 'A4 · 1 page',
+                  style: AppText.secondary),
             ],
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -288,7 +305,8 @@ class _CertificateScreenState extends State<CertificateScreen> {
                     maxScale: 5,
                     child: _pagePng != null
                         ? Image.memory(_pagePng!,
-                            fit: BoxFit.contain, filterQuality: FilterQuality.high)
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high)
                         : PdfPreview(
                             build: (_) async => _pdfBytes!,
                             useActions: false,

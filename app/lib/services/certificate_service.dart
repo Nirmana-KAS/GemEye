@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'package:printing/printing.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -12,7 +14,6 @@ import '../models/grade_result.dart';
 import '../utils/colour_math.dart';
 import '../widgets/confidence_badge.dart';
 import 'calibration_service.dart';
-import 'profile_service.dart';
 
 /// GemEye Certificate PDF generator (Group E design).
 ///
@@ -42,6 +43,40 @@ class CertificateService {
 
   // Page constants
   static const double _pad = 30;
+
+  /// The stone photo for the certificate: the photo on this device, else
+  /// the server copy (presigned image URL). Empty when neither is available
+  /// (the certificate then shows a plain panel).
+  static Future<Uint8List> stoneImageBytes(GradeResult result) async {
+    try {
+      final f = File(result.capturedImagePath);
+      if (result.capturedImagePath.isNotEmpty && await f.exists()) {
+        return await f.readAsBytes();
+      }
+    } catch (e) {
+      debugPrint('Stone photo read failed: $e');
+    }
+    final url = result.imageUrl;
+    if (url != null) {
+      try {
+        final r = await http
+            .get(Uri.parse(url))
+            .timeout(const Duration(seconds: 20));
+        if (r.statusCode == 200 && r.bodyBytes.isNotEmpty) return r.bodyBytes;
+      } catch (e) {
+        debugPrint('Stone photo download failed: $e');
+      }
+    }
+    return Uint8List(0);
+  }
+
+  /// The certificate page as a PNG (the "Image" export).
+  static Future<Uint8List> renderPng(Uint8List pdf, {double dpi = 200}) async {
+    await for (final page in Printing.raster(pdf, pages: [0], dpi: dpi)) {
+      return page.toPng();
+    }
+    throw StateError('Certificate page could not be rendered');
+  }
 
   static Future<pw.Font?> _font(String asset) async {
     try {
@@ -82,7 +117,7 @@ class CertificateService {
       debugPrint('Logo load failed: $e');
     }
 
-    final stoneImg = pw.MemoryImage(stoneImage);
+    final stoneImg = stoneImage.isEmpty ? null : pw.MemoryImage(stoneImage);
     final logoImg = logoBytes != null ? pw.MemoryImage(logoBytes) : null;
 
     // The QR is the server's public verification URL. A certificate issued
@@ -112,23 +147,15 @@ class CertificateService {
       debugPrint('Certificate calibration lookup failed: $e');
     }
 
-    String issuedTo = '-';
-    try {
-      final name = FirebaseAuth.instance.currentUser?.displayName?.trim();
-      if (name != null && name.isNotEmpty) issuedTo = name;
-    } catch (e) {
-      debugPrint('Certificate user lookup failed: $e');
-    }
+    // The owner fields are the ones stored with the server certificate when
+    // it was issued (present only when the owner chose to show them, like on
+    // the public page). Otherwise the lines are left out.
+    String? issuedTo = result.certificateOwnerName?.trim();
+    if (issuedTo != null && issuedTo.isEmpty) issuedTo = null;
+    String? company = result.certificateOwnerCompany?.trim();
+    if (company != null && company.isEmpty) company = null;
 
-    String? company;
-    try {
-      final c = (await ProfileService.load()).companyName.trim();
-      if (c.isNotEmpty) company = c;
-    } catch (e) {
-      debugPrint('Certificate company lookup failed: $e');
-    }
-
-    final referred = result.confidence < ConfidenceBadge.referThreshold;
+    final referred = result.isReferred;
     final gradeColour = AppColors.grades[(result.gradeNumber - 1).clamp(0, 6)];
     final rgb = result.measuredRgb;
     final measured = PdfColor.fromInt(
@@ -137,10 +164,9 @@ class CertificateService {
     final pillBg = _mix(gradientMid, _white, 0.14);
     final pillBorder = _mix(gradientMid, _white, 0.2);
 
-    final (String confLevel, PdfColor confDot) =
-        result.confidence >= ConfidenceBadge.referThreshold
-            ? ('High', _success)
-            : result.confidence >= ConfidenceBadge.lowThreshold
+    final (String confLevel, PdfColor confDot) = !referred
+        ? ('High', _success)
+        : result.confidence >= ConfidenceBadge.lowThreshold
                 ? ('Borderline', _warning)
                 : ('Low', _error);
 
@@ -192,7 +218,7 @@ class CertificateService {
         false,
       ),
       ('Model version', modelVersion, false),
-      ('Issued to', issuedTo, false),
+      if (issuedTo != null) ('Issued to', issuedTo, false),
       if (company != null) ('Company', company, false),
     ];
 
@@ -336,7 +362,10 @@ class CertificateService {
                               child: pw.SizedBox(
                                 width: double.infinity,
                                 child:
-                                    pw.Image(stoneImg, fit: pw.BoxFit.cover),
+                                    stoneImg == null
+                                        ? pw.Container(color: _gradeLight)
+                                        : pw.Image(stoneImg,
+                                            fit: pw.BoxFit.cover),
                               ),
                             ),
                           ),

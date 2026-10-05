@@ -64,16 +64,21 @@ class HistoryService {
         DateTime.now().difference(_certMemoAt) < const Duration(seconds: 10)) {
       return memo;
     }
-    final json = await client.getJson('/certificates', query: {'limit': '100'});
     final out = <String, _CertInfo>{};
-    for (final c in (json['items'] as List? ?? const [])) {
-      final m = (c as Map).cast<String, dynamic>();
-      if (m['status'] != 'valid') continue;
-      out[m['grading_id'] as String] = (
-        certNo: m['cert_no'] as String,
-        verifyUrl: m['verify_url'] as String?,
-      );
-    }
+    String? cursor;
+    do {
+      final json = await client.getJson('/certificates',
+          query: {'limit': '100', if (cursor != null) 'cursor': cursor});
+      for (final c in (json['items'] as List? ?? const [])) {
+        final m = (c as Map).cast<String, dynamic>();
+        if (m['status'] != 'valid') continue;
+        out[m['grading_id'] as String] = (
+          certNo: m['cert_no'] as String,
+          verifyUrl: m['verify_url'] as String?,
+        );
+      }
+      cursor = json['next_cursor'] as String?;
+    } while (cursor != null);
     _certMemo = out;
     _certMemoAt = DateTime.now();
     return out;
@@ -221,7 +226,12 @@ class HistoryService {
   }
 
   static Future<void> _checkOwner() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    String? uid;
+    try {
+      uid = FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return; // Firebase is not initialised (unit tests)
+    }
     if (uid == null) return;
     final prefs = await SharedPreferences.getInstance();
     final owner = prefs.getString(_cacheUidKey);

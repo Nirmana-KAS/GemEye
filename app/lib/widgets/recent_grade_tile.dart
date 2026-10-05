@@ -63,7 +63,8 @@ class RecentGradeTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  ConfidenceBadge(confidence: result.confidence),
+                  ConfidenceBadge(
+                      confidence: result.confidence, referred: result.isReferred),
                   if (referred) ...[
                     const SizedBox(height: AppSpacing.xs),
                     Container(

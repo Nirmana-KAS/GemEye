@@ -60,6 +60,11 @@ class GradeResult {
   /// Public verification URL of the server certificate. Null for a number
   /// issued before certificates came from the server (offline certificate).
   String? certificateVerifyUrl;
+
+  /// Owner fields of the server certificate, as stored when it was issued
+  /// (only present when the owner chose to show them). Null: not printed.
+  String? certificateOwnerName;
+  String? certificateOwnerCompany;
   final DateTime capturedAt;
   final String sessionId;
 
@@ -108,6 +113,8 @@ class GradeResult {
     this.gradcamImagePath,
     this.certificateNumber,
     this.certificateVerifyUrl,
+    this.certificateOwnerName,
+    this.certificateOwnerCompany,
     DateTime? capturedAt,
     String? sessionId,
     this.gradingId,
@@ -221,6 +228,8 @@ class GradeResult {
         'gradcamImagePath': gradcamImagePath,
         'certificateNumber': certificateNumber,
         'certificateVerifyUrl': certificateVerifyUrl,
+        'certificateOwnerName': certificateOwnerName,
+        'certificateOwnerCompany': certificateOwnerCompany,
         'capturedAt': capturedAt.toIso8601String(),
         'sessionId': sessionId,
         'gradingId': gradingId,
@@ -256,6 +265,8 @@ class GradeResult {
         gradcamImagePath: json['gradcamImagePath'] as String?,
         certificateNumber: json['certificateNumber'] as String?,
         certificateVerifyUrl: json['certificateVerifyUrl'] as String?,
+        certificateOwnerName: json['certificateOwnerName'] as String?,
+        certificateOwnerCompany: json['certificateOwnerCompany'] as String?,
         capturedAt: DateTime.parse(json['capturedAt'] as String),
         sessionId: json['sessionId'] as String,
         gradingId: json['gradingId'] as String?,
@@ -296,6 +307,8 @@ class GradeResult {
         gradcamImagePath: gradcamImagePath,
         certificateNumber: certificateNumber,
         certificateVerifyUrl: certificateVerifyUrl,
+        certificateOwnerName: certificateOwnerName,
+        certificateOwnerCompany: certificateOwnerCompany,
         capturedAt: capturedAt,
         sessionId: sessionId,
         gradingId: gradingId,

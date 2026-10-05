@@ -164,7 +164,7 @@ class CalibrationService {
   static const String _currentKey = 'calibration_current';
   static const String _historyKey = 'calibration_history';
   static const String _remindedKey = 'calibration_reminded_id';
-  static const String _unsyncedKey = 'calibration_unsynced_id';
+  static const String _pendingKey = 'calibration_pending_ids';
 
   static const FlutterSecureStorage _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -204,7 +204,7 @@ class CalibrationService {
       await _storage.delete(key: _currentKey);
       await _storage.delete(key: _historyKey);
       await _storage.delete(key: _remindedKey);
-      await _storage.delete(key: _unsyncedKey);
+      await _storage.delete(key: _pendingKey);
     } catch (e) {
       if (kDebugMode) debugPrint('CalibrationService.clearAll failed: $e');
     }
@@ -258,39 +258,86 @@ class CalibrationService {
         'measured_patches': s.measured,
       };
 
-  /// POST /calibrations for a saved session. When the server cannot be
-  /// reached the session is remembered and sent later by [syncPending]
-  /// (every /grade also carries its patches, so grading is not blocked).
-  static Future<bool> syncToServer(CalibrationSession s,
-      {ApiClient? client}) async {
+  /// Session ids waiting to be sent, oldest first.
+  static Future<List<String>> _pending() async {
     try {
-      await (client ?? ApiClient.instance)
-          .postJson('/calibrations', serverBody(s));
-      if (await _storage.read(key: _unsyncedKey) == s.id) {
-        await _storage.delete(key: _unsyncedKey);
-      }
-      return true;
+      final raw = await _storage.read(key: _pendingKey);
+      if (raw == null) return [];
+      return (jsonDecode(raw) as List).cast<String>();
     } catch (e) {
-      if (kDebugMode) debugPrint('Calibration not sent: $e');
-      try {
-        await _storage.write(key: _unsyncedKey, value: s.id);
-      } catch (_) {}
-      return false;
+      return [];
     }
   }
 
-  /// Sends the session that could not be sent earlier, if any.
-  static Future<void> syncPending() async {
+  static Future<void> _setPending(List<String> ids) async {
     try {
-      final id = await _storage.read(key: _unsyncedKey);
-      if (id == null) return;
-      for (final s in await history()) {
-        if (s.id == id) {
-          await syncToServer(s);
-          return;
+      if (ids.isEmpty) {
+        await _storage.delete(key: _pendingKey);
+      } else {
+        await _storage.write(key: _pendingKey, value: jsonEncode(ids));
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Pending calibrations not saved: $e');
+    }
+  }
+
+  /// True for failures worth retrying: network, timeout, 5xx, maintenance.
+  /// 409 means the server already has the session; any other 4xx will not
+  /// succeed on retry, so the session is dropped from the queue.
+  static bool _retryable(ApiException e) => switch (e.code) {
+        ApiErrorCode.offline ||
+        ApiErrorCode.timeout ||
+        ApiErrorCode.serverError ||
+        ApiErrorCode.maintenance =>
+          true,
+        _ => false,
+      };
+
+  /// POST /calibrations for a saved session, once. Returns true when the
+  /// server has it (also on 409, a duplicate). A session that could not be
+  /// sent because of the network or a 5xx stays in the pending list for
+  /// [syncPending]; one refused with another 4xx is dropped. Every /grade also
+  /// carries its patches, so grading is not blocked either way.
+  static Future<bool> syncToServer(CalibrationSession s,
+      {ApiClient? client}) async {
+    var sent = false;
+    var keep = false;
+    try {
+      await (client ?? ApiClient.instance)
+          .postJson('/calibrations', serverBody(s));
+      sent = true;
+    } on ApiException catch (e) {
+      if (kDebugMode) debugPrint('Calibration not sent: $e');
+      if (e.code == ApiErrorCode.conflict) {
+        sent = true;
+      } else {
+        keep = _retryable(e);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Calibration not sent: $e');
+      keep = true;
+    }
+    final ids = await _pending()
+      ..remove(s.id);
+    if (keep) ids.add(s.id);
+    await _setPending(ids);
+    return sent;
+  }
+
+  /// Sends each pending session once (call at most once per Home refresh).
+  static Future<void> syncPending({ApiClient? client}) async {
+    try {
+      final ids = await _pending();
+      if (ids.isEmpty) return;
+      final sessions = {for (final s in await history()) s.id: s};
+      for (final id in ids) {
+        final s = sessions[id];
+        if (s == null) {
+          await _setPending((await _pending())..remove(id));
+        } else {
+          await syncToServer(s, client: client);
         }
       }
-      await _storage.delete(key: _unsyncedKey);
     } catch (e) {
       if (kDebugMode) debugPrint('Calibration sync failed: $e');
     }

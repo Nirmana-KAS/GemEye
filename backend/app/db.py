@@ -52,6 +52,9 @@ class Database:
                                    name="request_id_unique")
         self.rejections.create_index([("created_at", ASCENDING)])
         self.calibrations.create_index([("uid", ASCENDING), ("created_at", DESCENDING)])
+        # One calibration per (user, session): the app retries unsent sessions.
+        self.calibrations.create_index([("uid", ASCENDING), ("session_id", ASCENDING)],
+                                       unique=True, name="uid_session_unique")
         self.certificates.create_index([("uid", ASCENDING), ("issued_at", DESCENDING)])
         # At most one valid certificate per grading (idempotent issue).
         self.certificates.create_index([("grading_id", ASCENDING)], unique=True,

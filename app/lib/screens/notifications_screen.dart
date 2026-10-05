@@ -95,7 +95,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final result = matches.first;
     AppRoutes.push(
       context,
-      ResultScreen(imagePath: result.capturedImagePath, gradeResult: result),
+      ResultScreen(
+          imagePath: result.capturedImagePath,
+          gradeResult: result,
+          fromHistory: true),
     );
   }
 

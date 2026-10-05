@@ -228,3 +228,18 @@ def test_calibrations_round_trip(client, client_b):
     bad = calibration("x")
     bad["measured_patches"][0] = [300, 0, 0]
     assert client.post("/calibrations", json=bad).status_code == 400
+
+
+def test_duplicate_calibration_session_returns_409_with_the_existing_one(client, client_b):
+    first = client.post("/calibrations", json=calibration("cal-dup"))
+    assert first.status_code == 201
+    again = client.post("/calibrations", json=calibration("cal-dup"))
+    assert again.status_code == 409
+    body = again.json()
+    assert body["code"] == "duplicate_session"
+    assert body["calibration"]["calibration_id"] == first.json()["calibration_id"]
+    assert body["calibration"]["session_id"] == "cal-dup"
+    assert [i["session_id"] for i in client.get("/calibrations").json()["items"]].count("cal-dup") == 1
+    # Another user may use the same session id.
+    assert client_b.post("/calibrations", json=calibration("cal-dup")).status_code == 201
+

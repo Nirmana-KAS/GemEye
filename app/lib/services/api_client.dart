@@ -52,6 +52,17 @@ class ApiClient {
   static ApiClient? _instance;
   static ApiClient get instance => _instance ??= ApiClient();
 
+  /// Called once per failed request when the session is dead: the account
+  /// was deleted (account_deleted) or the token cannot be refreshed
+  /// (unauthorized after the refresh). Set in main.dart to show the
+  /// session-expired dialog, clear local data and go to Login.
+  static Future<void> Function(ApiException e)? sessionLostHandler;
+
+  static bool _isSessionLost(ApiException e) =>
+      e.code == ApiErrorCode.accountDeleted ||
+      e.code == ApiErrorCode.unauthorized ||
+      e.code == ApiErrorCode.reauthRequired;
+
   final http.Client _client;
   final TokenProvider _token;
   final String baseUrl;
@@ -90,8 +101,11 @@ class ApiClient {
           {bool auth = true}) =>
       _sendJson('PUT', path, body, auth: auth);
 
-  Future<void> delete(String path) async {
-    await send((url) async => http.Request('DELETE', url), uri(path));
+  /// DELETE. [guardSession] false: the caller handles session errors itself
+  /// (account deletion).
+  Future<void> delete(String path, {bool guardSession = true}) async {
+    await send((url) async => http.Request('DELETE', url), uri(path),
+        guardSession: guardSession);
   }
 
   /// Multipart POST. [files] is called again for each attempt.
@@ -127,7 +141,22 @@ class ApiClient {
   /// and reauth_required) the token is refreshed once and the request sent
   /// once more. [retryable] (GET only) also retries once on timeout or 5xx.
   Future<http.Response> send(RequestBuilder build, Uri url,
-      {bool auth = true, bool retryable = false}) async {
+      {bool auth = true,
+      bool retryable = false,
+      bool guardSession = true}) async {
+    try {
+      return await _send(build, url, auth: auth, retryable: retryable);
+    } on ApiException catch (e) {
+      if (auth && guardSession && _isSessionLost(e)) {
+        final handler = sessionLostHandler;
+        if (handler != null) unawaited(handler(e));
+      }
+      rethrow;
+    }
+  }
+
+  Future<http.Response> _send(RequestBuilder build, Uri url,
+      {required bool auth, required bool retryable}) async {
     var refreshed = false;
     var retried = false;
     while (true) {

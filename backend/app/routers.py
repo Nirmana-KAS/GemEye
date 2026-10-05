@@ -10,7 +10,10 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from firebase_admin import auth as firebase_auth
+from pymongo.errors import DuplicateKeyError
 
 from app import gates
 from app.auth import active_user, active_user_strict, current_user, current_user_strict, uid_hash
@@ -242,7 +245,15 @@ def post_calibration(body: CalibrationIn, user=Depends(active_user), db=Depends(
     doc = {"_id": uuid.uuid4().hex, "uid": user["uid"], "created_at": utcnow(),
            **body.model_dump()}
     doc["valid_until"] = _utc(doc["valid_until"])
-    db.calibrations.insert_one(doc)
+    try:
+        db.calibrations.insert_one(doc)
+    except DuplicateKeyError:
+        # Same session sent again (a retry): 409 with the stored one.
+        existing = db.calibrations.find_one({"uid": user["uid"], "session_id": doc["session_id"]})
+        msg = "This calibration session was already saved."
+        return JSONResponse(status_code=409, content={
+            "status": "error", "detail": msg, "code": "duplicate_session", "message": msg,
+            "calibration": jsonable_encoder(calibration_item(existing))})
     return calibration_item(doc)
 
 
