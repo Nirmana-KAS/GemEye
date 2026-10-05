@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import '../config/app_config.dart';
 import '../config/constants.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
@@ -723,6 +724,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   size: 18, color: AppColors.textMuted),
             ],
           ),
+        ),
+      ),
+      // Developer row: which server this build talks to.
+      Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
+        child: Row(
+          children: [
+            const Icon(Icons.dns_rounded, size: 20, color: AppColors.primary),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('API base URL', style: AppText.body14),
+                  const SizedBox(height: AppSpacing.xs),
+                  SelectableText(AppConfig.apiBaseUrl,
+                      style: AppText.secondary),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     ]);

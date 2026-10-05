@@ -2246,3 +2246,36 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-108, EDIT-109
 - **Reason:** Record that the Phase 8 heatmap works end to end on a real device.
+
+### EDIT-111 | 05 October 2026 11:30 | IST
+- **Topic:** AWS read-only audit - report written (AWS checks blocked)
+- **Summary:** Ran a read-only audit with profile gemeye-audit in ap-south-1. The profile does not exist locally (only "gemeye"), so all ten AWS checks are CANNOT VERIFY. The local checks passed: Docker works, its data is on D: (861 GB free), and key.properties/*.jks are git-ignored. No AWS resources changed and no secrets were printed.
+- **What was done:**
+  - Tried STS, ECR, SSM (metadata only), IAM, SNS, S3, Budgets, Lambda and ECR image architecture with --profile gemeye-audit: profile not found
+  - Local checks: docker info, Docker WSL data location (D:\DockerData), drive free space, AWS profile names, keystore ignore rules
+  - Wrote backend/infra/audit_report.md with PASS / FAIL / CANNOT VERIFY per item and the fixes needed
+- **Files changed:**
+  - `+` backend/infra/audit_report.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-110
+- **Reason:** Check the AWS deployment setup before deploying the backend to Lambda.
+
+### EDIT-112 | 05 October 2026 12:00 | IST
+- **Topic:** Phase 9L - run the app against a local server over Wi-Fi
+- **Summary:** `--dart-define=API_BASE_URL=http://<IP>:8000` now overrides the API base URL; Android allows cleartext HTTP in debug and release for the local demo; Settings shows the current API base URL. No grading, gate or backend logic changed.
+- **What was done:**
+  - AppConfig.apiBaseUrl uses API_BASE_URL when set (trailing slash trimmed), else the existing API_ENV dev/prod behaviour
+  - Moved network_security_config.xml from src/debug to src/main with base-config cleartextTrafficPermitted="true" and the comment "local demo over Wi-Fi; switch back to HTTPS-only when a production server exists"; referenced from the main manifest, removed from the debug manifest
+  - Added an "API base URL" row under Server status in Settings
+  - Checked ApiClient timeouts: connect 10 s, receive 60 s already set; unchanged
+  - flutter analyze: 0 issues; flutter test: 73 passed
+- **Files changed:**
+  - `~` app/lib/config/app_config.dart
+  - `~` app/lib/screens/settings_screen.dart
+  - `~` app/android/app/src/main/AndroidManifest.xml
+  - `~` app/android/app/src/debug/AndroidManifest.xml
+  - `+` app/android/app/src/main/res/xml/network_security_config.xml
+  - `-` app/android/app/src/debug/res/xml/network_security_config.xml
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-110
+- **Reason:** Demo the app on a phone over Wi-Fi against the local Docker server, without a USB cable or adb reverse.

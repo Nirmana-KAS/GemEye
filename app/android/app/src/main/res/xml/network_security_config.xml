@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- local demo over Wi-Fi; switch back to HTTPS-only when a production server exists.
+     Applies to debug and release builds (referenced from src/main/AndroidManifest.xml). -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
