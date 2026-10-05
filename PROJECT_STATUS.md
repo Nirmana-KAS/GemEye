@@ -2236,3 +2236,13 @@
 - **Connected edits:** EDIT-108
 - **Notes:** The test_phase8 module-level dataset mark was replaced by a mark on each dataset test, so the config test always runs. The heat on the stone is about 5 times what a uniform map would give, but about 63% of the heat still falls outside the mask (tray and edges).
 - **Reason:** Phase 8.1: confirm the production default and measure how much the CNN attends to the stone relative to its size.
+
+### EDIT-110 | 05 October 2026 11:00 | IST
+- **Topic:** Phase 8 Grad-CAM - manual device test passed
+- **Summary:** The developer tested the Grad-CAM heatmap on the Android phone (USB, adb reverse to the local Docker server): the heatmap generates and shows correctly on the Grade Result screen. No code changed in this entry.
+- **What was done:**
+  - Manual test of POST /gradings/{id}/heatmap from the Result screen on a device: passed
+- **Files changed:**
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-108, EDIT-109
+- **Reason:** Record that the Phase 8 heatmap works end to end on a real device.
