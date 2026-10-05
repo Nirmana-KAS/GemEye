@@ -16,7 +16,7 @@ DEFAULT_APP_CONFIG = {
     "calibration_validity_hours": 8,
     "min_app_version": "1.0.0",
     "maintenance": {"enabled": False, "message": ""},
-    "features": {"repeatability_mode": True, "gradcam": False, "public_verification": True,
+    "features": {"repeatability_mode": True, "gradcam": True, "public_verification": True,
                  "session_mapping": False},
 }
 CONFIG_CACHE_SECONDS = 60

@@ -3,7 +3,6 @@ certificates, public verification, remote config and feedback (Phase 4b)."""
 import json
 import logging
 import platform
-import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -15,7 +14,7 @@ from fastapi.responses import JSONResponse
 from pymongo.errors import DuplicateKeyError
 from slowapi.errors import RateLimitExceeded
 
-from app.assets import load_assets, warm_up
+from app.assets import MODEL_LOCK, load_assets, warm_up
 from app.auth import active_user, init_firebase
 from app.certificates import limiter, public_headers
 from app.certificates import router as certificates_router
@@ -31,7 +30,7 @@ from app.storage import Storage
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger("gemeye.api")
 
-_lock = threading.Lock()
+_lock = MODEL_LOCK
 # S3 upload and MongoDB insert of a grading run concurrently.
 _io = ThreadPoolExecutor(max_workers=8, thread_name_prefix="gemeye-io")
 MAINTENANCE = "GemEye is under maintenance. Please try again later."

@@ -7,6 +7,7 @@ import '../screens/login_screen.dart';
 import '../widgets/app_dialog.dart';
 import 'account_service.dart';
 import 'api_client.dart';
+import 'heatmap_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -61,6 +62,7 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    HeatmapService.clearCache();
     await _googleSignIn.signOut();
     await _auth.signOut();
   }

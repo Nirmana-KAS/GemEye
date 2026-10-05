@@ -69,6 +69,8 @@ class WBMeasure:
     fallback: bool              # GrabCut used the saturation mask or the centre box
     centre_fallback: bool       # GrabCut used the centre box
     tray_rgb: list              # tray median before balancing, 0-255
+    mask: np.ndarray = None     # stone mask used above (256 x 256, bool); Grad-CAM heat share
+    gain: np.ndarray = None     # per-channel tray gain; Grad-CAM display image
 
 
 def tray_balanced_measure(raw_rgb):
@@ -107,6 +109,7 @@ def tray_balanced_measure(raw_rgb):
         contrast=float(colour.delta_E(np.array([L, a, b]), tray_lab, method="CIE 2000")),
         fallback=bool(fallback), centre_fallback=centre_fallback,
         tray_rgb=[float(x) for x in tray_rgb],
+        mask=sm, gain=gain,
     )
 
 

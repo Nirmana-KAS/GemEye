@@ -17,6 +17,7 @@ import '../widgets/app_snack_bar.dart';
 import '../widgets/confidence_badge.dart';
 import '../widgets/export_buttons.dart';
 import '../widgets/gem_app_bar.dart';
+import '../widgets/gradcam_card.dart';
 import '../widgets/grade_badge_card.dart';
 import '../widgets/probability_bar.dart';
 import '../widgets/status_banner.dart';
@@ -492,82 +493,10 @@ class _ResultScreenState extends State<ResultScreen> {
     );
   }
 
-  Widget _buildGradCam() {
-    final enabled = RemoteConfigService.gradcamEnabled;
-    final heatmap = _result.gradcamImagePath;
-    final placeholder = enabled
-        ? 'Heatmap not available for this grading'
-        : 'Heatmap available after Phase 8';
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: GemEyeColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'GRAD-CAM HEATMAP',
-            style: TextStyle(
-              fontFamily: GemEyeFonts.body,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: GemEyeColors.textMuted,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (enabled && heatmap != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.file(File(heatmap),
-                  height: 120, width: double.infinity, fit: BoxFit.cover),
-            )
-          else
-            Container(
-              height: 120,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                gradient: const RadialGradient(
-                  center: Alignment(-0.1, 0.0),
-                  colors: [
-                    Color(0x99EF4444),
-                    Color(0x66F59E0B),
-                    Color(0x3310B981),
-                    Color(0x331B3A8C),
-                  ],
-                  stops: [0.0, 0.3, 0.6, 1.0],
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  placeholder,
-                  style: const TextStyle(
-                    fontFamily: GemEyeFonts.body,
-                    fontSize: 11,
-                    color: Colors.white70,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
-          const Text(
-            'Red = high influence on prediction · Blue = low influence',
-            style: TextStyle(
-              fontFamily: GemEyeFonts.body,
-              fontSize: 10,
-              color: GemEyeColors.textMuted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildGradCam() => GradCamCard(
+        gradingId: _result.gradingId,
+        enabled: RemoteConfigService.gradcamEnabled,
+      );
 
   Widget _buildValueRow(
       String label1, String value1, String? label2, String? value2) {

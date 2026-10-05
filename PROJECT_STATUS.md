@@ -2176,3 +2176,63 @@
 - **Connected edits:** EDIT-102, EDIT-103, EDIT-104, EDIT-105, EDIT-106
 - **Notes:** Testing on the phone needs the USB cable and `adb reverse tcp:8000 tcp:8000` after every reconnect (the dev API URL is 127.0.0.1:8000).
 - **Reason:** Record that Phases 5c and 6 are verified end to end.
+
+### EDIT-108 | 05 October 2026 09:30 | IST
+- **Topic:** Phase 8 - Grad-CAM heatmap (server endpoint, app Result screen section)
+- **Summary:** New POST /gradings/{id}/heatmap computes Grad-CAM of the CNN branch from the stored original, using the grading's own calibration mode. The PNG is cached in S3 and deleted with the grading or the account. The Result screen now loads the heatmap from the server, with loading, error/Retry and disabled states. Grading, gates and thresholds are unchanged (parity unchanged). Backend 84 passed; flutter analyze: no issues; 73 app tests pass.
+- **What was done:**
+  - Server: app/pipeline/gradcam.py: Grad-CAM on top_activation (nested EfficientNet-B0), deterministic model, gradient of the target-class logit (target = the grading's final grade), raises if the gradient is None; normalised to [0,1], upsampled to the display image (longer side at most 640 px), jet overlay at alpha 0.4 on the tray-balanced image
+  - CNN input rebuilt with the same model path; session_patches gradings replay their stored patches, training_session gradings use none; the current session_mapping flag is never read
+  - stone_mask_heat_fraction = share of heat inside the GrabCut stone mask (256 px, seed 42), stored in gradings.heatmap with the S3 key gradings/{uid}/{id}_cam.png; a second call reuses the stored PNG (presigned URL, 10 min)
+  - 404 for other users, deleted gradings and missing photos; 503 maintenance; the model lock (MODEL_LOCK in assets.py) is shared with /grade
+  - DELETE /gradings/{id} also deletes the heatmap PNG and unsets gradings.heatmap; DELETE /me already deletes gradings/{uid}/
+  - WBMeasure now also returns the stone mask and tray gain (measured values unchanged)
+  - Remote config default features.gradcam: true; the development database's stored value was set to true
+  - tests/test_phase8.py (6 tests): shape and range, deterministic, matches the deterministic CNN output, cache hit, other user/missing photo 404, removal on grading and account delete, calibration_mode replay
+  - tests/parity/run_gradcam_stats.py: 112 test images: mean stone_mask_heat_fraction 0.372, average heatmap latency 1808 ms (cache hit 224 ms); run_parity.py results unchanged (A-D PASS, same values)
+  - App: HeatmapService (POST, downloads the presigned PNG, in-memory cache cleared on sign-out); GradCamCard widget replaces the placeholder on the Result screen (Home, History and notifications open the same screen); legend and "Shows where the CNN looked. It is an explanation aid, not a second opinion."; hidden when features.gradcam is off; offline, maintenance and session-lost errors come through ApiClient
+  - test/gradcam_test.dart (9 tests): loading, error and retry, maintenance and not-found, disabled, no grading id, dash check, service caching and errors
+- **Files changed:**
+  - `+` backend/app/pipeline/gradcam.py
+  - `~` backend/app/pipeline/display.py
+  - `~` backend/app/assets.py
+  - `~` backend/app/main.py
+  - `~` backend/app/routers.py
+  - `~` backend/app/schemas.py
+  - `~` backend/app/db.py
+  - `~` backend/README.md
+  - `+` backend/tests/test_phase8.py
+  - `+` backend/tests/parity/run_gradcam_stats.py
+  - `+` backend/tests/parity/gradcam_stats.md
+  - `~` backend/tests/parity/parity_report.md (latency only)
+  - `~` backend/tests/parity/parity_mismatches.csv (RF dp differs at 1e-16 only)
+  - `+` app/lib/services/heatmap_service.dart
+  - `+` app/lib/widgets/gradcam_card.dart
+  - `~` app/lib/services/auth_service.dart
+  - `~` app/lib/screens/result_screen.dart
+  - `+` app/test/gradcam_test.dart
+- **Connected edits:** EDIT-102, EDIT-105, EDIT-106
+- **Notes:** The mean heat share on the stone (0.372) is below one half: the CNN also uses the tray around the stone, which is useful to know when reading the heatmap. Production app_config keeps whatever gradcam value is stored; set features.gradcam to true there when ready. GradeResult.gradcamImagePath is no longer used by the Result screen (kept for stored JSON).
+- **Reason:** Phase 8: Grad-CAM explanation of the CNN branch.
+
+### EDIT-109 | 05 October 2026 10:30 | IST
+- **Topic:** Phase 8.1 - Grad-CAM follow-ups: production default checked, heat/area statistics
+- **Summary:** The remote config seed already has features.gradcam true (set in EDIT-108), so a fresh database, including the new production "gemeye", is seeded with it; a test now checks the seed and GET /config. run_gradcam_stats.py now also reports stone area and heat/area, overall and per grade. Grading, gates, thresholds and the model path are unchanged; parity unchanged; backend 85 passed.
+- **What was done:**
+  - Checked DEFAULT_APP_CONFIG (app/db.py): features.gradcam is True; no code change needed
+  - New test test_config_gradcam_default_true_on_fresh_db: the default, the stored document in the freshly seeded gemeye_test database and GET /config all give gradcam true (runs without the dataset)
+  - run_gradcam_stats.py: per image stone_area_fraction (diagnostics.gate_stone_area: the 256 px GrabCut mask, seed 42, the same mask as the heat fraction), heat_over_area; mean/median of each, share with heat_over_area > 1, all images, per true grade and per predicted grade; latency; Interpretation note
+  - Results (112 images): stone_area_fraction mean 0.083 / median 0.069; stone_mask_heat_fraction mean 0.372 / median 0.381; heat_over_area mean 4.89 / median 4.95; heat_over_area > 1 on 112/112; average heatmap latency 1660 ms (cache hit 211 ms)
+  - The report replaces gradcam_stats.md (deleted); README updated
+  - run_parity.py: A-D PASS with the same values (report changes are latency and floating-point noise at 1e-15 only)
+- **Files changed:**
+  - `~` backend/tests/test_phase8.py
+  - `~` backend/tests/parity/run_gradcam_stats.py
+  - `+` backend/tests/parity/gradcam_stats_report.md
+  - `-` backend/tests/parity/gradcam_stats.md
+  - `~` backend/tests/parity/parity_report.md (latency only)
+  - `~` backend/tests/parity/parity_mismatches.csv (floating-point noise only)
+  - `~` backend/README.md
+- **Connected edits:** EDIT-108
+- **Notes:** The test_phase8 module-level dataset mark was replaced by a mark on each dataset test, so the config test always runs. The heat on the stone is about 5 times what a uniform map would give, but about 63% of the heat still falls outside the mask (tray and edges).
+- **Reason:** Phase 8.1: confirm the production default and measure how much the CNN attends to the stone relative to its size.

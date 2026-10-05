@@ -132,7 +132,8 @@ Other endpoints (all authenticated, own records only):
 | PUT | `/me` | partial update of `display_name, account_type (individual/company), country, phone, company{name, reg_no, industry, address, logo_key}, settings{show_name_on_certificates, referral_threshold 0.40-0.90}`; unknown fields (including `role`, `email`) are ignored |
 | GET | `/gradings` | `limit` (1-50, default 20), `cursor`, `grade` (1-7), `referred`, `from`, `to` (ISO 8601); newest first, not deleted, each with a fresh `image_url`; `{items, next_cursor}` |
 | GET | `/gradings/{id}` | one grading |
-| DELETE | `/gradings/{id}` | deletes the S3 image, sets `deleted: true`; 204 |
+| DELETE | `/gradings/{id}` | deletes the S3 image and Grad-CAM PNG, sets `deleted: true`; 204 |
+| POST | `/gradings/{id}/heatmap` | Grad-CAM of the CNN branch (Phase 8): `{url (presigned 10 min), method: "gradcam_cnn_branch", target_grade, stone_mask_heat_fraction}`; own grading only, else 404; 404 if the photo is gone; 503 `maintenance` |
 | POST | `/calibrations` | `{session_id, valid_until?, device?, ccm 3x3, residual?, quality?, measured_patches 6x3}`; 201 |
 | GET | `/calibrations` | newest first, at most 50 |
 | DELETE | `/me` | deletes the account (recent sign-in required, see Auth and below); 204 |
@@ -214,7 +215,7 @@ missing from the stored document fall back to the defaults:
 ```
 referral_threshold_default: 0.60, calibration_validity_hours: 8, min_app_version: "1.0.0",
 maintenance: {enabled: false, message: ""},
-features: {repeatability_mode: true, gradcam: false, public_verification: true,
+features: {repeatability_mode: true, gradcam: true, public_verification: true,
            session_mapping: false}
 ```
 
@@ -280,6 +281,25 @@ for PNG uploads). Only the original upload of a graded stone is stored.
 - Ensemble: `w_cnn * MC mean + (1 - w_cnn) * RF`, `w_cnn = 0.6` from `config_v3.json`.
 - OOD: Mahalanobis distance of the 256-D `dense` features (deterministic pass)
   against `ood_stats.npz`; threshold is the validation p99.
+
+## Grad-CAM heatmap (Phase 8)
+
+`app/pipeline/gradcam.py`. Explanation aid only; it never changes a grade.
+
+- The stored original is loaded from S3 and the CNN input is rebuilt exactly as `/grade` built it,
+  with the grading's own `result.calibration_mode` (`session_patches` replays the stored patches;
+  the current `features.session_mapping` flag is never used).
+- Grad-CAM on `top_activation` (last conv activation of the nested EfficientNet-B0), deterministic
+  model (Dropout off, BatchNorm inference), gradient of the target class logit; target class = the
+  grading's final grade. A `None` gradient raises.
+- The map is normalised to [0, 1], upsampled to the display image (longer side at most 640 px) and
+  overlaid with jet at alpha 0.4 on the tray-balanced image (gain from `tray_balanced_measure`).
+- `stone_mask_heat_fraction`: share of the total heat inside the GrabCut stone mask (256 px, seed 42).
+- The PNG is stored at `gradings/{uid}/{id}_cam.png` and reused (`gradings.heatmap`); it is deleted
+  with the grading and with the account (`DELETE /me` deletes `gradings/{uid}/`).
+- Stats over the 112 test images: `docker compose exec api python tests/parity/run_gradcam_stats.py`
+  (writes `tests/parity/gradcam_stats_report.md`: stone area, heat share and heat/area, overall
+  and per grade, with an interpretation note).
 
 ## CIECAM02 note
 

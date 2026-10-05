@@ -12,15 +12,20 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
+from botocore.exceptions import ClientError
 from firebase_admin import auth as firebase_auth
 from pymongo.errors import DuplicateKeyError
 
 from app import gates
+from app.assets import MODEL_LOCK
 from app.auth import active_user, active_user_strict, current_user, current_user_strict, uid_hash
 from app.db import utcnow
 from app.errors import ApiError
+from app.pipeline import gradcam
+from app.pipeline.colour import decode_image
 from app.schemas import (AppConfig, CalibrationIn, CalibrationItem, CalibrationList, FeedbackIn,
-                         FeedbackOut, GradingItem, GradingList, ProfileUpdate, UserResponse)
+                         FeedbackOut, GradingItem, GradingList, HeatmapOut, ProfileUpdate,
+                         UserResponse)
 
 logger = logging.getLogger("gemeye.api")
 router = APIRouter()
@@ -28,6 +33,7 @@ router = APIRouter()
 NOT_FOUND = "Not found."
 UNAVAILABLE = "Service temporarily unavailable. Please try again."
 REAUTH_MAX_AGE_S = 300      # DELETE /me needs a sign-in within the last 5 minutes
+MAINTENANCE = "GemEye is under maintenance. Please try again later."
 
 
 def get_db(request: Request):
@@ -217,7 +223,8 @@ def delete_grading(grading_id: str, user=Depends(current_user), db=Depends(get_d
     certs = list(db.certificates.find({"grading_id": doc["_id"], "image_key": {"$ne": None}},
                                       {"image_key": 1}))
     try:
-        for key in [doc.get("image_key")] + [c["image_key"] for c in certs]:
+        for key in ([doc.get("image_key"), heatmap_key(storage, doc)]
+                    + [c["image_key"] for c in certs]):
             if key:
                 storage.delete(key)
     except Exception:
@@ -227,8 +234,90 @@ def delete_grading(grading_id: str, user=Depends(current_user), db=Depends(get_d
         db.certificates.update_many({"_id": {"$in": [c["_id"] for c in certs]}},
                                     {"$set": {"image_key": None}})
     db.gradings.update_one({"_id": doc["_id"]},
-                           {"$set": {"deleted": True, "deleted_at": utcnow(), "image_key": None}})
+                           {"$set": {"deleted": True, "deleted_at": utcnow(), "image_key": None},
+                            "$unset": {"heatmap": ""}})
     return Response(status_code=204)
+
+
+# ---- Grad-CAM heatmap (Phase 8) ----
+
+def heatmap_key(storage, doc):
+    return storage.grading_key(doc["uid"], f"{doc['_id']}_cam", "png")
+
+
+def _heatmap_out(storage, hm):
+    return {"url": storage.presigned_get(hm["key"]), "method": hm["method"],
+            "target_grade": hm["target_grade"],
+            "stone_mask_heat_fraction": hm["stone_mask_heat_fraction"]}
+
+
+def _s3_missing(e):
+    return e.response.get("Error", {}).get("Code") in ("404", "NoSuchKey", "NotFound")
+
+
+@router.post("/gradings/{grading_id}/heatmap", response_model=HeatmapOut)
+def grading_heatmap(grading_id: str, request: Request, user=Depends(current_user),
+                    db=Depends(get_db), storage=Depends(get_storage)):
+    """Grad-CAM of the CNN branch for one of the user's gradings. Rebuilt from the
+    stored original with the calibration mode that grading used (never the current
+    features.session_mapping flag); the PNG is cached next to the photo."""
+    doc = _own_grading(db, user["uid"], grading_id)
+    if not doc.get("image_key"):
+        raise HTTPException(404, NOT_FOUND)
+    hm = doc.get("heatmap")
+    try:
+        if hm and storage.exists(hm["key"]):
+            return _heatmap_out(storage, hm)
+    except Exception:
+        logger.exception("S3 heatmap check failed")
+        raise HTTPException(503, UNAVAILABLE)
+
+    maintenance = db.get_app_config().get("maintenance") or {}
+    if maintenance.get("enabled"):
+        raise ApiError(503, "maintenance", maintenance.get("message") or MAINTENANCE)
+    assets = request.app.state.assets
+    if assets is None or assets.gradcam is None:
+        raise HTTPException(500, "Internal server error.")
+    result = doc["result"]
+    mode = result.get("calibration_mode")
+    if mode == "session_patches":
+        patches = doc.get("patches")
+        if patches is None:
+            raise RuntimeError("session_patches grading without stored patches")
+    elif mode == "training_session":
+        patches = None
+    else:
+        raise RuntimeError(f"unknown calibration_mode {mode!r}")
+    try:
+        data = storage.get(doc["image_key"])
+    except ClientError as e:
+        if _s3_missing(e):
+            raise HTTPException(404, NOT_FOUND)
+        logger.exception("S3 get failed")
+        raise HTTPException(503, UNAVAILABLE)
+    try:
+        raw_rgb = decode_image(data)
+    except ValueError:
+        raise HTTPException(404, NOT_FOUND)
+    del data
+
+    target = int(result["grade"])
+    with MODEL_LOCK:
+        png, fraction, _ = gradcam.heatmap(request.app.state.assets, raw_rgb, patches, target)
+    del raw_rgb
+    hm = {"key": heatmap_key(storage, doc), "method": gradcam.METHOD, "target_grade": target,
+          "stone_mask_heat_fraction": fraction, "calibration_mode": mode, "created_at": utcnow()}
+    try:
+        storage.put(hm["key"], png, "image/png")
+    except Exception:
+        logger.exception("S3 heatmap upload failed")
+        raise HTTPException(503, UNAVAILABLE)
+    saved = db.gradings.update_one({"_id": doc["_id"], "deleted": False}, {"$set": {"heatmap": hm}})
+    if saved.matched_count == 0:
+        # Deleted while the heatmap was computed: do not leave the PNG behind.
+        storage.delete(hm["key"])
+        raise HTTPException(404, NOT_FOUND)
+    return _heatmap_out(storage, hm)
 
 
 # ---- Calibrations ----

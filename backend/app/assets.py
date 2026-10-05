@@ -2,12 +2,16 @@
 import json
 import logging
 import os
+import threading
 from dataclasses import dataclass
 
 import joblib
 import numpy as np
 
 logger = logging.getLogger("gemeye.assets")
+
+# One request at a time through TF / GrabCut (/grade and the Grad-CAM heatmap).
+MODEL_LOCK = threading.Lock()
 
 
 @dataclass
@@ -35,6 +39,7 @@ class Assets:
     ood_precision: np.ndarray
     ciecam02_display_available: bool
     mc_passes: int
+    gradcam: object = None         # tf.function: Grad-CAM on the CNN branch (pipeline/gradcam.py)
 
 
 def _json(path):
@@ -126,6 +131,8 @@ def load_assets(model_dir, export_dir):
         ciecam02_display_available=(int(cam.get("nan_count", 1)) == 0 and not cam.get("errors")),
         mc_passes=int(manifest.get("mc_dropout_passes", 30)),
     )
+    from app.pipeline import gradcam
+    assets.gradcam = gradcam.build(model)
     logger.info("Assets loaded: RF classes %s, feature layer %s, MC passes %d",
                 classes, dense.name, assets.mc_passes)
     return assets

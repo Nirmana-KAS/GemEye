@@ -23,7 +23,7 @@ Informational: vs unseeded Colab run (final_per_image_predictions.csv; GrabCut n
 
 - v3 training used cv2 decoding for the RF features and tf.io.decode_jpeg (default settings) for the CNN input. The server now does the same: it reproduces both exactly (RF max abs dp 4.99e-13, CNN deterministic max abs dp 2.85e-06, grade agreement 112/112 and 112/112).
 - Remaining differences vs the original Colab evaluation (final_per_image_predictions.csv) come only from its unseeded GrabCut and unseeded MC Dropout; all 9 final-grade disagreements are below the 0.60 referral threshold on both sides.
-- Average /grade latency (client side): 2967 ms (max 14267 ms).
+- Average /grade latency (client side): 1817 ms (max 2812 ms).
 
 ## Deterministic reference
 
@@ -73,7 +73,7 @@ Worst CNN deterministic: g5_031.jpg (2.85e-06), g1_152.jpg (2.78e-06), g2_106.jp
 | Mean abs(confidence - Colab confidence) | 0.0224 |
 | Pearson r, uncertainty vs Colab MC uncertainty | 0.8816 |
 | Model-path GrabCut fallbacks | 19/112 |
-| Latency avg / max (client side, ms) | 2967 / 14267 |
+| Latency avg / max (client side, ms) | 1817 / 2812 |
 
 ## Disagreeing images (11, any grade differs)
 
@@ -83,7 +83,7 @@ Worst CNN deterministic: g5_031.jpg (2.85e-06), g1_152.jpg (2.78e-06), g2_106.jp
 | g2_148.jpg | 2 | 2/3 | 2/3/2 | 2/2 | 2/2 | 4.46e-13 | 4.93e-07 | 0.4034/0.3810 | True | False |
 | g2_095.jpg | 2 | 2/2 | 2/2/2 | 1/2 | 2/2 | 4.01e-13 | 5.34e-07 | 0.4995/0.5269 |  | False |
 | g2_085.jpg | 2 | 1/2 | 2/2/2 | 1/1 | 1/1 | 3.88e-13 | 1.39e-06 | 0.5025/0.4874 | True | False |
-| g3_106.jpg | 3 | 3/3 | 2/3/2 | 3/3 | 3/3 | 3.79e-13 | 1.25e-06 | 0.4030/0.5592 |  | True |
+| g3_106.jpg | 3 | 3/3 | 2/3/2 | 3/3 | 3/3 | 3.78e-13 | 1.25e-06 | 0.4030/0.5592 |  | True |
 | g4_032.jpg | 4 | 4/3 | 4/4/4 | 3/3 | 3/3 | 3.33e-13 | 1.20e-06 | 0.4457/0.4427 | True | False |
 | g5_031.jpg | 5 | 4/6 | 6/6/6 | 4/4 | 4/4 | 3.97e-13 | 2.85e-06 | 0.3616/0.3435 | True | False |
 | g6_101.jpg | 6 | 5/7 | 7/7/7 | 5/5 | 5/5 | 2.96e-13 | 6.72e-07 | 0.4092/0.4026 | True | False |

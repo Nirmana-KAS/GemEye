@@ -190,6 +190,13 @@ class GradingItem(BaseModel):
     referral_threshold_used: float
 
 
+class HeatmapOut(BaseModel):
+    url: str                            # presigned GET, 10 minutes
+    method: str                         # "gradcam_cnn_branch"
+    target_grade: int = Field(ge=1, le=7)
+    stone_mask_heat_fraction: float
+
+
 class GradingList(BaseModel):
     items: List[GradingItem]
     next_cursor: Optional[str] = None
