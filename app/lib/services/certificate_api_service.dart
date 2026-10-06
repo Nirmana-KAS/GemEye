@@ -54,6 +54,8 @@ class CertificateApiService {
         r.certificateVerifyUrl = json['verify_url'] as String?;
         r.certificateOwnerName = owner?['display_name'] as String?;
         r.certificateOwnerCompany = owner?['company'] as String?;
+        r.applyCertificateSnapshot(
+            (json['snapshot'] as Map?)?.cast<String, dynamic>());
       } else {
         // The number belongs to another stone: it was issued on this device
         // before certificates came from the server.

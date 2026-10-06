@@ -83,10 +83,22 @@ class GradeResult {
   /// Borderline at grading time, against the threshold used then.
   final bool? referred;
   final List<String> warnings;
-  final Ciecam02? ciecam02;
+  /// CIECAM02 values. Once certified, these are the certificate snapshot's
+  /// values, so every export of the certificate prints the same numbers.
+  Ciecam02? ciecam02;
 
   /// True when the colour values are approximate (`colour.approximate`).
-  final bool colourApproximate;
+  bool colourApproximate;
+
+  /// Takes the colour values frozen in a server certificate snapshot
+  /// (`snapshot.colour`). Without a snapshot the stored values are kept.
+  void applyCertificateSnapshot(Map<String, dynamic>? snapshot) {
+    final colour = (snapshot?['colour'] as Map?)?.cast<String, dynamic>();
+    if (colour == null) return;
+    final cam = (colour['ciecam02'] as Map?)?.cast<String, dynamic>();
+    ciecam02 = cam == null ? null : Ciecam02.fromJson(cam);
+    colourApproximate = colour['approximate'] as bool? ?? false;
+  }
 
   /// Measured colour hex from the server (`colour.hex`).
   final String? colourHex;

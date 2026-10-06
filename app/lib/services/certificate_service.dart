@@ -180,27 +180,7 @@ class CertificateService {
           lineSpacing: height == null ? 0 : size * (height - 1),
         );
 
-    // TODO(backend): CIECAM02 values are not in GradeResult yet.
-    final groups = <String, List<List<String>>>{
-      'CIELAB': [
-        ['Lightness (L*)', result.labL.toStringAsFixed(1)],
-        ['Green-Red (a*)', result.labA.toStringAsFixed(1)],
-        ['Blue-Yellow (b*)', result.labB.toStringAsFixed(1)],
-        ['Chroma (C*)', result.labC.toStringAsFixed(1)],
-      ],
-      'HSB': [
-        ['Hue', '${result.hue.toStringAsFixed(0)}°'],
-        ['Saturation', '${result.saturation.toStringAsFixed(0)}%'],
-        ['Brightness', '${result.brightness.toStringAsFixed(0)}%'],
-      ],
-      'CIECAM02': [
-        ['Lightness J', '-'],
-        ['Colourfulness M', '-'],
-        ['Hue angle h', '-'],
-        ['Saturation s', '-'],
-        ['Chroma C', '-'],
-      ],
-    };
+    final groups = colourGroups(result);
 
     // TODO(backend): model version from the grading response.
     const modelVersion = '-';
@@ -600,6 +580,10 @@ class CertificateService {
                       pw.Text(result.measuredHex, style: st(mono, 9, _text)),
                     ],
                   ),
+                  if (result.colourApproximate) ...[
+                    pw.SizedBox(height: 6),
+                    pw.Text(approximateNote, style: st(inter, 8.25, _secondary)),
+                  ],
                 ],
               ))),
 
@@ -692,6 +676,45 @@ class CertificateService {
 
   static String _hex(Color c) =>
       '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+
+  /// Shown under the colour data when `colour.approximate` is true (same
+  /// text as the Grade Result screen).
+  static const approximateNote =
+      'Approximate values: the stone outline could not be detected '
+      'precisely in this photo.';
+
+  /// Shown instead of the CIECAM02 values for gradings without them.
+  static const notAvailable = 'Not available';
+
+  /// The certificate's colour data: group name to [label, value] rows. The
+  /// CIECAM02 labels and number formats match the Grade Result screen.
+  static Map<String, List<List<String>>> colourGroups(GradeResult result) {
+    final cam = result.ciecam02;
+    return {
+      'CIELAB': [
+        ['Lightness (L*)', result.labL.toStringAsFixed(1)],
+        ['Green-Red (a*)', result.labA.toStringAsFixed(1)],
+        ['Blue-Yellow (b*)', result.labB.toStringAsFixed(1)],
+        ['Chroma (C*)', result.labC.toStringAsFixed(1)],
+      ],
+      'HSB': [
+        ['Hue', '${result.hue.toStringAsFixed(0)}°'],
+        ['Saturation', '${result.saturation.toStringAsFixed(0)}%'],
+        ['Brightness', '${result.brightness.toStringAsFixed(0)}%'],
+      ],
+      'CIECAM02': cam == null
+          ? [
+              [notAvailable, ''],
+            ]
+          : [
+              ['Lightness J', cam.j.toStringAsFixed(1)],
+              ['Colourfulness M', cam.m.toStringAsFixed(1)],
+              ['Hue angle h', '${cam.h.toStringAsFixed(0)}°'],
+              ['Saturation s', cam.s.toStringAsFixed(1)],
+              ['Chroma C', cam.c.toStringAsFixed(1)],
+            ],
+    };
+  }
 
   // Date formatters
 

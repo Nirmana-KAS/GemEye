@@ -2372,3 +2372,37 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-112, EDIT-116, EDIT-117
 - **Reason:** Start the viva demo quickly and reliably without help, on any network, without rebuilding the app for a new IP.
+
+### EDIT-119 | 06 October 2026 07:24 | IST
+- **Topic:** Verified app test images (2 per grade)
+- **Summary:** Added test_images/ at the project root with 2 correctly graded stone images for each of the 7 grades, each verified with the live v3 model. No code changed.
+- **What was done:**
+  - Started Docker and the backend; ran grade() inside the container on every correct clean test image, as the original file and as the app upload (2048 px, JPEG q95), gates on, threshold 0.60, no patches
+  - Kept images that were correct, status ok and not referred in both modes; picked the 2 highest-confidence per grade
+  - Grade 3 had only one passing clean test image; graded all 160 Grade 3 images and added g3_077 (seen in training, flagged in the README)
+  - test_images/README.md lists each image, grade, confidence and training status
+- **Files changed:**
+  - `+` test_images/ (7 grade folders, 14 JPEGs)
+  - `+` test_images/README.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-118
+- **Reason:** A known-good image set for testing grading in the app on the phone.
+
+### EDIT-120 | 06 October 2026 08:25 | IST
+- **Topic:** CIECAM02 values on the certificate
+- **Summary:** The certificate PDF and Export Image now print CIECAM02 J, M, h, s, C like the Result screen. The server already froze them in the certificate snapshot; the app PDF hard-coded "-" and re-export did not read the snapshot colour.
+- **What was done:**
+  - Investigated: server `_snapshot` copies `colour` (incl. `ciecam02`) and `CertificateSnapshot`/`PublicCertificate` keep it, so GET /certificates/{no} and GET /public/v/{slug} already return it (no server code change)
+  - App: `CertificateService.colourGroups()` builds the colour data; CIECAM02 rows use the Result screen labels and formats (J, M, s, C 1 dp; h 0 dp with degree sign); null prints "Not available"
+  - PDF shows the Result screen "Approximate values" note when `colour.approximate` is true; page stays one A4 page (spacer absorbs the extra line)
+  - `CertificateApiService.ensure()` applies the server snapshot colour (`GradeResult.applyCertificateSnapshot`), so first export and every re-export print the frozen values; saved in the local cache
+  - Tests: app `certificate_ciecam_test.dart` (new certificate values, null case, identical re-export, PDF builds); backend unit test for snapshot and public schema plus ciecam02 asserts on GET /certificates/{no} and /public/v/{slug}
+- **Files changed:**
+  - `~` app/lib/models/grade_result.dart
+  - `~` app/lib/services/certificate_api_service.dart
+  - `~` app/lib/services/certificate_service.dart
+  - `+` app/test/certificate_ciecam_test.dart
+  - `~` backend/tests/test_phase4b.py
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-099, EDIT-101
+- **Reason:** CIECAM02 values were shown on the Result screen but missing from the certificate.

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import pytest
 from firebase_admin import auth as firebase_auth
 
-from app import certificates, gates, routers
+from app import certificates, gates, routers, schemas
 from app.certificates import COLOMBO, DISCLAIMER, limiter
 from app.db import DEFAULT_APP_CONFIG
 from tests.conftest import AuthedClient
@@ -58,6 +58,27 @@ def test_401_new_endpoints(raw_client, method, url):
 
 # ---- Certificates ----
 
+def test_snapshot_and_public_schema_keep_ciecam02():
+    """The snapshot copies colour.ciecam02 and the public response keeps it."""
+    cam = {"J": 50.2, "M": 28.1, "h": 250.3, "s": 40.4, "C": 31.2}
+    colour = {"L": 30.0, "a": 5.0, "b": -40.0, "C": 40.0, "H": 277.0, "S": 80.0, "B": 50.0,
+              "hex": "#2A408C", "ciecam02": cam, "approximate": True}
+    now = datetime.now(timezone.utc)
+    grading = {"uid": "u", "stone_id": "GE-STONE-1", "created_at": now,
+               "result": {"grade": 4, "grade_name": "Intense", "trade_name": "Intense Cornflower",
+                          "confidence": 0.9, "uncertainty": 0.3, "referred": False,
+                          "colour": colour, "delta_e00_to_typical": 1.2, "model_version": "v"}}
+    snap = certificates._snapshot(None, grading, now)
+    assert snap["colour"]["ciecam02"] == cam and snap["colour"]["approximate"] is True
+    out = schemas.PublicCertificate(cert_no="GE-202610-00001", status="valid", issued_at=now,
+                                    snapshot=snap, disclaimer=DISCLAIMER).model_dump()
+    assert out["snapshot"]["colour"]["ciecam02"] == cam
+    old = schemas.PublicCertificate(cert_no="GE-202610-00001", status="valid", issued_at=now,
+                                    snapshot={**snap, "colour": {**colour, "ciecam02": None}},
+                                    disclaimer=DISCLAIMER).model_dump()
+    assert old["snapshot"]["colour"]["ciecam02"] is None
+
+
 @needs_stone
 def test_issue_idempotent_and_snapshot(client, app_state, user_a):
     client.post("/calibrations", json=calibration("cal-cert"))
@@ -91,6 +112,7 @@ def test_issue_idempotent_and_snapshot(client, app_state, user_a):
     one = client.get(f"/certificates/{b['cert_no']}").json()
     assert one["verify_url"] == b["verify_url"] and one["grading_id"] == g["grading_id"]
     assert one["snapshot"]["grade"] == g["grade"]
+    assert one["snapshot"]["colour"]["ciecam02"] == g["colour"]["ciecam02"]
     second = issue(client, graded(client)["grading_id"]).json()
     listed = [i["cert_no"] for i in client.get("/certificates").json()["items"]]
     assert listed[:2] == [second["cert_no"], b["cert_no"]]
@@ -150,6 +172,7 @@ def test_public_valid_and_not_found(raw_client, client, user_a):
     b = r.json()
     assert b["status"] == "valid" and b["cert_no"] == cert["cert_no"]
     assert b["snapshot"]["grade"] == g["grade"] and b["owner"] is None
+    assert b["snapshot"]["colour"]["ciecam02"] == g["colour"]["ciecam02"]
     assert b["disclaimer"] == DISCLAIMER and b["pdf_url"] is None
     assert f"/certificates/{cert['cert_no']}.jpg?" in b["image_url"]
     with urllib.request.urlopen(b["image_url"], timeout=30) as resp:
