@@ -3,7 +3,7 @@
 <!-- ============ APP LOGO SLOT ============
      Replace docs/assets/logo.svg with your own logo (or change this path to docs/assets/logo.png).
      Keep it square, 512 x 512 px or larger. -->
-<img src="docs/assets/logo.svg" alt="GemEye logo" width="140"/>
+<img src="https://github.com/Nirmana-KAS/Tempate-Photo/blob/main/logo.png" alt="GemEye logo" width="140"/>
 
 <img src="docs/assets/banner.svg" alt="GemEye" width="100%"/>
 
