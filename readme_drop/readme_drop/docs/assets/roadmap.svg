@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 250" width="100%" role="img" aria-label="Project roadmap">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#101c33"/></linearGradient>
+    <style>
+      .h { fill:#e6edf3; font:700 12px 'Segoe UI',Arial,sans-serif; }
+      .s { fill:#8aa4c8; font:10.5px Consolas,'Courier New',monospace; }
+      .t { fill:#e6edf3; font:700 18px 'Segoe UI',Arial,sans-serif; }
+    </style>
+  </defs>
+  <rect width="1000" height="250" rx="18" fill="url(#bg)"/>
+  <text x="30" y="36" class="t">Roadmap</text>
+
+  <rect x="60" y="118" width="880" height="6" rx="3" fill="#16233d"/>
+  <rect x="60" y="118" height="6" rx="3" fill="#3fb950"><animate attributeName="width" values="0;550" dur="2.4s" fill="freeze"/></rect>
+  <rect x="610" y="118" height="6" rx="3" fill="#f2cc60"><animate attributeName="width" values="0;110" dur="1s" begin="2.4s" fill="freeze"/></rect>
+
+  <g text-anchor="middle">
+    <circle cx="100" cy="121" r="11" fill="#3fb950"><animate attributeName="r" values="11;14;11" dur="2.4s" repeatCount="indefinite"/></circle>
+    <text x="100" y="92" class="h">Inference</text><text x="100" y="160" class="s">server, parity</text><text x="100" y="174" class="s">gates</text>
+
+    <circle cx="240" cy="121" r="11" fill="#3fb950"><animate attributeName="r" values="11;14;11" dur="2.4s" begin=".3s" repeatCount="indefinite"/></circle>
+    <text x="240" y="92" class="h">Backend</text><text x="240" y="160" class="s">auth, MongoDB</text><text x="240" y="174" class="s">S3, certificates</text>
+
+    <circle cx="380" cy="121" r="11" fill="#3fb950"><animate attributeName="r" values="11;14;11" dur="2.4s" begin=".6s" repeatCount="indefinite"/></circle>
+    <text x="380" y="92" class="h">App</text><text x="380" y="160" class="s">integration</text><text x="380" y="174" class="s">end-to-end tests</text>
+
+    <circle cx="520" cy="121" r="11" fill="#3fb950"><animate attributeName="r" values="11;14;11" dur="2.4s" begin=".9s" repeatCount="indefinite"/></circle>
+    <text x="520" y="92" class="h">Grad-CAM</text><text x="520" y="160" class="s">heatmaps</text><text x="520" y="174" class="s">local Wi-Fi run</text>
+
+    <circle cx="660" cy="121" r="11" fill="#f2cc60"><animate attributeName="opacity" values="1;.4;1" dur="1.8s" repeatCount="indefinite"/></circle>
+    <text x="660" y="92" class="h">AWS Lambda</text><text x="660" y="160" class="s">prepared</text><text x="660" y="174" class="s">not deployed</text>
+
+    <circle cx="800" cy="121" r="11" fill="#16233d" stroke="#8aa4c8" stroke-width="2"/>
+    <text x="800" y="92" class="h">Admin web</text><text x="800" y="160" class="s">dashboard</text><text x="800" y="174" class="s">verify page</text>
+
+    <circle cx="920" cy="121" r="11" fill="#16233d" stroke="#8aa4c8" stroke-width="2"/>
+    <text x="920" y="92" class="h">Field test</text><text x="920" y="160" class="s">real stones</text><text x="920" y="174" class="s">live accuracy</text>
+  </g>
+  <g font-family="Consolas,monospace" font-size="11" fill="#8aa4c8">
+    <circle cx="60" cy="222" r="5" fill="#3fb950"/><text x="72" y="226">done</text>
+    <circle cx="130" cy="222" r="5" fill="#f2cc60"/><text x="142" y="226">prepared</text>
+    <circle cx="225" cy="222" r="5" fill="#16233d" stroke="#8aa4c8"/><text x="237" y="226">planned</text>
+  </g>
+</svg>

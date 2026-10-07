@@ -57,9 +57,21 @@
 
 <img src="docs/assets/results.svg" alt="Verification results" width="100%"/>
 
+## Screenshots
+
+| Capture | Result | Heatmap |
+|:---:|:---:|:---:|
+| <img src="docs/assets/screenshots/app-capture.png" width="220"/> | <img src="docs/assets/screenshots/app-result.png" width="220"/> | <img src="docs/assets/screenshots/app-heatmap.png" width="220"/> |
+
+| History | Certificate | Verify page |
+|:---:|:---:|:---:|
+| <img src="docs/assets/screenshots/app-history.png" width="220"/> | <img src="docs/assets/screenshots/app-certificate.png" width="220"/> | <img src="docs/assets/screenshots/verify-page.png" width="220"/> |
+
 ## API
 
-19 endpoints: 3 public (`/health`, `/config`, `/public/v/{slug}`) and 16 authenticated. Interactive docs at `/docs`.
+19 endpoints: 3 public (`/health`, `/config`, `/public/v/{slug}`) and 16 authenticated.
+
+<img src="docs/assets/screenshots/api-docs.png" alt="API docs" width="100%"/>
 
 ## Run locally
 

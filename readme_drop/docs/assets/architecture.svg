@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" width="100%" role="img" aria-label="GemEye system architecture with animated data flow">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/>
+      <stop offset="1" stop-color="#101c33"/>
+    </linearGradient>
+    <linearGradient id="api" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16345f"/>
+      <stop offset="1" stop-color="#0e2240"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <style>
+      .box { fill:#0f1b30; stroke:#2f81f7; stroke-width:1.5; }
+      .apibox { fill:url(#api); stroke:#58a6ff; stroke-width:2; }
+      .t1 { fill:#e6edf3; font:700 15px 'Segoe UI',Arial,sans-serif; }
+      .t2 { fill:#8aa4c8; font:12px 'Segoe UI',Arial,sans-serif; }
+      .mono { fill:#7ee787; font:11px Consolas,'Courier New',monospace; }
+      .lbl { fill:#8aa4c8; font:11px Consolas,'Courier New',monospace; }
+      .wire { stroke:#2b4a78; stroke-width:1.5; fill:none; stroke-dasharray:4 5; }
+      @keyframes pulse { 0%,100% { opacity:.55 } 50% { opacity:1 } }
+      .live { animation: pulse 2.4s ease-in-out infinite; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="500" rx="18" fill="url(#bg)"/>
+  <text x="30" y="38" class="t1" font-size="18">GemEye system architecture</text>
+  <text x="30" y="58" class="t2">live data flow: dots show requests and responses</text>
+
+  <!-- wires -->
+  <path id="p1" d="M240 235 L400 235" class="wire"/>
+  <path id="p2" d="M400 275 L240 275" class="wire"/>
+  <path id="p3" d="M140 190 C140 80 250 70 400 70" class="wire"/>
+  <path id="p4" d="M510 170 L510 110" class="wire"/>
+  <path id="p5" d="M620 215 C700 215 700 120 760 120" class="wire"/>
+  <path id="p6" d="M620 295 C700 295 700 390 760 390" class="wire"/>
+
+  <!-- Flutter app -->
+  <rect x="40" y="190" width="200" height="130" rx="14" class="box live"/>
+  <text x="140" y="222" text-anchor="middle" class="t1">Flutter app</text>
+  <text x="140" y="244" text-anchor="middle" class="t2">Android</text>
+  <text x="140" y="268" text-anchor="middle" class="mono">capture · crop · blur check</text>
+  <text x="140" y="286" text-anchor="middle" class="mono">calibration · history</text>
+  <text x="140" y="304" text-anchor="middle" class="mono">certificate PDF + QR</text>
+
+  <!-- Firebase -->
+  <rect x="400" y="20" width="220" height="90" rx="14" class="box"/>
+  <text x="510" y="50" text-anchor="middle" class="t1">Firebase Auth</text>
+  <text x="510" y="72" text-anchor="middle" class="t2">email, Google sign-in</text>
+  <text x="510" y="92" text-anchor="middle" class="mono">ID token (JWT)</text>
+
+  <!-- API -->
+  <rect x="400" y="170" width="220" height="170" rx="14" class="apibox"/>
+  <text x="510" y="198" text-anchor="middle" class="t1">FastAPI server</text>
+  <text x="510" y="218" text-anchor="middle" class="t2">Docker · Python 3.13</text>
+  <text x="510" y="244" text-anchor="middle" class="mono">quality gates</text>
+  <text x="510" y="262" text-anchor="middle" class="mono">EfficientNet-B0 + RF</text>
+  <text x="510" y="280" text-anchor="middle" class="mono">MC Dropout x30</text>
+  <text x="510" y="298" text-anchor="middle" class="mono">Grad-CAM · CIECAM02</text>
+  <text x="510" y="316" text-anchor="middle" class="mono">certificates API</text>
+
+  <!-- MongoDB -->
+  <rect x="760" y="60" width="200" height="120" rx="14" class="box live"/>
+  <text x="860" y="92" text-anchor="middle" class="t1">MongoDB Atlas</text>
+  <text x="860" y="114" text-anchor="middle" class="t2">M0 · Mumbai</text>
+  <text x="860" y="140" text-anchor="middle" class="mono">users · gradings</text>
+  <text x="860" y="158" text-anchor="middle" class="mono">calibrations · certificates</text>
+
+  <!-- S3 -->
+  <rect x="760" y="335" width="200" height="110" rx="14" class="box live"/>
+  <text x="860" y="367" text-anchor="middle" class="t1">AWS S3</text>
+  <text x="860" y="389" text-anchor="middle" class="t2">private · SSE-S3</text>
+  <text x="860" y="415" text-anchor="middle" class="mono">photos · heatmaps · PDFs</text>
+
+  <!-- labels -->
+  <text x="262" y="226" class="lbl">POST /grade</text>
+  <text x="262" y="296" class="lbl">JSON result</text>
+  <text x="190" y="120" class="lbl">sign in</text>
+  <text x="522" y="144" class="lbl">verify token</text>
+  <text x="652" y="170" class="lbl">read/write</text>
+  <text x="652" y="365" class="lbl">put/get</text>
+
+  <!-- animated packets -->
+  <circle r="5" fill="#58a6ff" filter="url(#glow)"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#p1"/></animateMotion></circle>
+  <circle r="5" fill="#7ee787" filter="url(#glow)"><animateMotion dur="1.8s" begin="0.9s" repeatCount="indefinite"><mpath href="#p2"/></animateMotion></circle>
+  <circle r="5" fill="#f2cc60" filter="url(#glow)"><animateMotion dur="2.6s" repeatCount="indefinite"><mpath href="#p3"/></animateMotion></circle>
+  <circle r="5" fill="#f2cc60" filter="url(#glow)"><animateMotion dur="1.2s" begin="0.4s" repeatCount="indefinite"><mpath href="#p4"/></animateMotion></circle>
+  <circle r="5" fill="#d2a8ff" filter="url(#glow)"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#p5"/></animateMotion></circle>
+  <circle r="5" fill="#ff9bce" filter="url(#glow)"><animateMotion dur="1.6s" begin="0.8s" repeatCount="indefinite"><mpath href="#p6"/></animateMotion></circle>
+
+  <!-- legend -->
+  <g transform="translate(30,455)">
+    <circle cx="6" cy="6" r="5" fill="#58a6ff"/><text x="18" y="10" class="lbl">request</text>
+    <circle cx="96" cy="6" r="5" fill="#7ee787"/><text x="108" y="10" class="lbl">response</text>
+    <circle cx="196" cy="6" r="5" fill="#f2cc60"/><text x="208" y="10" class="lbl">auth</text>
+    <circle cx="266" cy="6" r="5" fill="#d2a8ff"/><text x="278" y="10" class="lbl">database</text>
+    <circle cx="358" cy="6" r="5" fill="#ff9bce"/><text x="370" y="10" class="lbl">storage</text>
+  </g>
+</svg>

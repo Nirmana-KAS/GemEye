@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="100%" role="img" aria-label="Grad-CAM heatmap animation">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#101c33"/></linearGradient>
+    <radialGradient id="stone" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#6aa7ff"/><stop offset="1" stop-color="#16367a"/></radialGradient>
+    <radialGradient id="hot"><stop offset="0" stop-color="#ff3b30" stop-opacity=".95"/><stop offset=".5" stop-color="#ffb300" stop-opacity=".55"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+    <radialGradient id="warm"><stop offset="0" stop-color="#ffd60a" stop-opacity=".6"/><stop offset="1" stop-color="#34c759" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1e3a8a"/><stop offset=".35" stop-color="#34c759"/><stop offset=".7" stop-color="#ffd60a"/><stop offset="1" stop-color="#ff3b30"/></linearGradient>
+    <clipPath id="c1"><rect x="40" y="70" width="230" height="170" rx="12"/></clipPath>
+    <clipPath id="c2"><rect x="400" y="70" width="230" height="170" rx="12"/></clipPath>
+    <style>
+      .h { fill:#e6edf3; font:700 13px 'Segoe UI',Arial,sans-serif; }
+      .s { fill:#8aa4c8; font:11px Consolas,'Courier New',monospace; }
+      .t { fill:#e6edf3; font:700 18px 'Segoe UI',Arial,sans-serif; }
+    </style>
+  </defs>
+  <rect width="1000" height="300" rx="18" fill="url(#bg)"/>
+  <text x="30" y="36" class="t">Grad-CAM: where the CNN looked</text>
+
+  <!-- photo -->
+  <rect x="40" y="70" width="230" height="170" rx="12" fill="#eef2f7"/>
+  <ellipse cx="155" cy="155" rx="34" ry="28" fill="url(#stone)"/>
+  <ellipse cx="146" cy="145" rx="9" ry="6" fill="#fff" opacity=".6"/>
+  <text x="155" y="262" text-anchor="middle" class="h">Stone on tray</text>
+
+  <!-- arrow -->
+  <path d="M290 155 H380" stroke="#2b4a78" stroke-width="2" stroke-dasharray="5 6" fill="none"/>
+  <circle r="5" fill="#58a6ff"><animateMotion dur="1.6s" repeatCount="indefinite" path="M290 155 H380"/></circle>
+  <text x="335" y="140" text-anchor="middle" class="s">backward</text><text x="335" y="174" text-anchor="middle" class="s">pass</text>
+
+  <!-- heatmap -->
+  <g clip-path="url(#c2)">
+    <rect x="400" y="70" width="230" height="170" fill="#eef2f7"/>
+    <ellipse cx="515" cy="155" rx="34" ry="28" fill="url(#stone)"/>
+    <circle cx="515" cy="155" r="60" fill="url(#hot)"><animate attributeName="r" values="46;72;46" dur="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" values=".7;1;.7" dur="2.8s" repeatCount="indefinite"/></circle>
+    <circle cx="470" cy="190" r="40" fill="url(#warm)"><animate attributeName="r" values="30;48;30" dur="3.4s" repeatCount="indefinite"/></circle>
+    <circle cx="570" cy="115" r="34" fill="url(#warm)"><animate attributeName="r" values="26;42;26" dur="3.1s" begin=".5s" repeatCount="indefinite"/></circle>
+  </g>
+  <rect x="400" y="70" width="230" height="170" rx="12" fill="none" stroke="#2f81f7" stroke-width="1.4"/>
+  <text x="515" y="262" text-anchor="middle" class="h">Overlay (jet, alpha 0.4)</text>
+
+  <!-- legend + stats -->
+  <rect x="680" y="82" width="280" height="14" rx="7" fill="url(#bar)"/>
+  <text x="680" y="116" class="s">low influence</text><text x="960" y="116" text-anchor="end" class="s">high influence</text>
+  <g>
+    <rect x="680" y="140" width="130" height="72" rx="12" fill="#0f1b30" stroke="#2f81f7"/>
+    <text x="745" y="172" text-anchor="middle" fill="#58a6ff" font-size="26" font-weight="800" font-family="Segoe UI,Arial,sans-serif">4.9x
+      <animate attributeName="opacity" values="1;.6;1" dur="2.4s" repeatCount="indefinite"/></text>
+    <text x="745" y="196" text-anchor="middle" class="s">heat over area</text>
+    <rect x="830" y="140" width="130" height="72" rx="12" fill="#0f1b30" stroke="#2f81f7"/>
+    <text x="895" y="172" text-anchor="middle" fill="#3fb950" font-size="26" font-weight="800" font-family="Segoe UI,Arial,sans-serif">0.37
+      <animate attributeName="opacity" values="1;.6;1" dur="2.4s" begin=".8s" repeatCount="indefinite"/></text>
+    <text x="895" y="196" text-anchor="middle" class="s">heat in stone mask</text>
+  </g>
+  <text x="680" y="240" class="s">112 test images · CNN branch only · correlational</text>
+</svg>

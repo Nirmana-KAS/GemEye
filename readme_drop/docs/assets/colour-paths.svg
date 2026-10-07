@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="100%" role="img" aria-label="Model path and display path">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#101c33"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <style>
+      .h { fill:#e6edf3; font:700 12px 'Segoe UI',Arial,sans-serif; }
+      .s { fill:#8aa4c8; font:10.5px Consolas,'Courier New',monospace; }
+      .t { fill:#e6edf3; font:700 18px 'Segoe UI',Arial,sans-serif; }
+      .nb { fill:#0f1b30; stroke:#2f81f7; stroke-width:1.4; }
+      .na { fill:#2a2110; stroke:#f2cc60; stroke-width:1.4; }
+      .rb { stroke:#2f81f7; stroke-width:2; fill:none; stroke-dasharray:5 6; }
+      .ra { stroke:#f2cc60; stroke-width:2; fill:none; stroke-dasharray:5 6; }
+    </style>
+  </defs>
+  <rect width="1000" height="300" rx="18" fill="url(#bg)"/>
+  <text x="30" y="36" class="t">Two colour paths, one photo</text>
+
+  <rect class="nb" x="30" y="125" width="110" height="60" rx="12"/>
+  <text x="85" y="152" text-anchor="middle" class="h">Raw upload</text><text x="85" y="170" text-anchor="middle" class="s">phone photo</text>
+
+  <!-- model path -->
+  <path id="mp" d="M140 140 C175 140 170 80 210 80 H900" class="rb"/>
+  <rect class="nb" x="210" y="55" width="150" height="50" rx="10"/><text x="285" y="77" text-anchor="middle" class="h">Training CCM</text><text x="285" y="93" text-anchor="middle" class="s">matches training</text>
+  <rect class="nb" x="390" y="55" width="150" height="50" rx="10"/><text x="465" y="77" text-anchor="middle" class="h">JPEG round-trip</text><text x="465" y="93" text-anchor="middle" class="s">cv2 + tf decoders</text>
+  <rect class="nb" x="570" y="55" width="150" height="50" rx="10"/><text x="645" y="77" text-anchor="middle" class="h">CNN + RF</text><text x="645" y="93" text-anchor="middle" class="s">MC Dropout x30</text>
+  <rect x="750" y="55" width="150" height="50" rx="10" fill="#12301f" stroke="#3fb950" stroke-width="1.6"/><text x="825" y="77" text-anchor="middle" class="h">Grade + conf.</text><text x="825" y="93" text-anchor="middle" class="s">probabilities</text>
+
+  <!-- display path -->
+  <path id="dp" d="M140 170 C175 170 170 225 210 225 H900" class="ra"/>
+  <rect class="na" x="210" y="200" width="150" height="50" rx="10"/><text x="285" y="222" text-anchor="middle" class="h">GrabCut + tray</text><text x="285" y="238" text-anchor="middle" class="s">white reference</text>
+  <rect class="na" x="390" y="200" width="150" height="50" rx="10"/><text x="465" y="222" text-anchor="middle" class="h">CIELAB · HSB</text><text x="465" y="238" text-anchor="middle" class="s">hex colour</text>
+  <rect class="na" x="570" y="200" width="150" height="50" rx="10"/><text x="645" y="222" text-anchor="middle" class="h">CIECAM02</text><text x="645" y="238" text-anchor="middle" class="s">J M h s C</text>
+  <rect x="750" y="200" width="150" height="50" rx="10" fill="#2a2110" stroke="#f2cc60" stroke-width="1.6"/><text x="825" y="222" text-anchor="middle" class="h">Shown to users</text><text x="825" y="238" text-anchor="middle" class="s">ΔE00 + gates</text>
+
+  <g filter="url(#glow)">
+    <circle r="6" fill="#58a6ff"><animateMotion dur="4s" repeatCount="indefinite"><mpath href="#mp"/></animateMotion></circle>
+    <circle r="6" fill="#58a6ff"><animateMotion dur="4s" begin="2s" repeatCount="indefinite"><mpath href="#mp"/></animateMotion></circle>
+    <circle r="6" fill="#f2cc60"><animateMotion dur="4s" begin="1s" repeatCount="indefinite"><mpath href="#dp"/></animateMotion></circle>
+    <circle r="6" fill="#f2cc60"><animateMotion dur="4s" begin="3s" repeatCount="indefinite"><mpath href="#dp"/></animateMotion></circle>
+  </g>
+  <text x="30" y="285" class="s">The training CCM darkens blue stones, so the model must see exactly that. Users see physically meaningful values from the tray reference.</text>
+</svg>

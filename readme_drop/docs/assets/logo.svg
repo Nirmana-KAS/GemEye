@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="GemEye logo placeholder">
+  <!-- PLACEHOLDER LOGO: replace this file with your own logo.svg (or point the README to logo.png) -->
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7cc4ff"/><stop offset="1" stop-color="#1f5fd1"/>
+    </linearGradient>
+    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f81f7"/><stop offset="1" stop-color="#0b2a6b"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#58a6ff" stop-opacity=".55"/><stop offset="1" stop-color="#58a6ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="gl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter>
+  </defs>
+  <circle cx="100" cy="100" r="92" fill="url(#halo)">
+    <animate attributeName="r" values="82;96;82" dur="3.6s" repeatCount="indefinite"/>
+  </circle>
+  <g>
+    <animateTransform attributeName="transform" type="translate" values="0 0;0 -5;0 0" dur="3.6s" repeatCount="indefinite"/>
+    <polygon points="60,70 140,70 170,105 100,172 30,105" fill="url(#g1)" stroke="#bfe3ff" stroke-width="2"/>
+    <polygon points="60,70 100,105 30,105" fill="#9ad4ff" opacity=".75">
+      <animate attributeName="opacity" values=".35;.9;.35" dur="2.4s" repeatCount="indefinite"/>
+    </polygon>
+    <polygon points="140,70 100,105 170,105" fill="#2f81f7" opacity=".8">
+      <animate attributeName="opacity" values=".9;.4;.9" dur="2.4s" begin=".6s" repeatCount="indefinite"/>
+    </polygon>
+    <polygon points="60,70 140,70 100,105" fill="#d6efff" opacity=".85">
+      <animate attributeName="opacity" values=".5;1;.5" dur="2.4s" begin="1.2s" repeatCount="indefinite"/>
+    </polygon>
+    <polygon points="30,105 100,105 100,172" fill="url(#g2)" opacity=".9"/>
+    <polygon points="170,105 100,105 100,172" fill="#1747a8" opacity=".9"/>
+    <!-- eye ring -->
+    <circle cx="100" cy="105" r="13" fill="#0b1220" stroke="#e6f4ff" stroke-width="2"/>
+    <circle cx="100" cy="105" r="5" fill="#58a6ff">
+      <animate attributeName="r" values="4;6.5;4" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+  <!-- sparkles -->
+  <g fill="#ffffff">
+    <path d="M165 45 l3 9 9 3 -9 3 -3 9 -3 -9 -9 -3 9 -3z">
+      <animateTransform attributeName="transform" type="scale" additive="sum" values="1;1.4;1" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0;1;0" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <path d="M30 40 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2z">
+      <animate attributeName="opacity" values="0;1;0" dur="2.6s" begin=".8s" repeatCount="indefinite"/>
+    </path>
+    <path d="M178 140 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2z">
+      <animate attributeName="opacity" values="0;1;0" dur="2.2s" begin="1.3s" repeatCount="indefinite"/>
+    </path>
+  </g>
+</svg>

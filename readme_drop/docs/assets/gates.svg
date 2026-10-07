@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="100%" role="img" aria-label="Quality gates filter animation">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#101c33"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <style>
+      .h { fill:#e6edf3; font:700 13px 'Segoe UI',Arial,sans-serif; }
+      .s { fill:#8aa4c8; font:11px Consolas,'Courier New',monospace; }
+      .t { fill:#e6edf3; font:700 18px 'Segoe UI',Arial,sans-serif; }
+      .gate { fill:#1b1530; stroke:#d2a8ff; stroke-width:1.5; }
+      .rail { stroke:#2b4a78; stroke-width:2; stroke-dasharray:5 6; fill:none; }
+    </style>
+  </defs>
+  <rect width="1000" height="300" rx="18" fill="url(#bg)"/>
+  <text x="30" y="36" class="t">Quality gates</text>
+  <path id="rail" d="M40 140 H960" class="rail"/>
+
+  <!-- gates -->
+  <g>
+    <rect class="gate" x="170" y="96" width="60" height="88" rx="10"><animate attributeName="stroke-opacity" values=".4;1;.4" dur="2.5s" repeatCount="indefinite"/></rect>
+    <rect class="gate" x="330" y="96" width="60" height="88" rx="10"><animate attributeName="stroke-opacity" values=".4;1;.4" dur="2.5s" begin=".3s" repeatCount="indefinite"/></rect>
+    <rect class="gate" x="490" y="96" width="60" height="88" rx="10"><animate attributeName="stroke-opacity" values=".4;1;.4" dur="2.5s" begin=".6s" repeatCount="indefinite"/></rect>
+    <rect class="gate" x="650" y="96" width="60" height="88" rx="10"><animate attributeName="stroke-opacity" values=".4;1;.4" dur="2.5s" begin=".9s" repeatCount="indefinite"/></rect>
+    <rect class="gate" x="810" y="96" width="60" height="88" rx="10"><animate attributeName="stroke-opacity" values=".4;1;.4" dur="2.5s" begin="1.2s" repeatCount="indefinite"/></rect>
+  </g>
+  <g text-anchor="middle">
+    <text x="200" y="76" class="h">invalid image</text><text x="200" y="208" class="s">under 300 px</text>
+    <text x="360" y="76" class="h">no stone</text><text x="360" y="208" class="s">tray contrast</text>
+    <text x="520" y="76" class="h">blurry</text><text x="520" y="208" class="s">Laplacian var</text>
+    <text x="680" y="76" class="h">not blue</text><text x="680" y="208" class="s">hue 170-265</text>
+    <text x="840" y="76" class="h">not recognised</text><text x="840" y="208" class="s">OOD distance</text>
+  </g>
+
+  <!-- passing packets -->
+  <g filter="url(#glow)" fill="#3fb950">
+    <circle r="6"><animateMotion dur="6s" repeatCount="indefinite"><mpath href="#rail"/></animateMotion></circle>
+    <circle r="6"><animateMotion dur="6s" begin="2s" repeatCount="indefinite"><mpath href="#rail"/></animateMotion></circle>
+    <circle r="6"><animateMotion dur="6s" begin="4s" repeatCount="indefinite"><mpath href="#rail"/></animateMotion></circle>
+  </g>
+  <!-- rejected packets drop out at a gate -->
+  <g filter="url(#glow)" fill="#f85149">
+    <circle r="5"><animateMotion dur="1.9s" repeatCount="indefinite" path="M40 140 H200 V260"/></circle>
+    <circle r="5"><animateMotion dur="2.8s" begin=".7s" repeatCount="indefinite" path="M40 140 H360 V260"/></circle>
+    <circle r="5"><animateMotion dur="3.6s" begin="1.4s" repeatCount="indefinite" path="M40 140 H520 V260"/></circle>
+    <circle r="5"><animateMotion dur="4.4s" begin="2.1s" repeatCount="indefinite" path="M40 140 H680 V260"/></circle>
+    <circle r="5"><animateMotion dur="5.2s" begin="2.8s" repeatCount="indefinite" path="M40 140 H840 V260"/></circle>
+  </g>
+  <text x="40" y="276" class="s">green = accepted and graded · red = rejected, photo never stored, only diagnostics</text>
+  <text x="960" y="128" text-anchor="end" class="h" fill="#3fb950">graded</text>
+</svg>

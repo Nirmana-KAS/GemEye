@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" width="100%" role="img" aria-label="Verification results">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#101c33"/></linearGradient>
+    <linearGradient id="b1" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1f5fd1"/><stop offset="1" stop-color="#58a6ff"/></linearGradient>
+    <linearGradient id="b2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#238636"/><stop offset="1" stop-color="#7ee787"/></linearGradient>
+    <style>
+      .h { fill:#e6edf3; font:700 13px 'Segoe UI',Arial,sans-serif; }
+      .s { fill:#8aa4c8; font:11px Consolas,'Courier New',monospace; }
+      .t { fill:#e6edf3; font:700 18px 'Segoe UI',Arial,sans-serif; }
+      .v { fill:#e6edf3; font:800 14px 'Segoe UI',Arial,sans-serif; }
+      .track { fill:#16233d; }
+    </style>
+  </defs>
+  <rect width="1000" height="330" rx="18" fill="url(#bg)"/>
+  <text x="30" y="36" class="t">Verification results</text>
+
+  <!-- bar width scale: 100% = 520 px -->
+  <text x="30" y="82" class="h">Official v3 accuracy (clean test set)</text>
+  <rect class="track" x="330" y="66" width="520" height="22" rx="11"/>
+  <rect x="330" y="66" height="22" rx="11" fill="url(#b1)"><animate attributeName="width" values="0;451" dur="1.6s" fill="freeze"/></rect>
+  <text x="870" y="82" class="v">86.73 %</text>
+
+  <text x="30" y="120" class="h">RF parity with Colab (112 / 112 grades)</text>
+  <rect class="track" x="330" y="104" width="520" height="22" rx="11"/>
+  <rect x="330" y="104" height="22" rx="11" fill="url(#b2)"><animate attributeName="width" values="0;520" dur="1.6s" begin=".15s" fill="freeze"/></rect>
+  <text x="870" y="120" class="v">100 %</text>
+
+  <text x="30" y="158" class="h">CNN parity (max prob. diff 2.9e-6)</text>
+  <rect class="track" x="330" y="142" width="520" height="22" rx="11"/>
+  <rect x="330" y="142" height="22" rx="11" fill="url(#b2)"><animate attributeName="width" values="0;520" dur="1.6s" begin=".3s" fill="freeze"/></rect>
+  <text x="870" y="158" class="v">exact</text>
+
+  <text x="30" y="196" class="h">Same grade after 2048 px downscale</text>
+  <rect class="track" x="330" y="180" width="520" height="22" rx="11"/>
+  <rect x="330" y="180" height="22" rx="11" fill="url(#b2)"><animate attributeName="width" values="0;506" dur="1.6s" begin=".45s" fill="freeze"/></rect>
+  <text x="870" y="196" class="v">109 / 112</text>
+
+  <text x="30" y="234" class="h">Real stones accepted by gates</text>
+  <rect class="track" x="330" y="218" width="520" height="22" rx="11"/>
+  <rect x="330" y="218" height="22" rx="11" fill="url(#b2)"><animate attributeName="width" values="0;506" dur="1.6s" begin=".6s" fill="freeze"/></rect>
+  <text x="870" y="234" class="v">109 / 112</text>
+
+  <text x="30" y="272" class="h">Synthetic negatives rejected</text>
+  <rect class="track" x="330" y="256" width="520" height="22" rx="11"/>
+  <rect x="330" y="256" height="22" rx="11" fill="url(#b2)"><animate attributeName="width" values="0;483" dur="1.6s" begin=".75s" fill="freeze"/></rect>
+  <text x="870" y="272" class="v">93 to 100 %</text>
+
+  <text x="30" y="312" class="s">85 backend tests · 73 app tests · flutter analyze clean · server clean-98 accuracy 87.76 % (sampling variation, thesis keeps 86.73 %)</text>
+</svg>

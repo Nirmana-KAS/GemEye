@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 300" width="100%" role="img" aria-label="Certificate issue and verify flow">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#101c33"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <style>
+      .h { fill:#e6edf3; font:700 13px 'Segoe UI',Arial,sans-serif; }
+      .s { fill:#8aa4c8; font:11px Consolas,'Courier New',monospace; }
+      .t { fill:#e6edf3; font:700 18px 'Segoe UI',Arial,sans-serif; }
+      .box { fill:#0f1b30; stroke:#2f81f7; stroke-width:1.4; }
+      .wire { stroke:#2b4a78; stroke-width:1.6; fill:none; stroke-dasharray:5 6; }
+    </style>
+  </defs>
+  <rect width="1000" height="300" rx="18" fill="url(#bg)"/>
+  <text x="30" y="36" class="t">Certificates you can verify</text>
+
+  <path id="p1" d="M170 150 H290" class="wire"/>
+  <path id="p2" d="M450 150 H560" class="wire"/>
+  <path id="p3" d="M740 150 H810" class="wire"/>
+
+  <!-- app -->
+  <rect class="box" x="40" y="100" width="130" height="100" rx="12"/>
+  <text x="105" y="136" text-anchor="middle" class="h">App</text>
+  <text x="105" y="156" text-anchor="middle" class="s">POST /certificates</text>
+  <text x="105" y="172" text-anchor="middle" class="s">builds PDF + QR</text>
+
+  <!-- API -->
+  <rect class="box" x="290" y="80" width="160" height="140" rx="12" stroke="#58a6ff" stroke-width="2"/>
+  <text x="370" y="108" text-anchor="middle" class="h">API</text>
+  <text x="370" y="130" text-anchor="middle" class="s">GE-YYYYMM-NNNNN</text>
+  <text x="370" y="148" text-anchor="middle" class="s">secret token</text>
+  <text x="370" y="166" text-anchor="middle" class="s">frozen snapshot</text>
+  <text x="370" y="184" text-anchor="middle" class="s">PDF SHA-256</text>
+  <text x="370" y="202" text-anchor="middle" class="s">stored once</text>
+
+  <!-- QR -->
+  <rect x="560" y="95" width="180" height="110" rx="12" fill="#f4f7fb" stroke="#58a6ff" stroke-width="2"/>
+  <g fill="#0b1220">
+    <rect x="574" y="109" width="26" height="26"/><rect x="580" y="115" width="14" height="14" fill="#f4f7fb"/><rect x="584" y="119" width="6" height="6"/>
+    <rect x="574" y="165" width="26" height="26"/><rect x="580" y="171" width="14" height="14" fill="#f4f7fb"/><rect x="584" y="175" width="6" height="6"/>
+    <rect x="618" y="109" width="26" height="26"/><rect x="624" y="115" width="14" height="14" fill="#f4f7fb"/><rect x="628" y="119" width="6" height="6"/>
+    <rect x="612" y="150" width="8" height="8"/><rect x="626" y="156" width="8" height="8"/><rect x="640" y="150" width="8" height="8"/><rect x="616" y="172" width="8" height="8"/><rect x="634" y="178" width="8" height="8"/>
+  </g>
+  <text x="690" y="132" text-anchor="middle" class="h" fill="#0b1220">Certificate</text>
+  <text x="690" y="150" text-anchor="middle" class="s" fill="#35507a">Scan to verify</text>
+  <rect x="574" y="108" width="152" height="3" fill="#2f81f7"><animate attributeName="y" values="108;190;108" dur="2.6s" repeatCount="indefinite"/></rect>
+
+  <!-- verify -->
+  <rect class="box" x="810" y="100" width="150" height="100" rx="12"/>
+  <text x="885" y="128" text-anchor="middle" class="h">Public page</text>
+  <text x="885" y="146" text-anchor="middle" class="s">GET /public/v/...</text>
+  <rect x="835" y="160" width="100" height="26" rx="13" fill="#12301f" stroke="#3fb950"><animate attributeName="opacity" values="1;.55;1" dur="2s" repeatCount="indefinite"/></rect>
+  <text x="885" y="178" text-anchor="middle" fill="#3fb950" font-size="13" font-weight="700" font-family="Segoe UI,Arial,sans-serif">VALID</text>
+
+  <g filter="url(#glow)">
+    <circle r="5" fill="#58a6ff"><animateMotion dur="1.4s" repeatCount="indefinite"><mpath href="#p1"/></animateMotion></circle>
+    <circle r="5" fill="#7ee787"><animateMotion dur="1.4s" begin=".7s" repeatCount="indefinite"><mpath href="#p2"/></animateMotion></circle>
+    <circle r="5" fill="#f2cc60"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath href="#p3"/></animateMotion></circle>
+  </g>
+  <text x="30" y="262" class="s">Valid · Revoked · Withdrawn · Not found   |   same 404 for unknown number and wrong token   |   30 requests per minute per IP</text>
+</svg>

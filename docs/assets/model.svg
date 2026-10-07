@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 380" width="100%" role="img" aria-label="Model ensemble with MC Dropout">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#101c33"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <style>
+      .h { fill:#e6edf3; font:700 13px 'Segoe UI',Arial,sans-serif; }
+      .s { fill:#8aa4c8; font:11px Consolas,'Courier New',monospace; }
+      .t { fill:#e6edf3; font:700 18px 'Segoe UI',Arial,sans-serif; }
+      .box { fill:#0f1b30; stroke:#2f81f7; stroke-width:1.4; }
+      .wire { stroke:#2b4a78; stroke-width:1.5; fill:none; stroke-dasharray:4 5; }
+    </style>
+  </defs>
+  <rect width="1000" height="380" rx="18" fill="url(#bg)"/>
+  <text x="30" y="36" class="t">Ensemble model</text>
+
+  <path id="a" d="M150 190 C200 190 210 110 270 110" class="wire"/>
+  <path id="b" d="M150 190 C200 190 210 270 270 270" class="wire"/>
+  <path id="c" d="M560 110 C620 110 620 190 680 190" class="wire"/>
+  <path id="d" d="M560 270 C620 270 620 190 680 190" class="wire"/>
+  <path id="e" d="M860 190 H900" class="wire"/>
+
+  <!-- input -->
+  <rect class="box" x="40" y="150" width="110" height="80" rx="12"/>
+  <text x="95" y="184" text-anchor="middle" class="h">Photo</text><text x="95" y="204" text-anchor="middle" class="s">CCM + JPEG</text>
+
+  <!-- CNN -->
+  <rect class="box" x="270" y="60" width="290" height="100" rx="12"/>
+  <text x="285" y="82" class="h">CNN branch  ·  weight 0.60</text>
+  <text x="285" y="100" class="s">EfficientNet-B0 backbone x1</text>
+  <text x="285" y="116" class="s">Dropout head x30 (MC Dropout)</text>
+  <g>
+    <!-- 30 flickering heads -->
+    <rect x="285" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="20;8;18;20" dur="1.1s" repeatCount="indefinite"/></rect>
+    <rect x="297" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="12;20;9;12" dur="1.3s" repeatCount="indefinite"/></rect>
+    <rect x="309" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="18;10;20;18" dur="0.9s" repeatCount="indefinite"/></rect>
+    <rect x="321" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="9;19;12;9" dur="1.2s" repeatCount="indefinite"/></rect>
+    <rect x="333" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="20;11;17;20" dur="1.0s" repeatCount="indefinite"/></rect>
+    <rect x="345" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="14;20;8;14" dur="1.4s" repeatCount="indefinite"/></rect>
+    <rect x="357" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="19;9;16;19" dur="1.15s" repeatCount="indefinite"/></rect>
+    <rect x="369" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="10;18;20;10" dur="0.95s" repeatCount="indefinite"/></rect>
+    <rect x="381" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="17;8;19;17" dur="1.25s" repeatCount="indefinite"/></rect>
+    <rect x="393" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="11;20;10;11" dur="1.05s" repeatCount="indefinite"/></rect>
+    <rect x="405" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="20;12;18;20" dur="1.35s" repeatCount="indefinite"/></rect>
+    <rect x="417" y="128" width="8" height="20" rx="2" fill="#58a6ff"><animate attributeName="height" values="8;17;20;8" dur="1.0s" repeatCount="indefinite"/></rect>
+    <text x="440" y="143" class="s">... 30 passes, fixed seeds</text>
+  </g>
+
+  <!-- RF -->
+  <rect class="box" x="270" y="220" width="290" height="100" rx="12"/>
+  <text x="285" y="242" class="h">Random Forest  ·  weight 0.40</text>
+  <text x="285" y="260" class="s">GrabCut mask (seed 42)</text>
+  <text x="285" y="276" class="s">12 colour features H S B L* a* b* C* ...</text>
+  <g fill="#3fb950">
+    <circle cx="300" cy="300" r="5"><animate attributeName="opacity" values=".2;1;.2" dur="1.4s" repeatCount="indefinite"/></circle>
+    <circle cx="322" cy="300" r="5"><animate attributeName="opacity" values=".2;1;.2" dur="1.4s" begin=".2s" repeatCount="indefinite"/></circle>
+    <circle cx="344" cy="300" r="5"><animate attributeName="opacity" values=".2;1;.2" dur="1.4s" begin=".4s" repeatCount="indefinite"/></circle>
+    <circle cx="366" cy="300" r="5"><animate attributeName="opacity" values=".2;1;.2" dur="1.4s" begin=".6s" repeatCount="indefinite"/></circle>
+    <circle cx="388" cy="300" r="5"><animate attributeName="opacity" values=".2;1;.2" dur="1.4s" begin=".8s" repeatCount="indefinite"/></circle>
+  </g>
+
+  <!-- ensemble -->
+  <rect class="box" x="680" y="120" width="180" height="140" rx="12" stroke="#58a6ff" stroke-width="2"/>
+  <text x="770" y="144" text-anchor="middle" class="h">Ensemble</text>
+  <g>
+    <rect x="696" y="236" width="14" height="0" fill="#58a6ff"><animate attributeName="height" values="14;30;16;14" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y" values="226;210;224;226" dur="2.6s" repeatCount="indefinite"/></rect>
+    <rect x="714" y="236" width="14" height="0" fill="#58a6ff"><animate attributeName="height" values="22;18;40;22" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y" values="218;222;200;218" dur="2.6s" repeatCount="indefinite"/></rect>
+    <rect x="732" y="236" width="14" height="0" fill="#3fb950"><animate attributeName="height" values="50;70;60;50" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y" values="190;170;180;190" dur="2.6s" repeatCount="indefinite"/></rect>
+    <rect x="750" y="236" width="14" height="0" fill="#58a6ff"><animate attributeName="height" values="40;28;24;40" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y" values="200;212;216;200" dur="2.6s" repeatCount="indefinite"/></rect>
+    <rect x="768" y="236" width="14" height="0" fill="#58a6ff"><animate attributeName="height" values="20;14;12;20" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y" values="220;226;228;220" dur="2.6s" repeatCount="indefinite"/></rect>
+    <rect x="786" y="236" width="14" height="0" fill="#58a6ff"><animate attributeName="height" values="10;8;6;10" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y" values="230;232;234;230" dur="2.6s" repeatCount="indefinite"/></rect>
+    <rect x="804" y="236" width="14" height="0" fill="#58a6ff"><animate attributeName="height" values="6;4;4;6" dur="2.6s" repeatCount="indefinite"/><animate attributeName="y" values="234;236;236;234" dur="2.6s" repeatCount="indefinite"/></rect>
+  </g>
+  <text x="770" y="160" text-anchor="middle" class="s">7 class probabilities</text>
+
+  <!-- output -->
+  <rect x="900" y="150" width="70" height="80" rx="12" fill="#12301f" stroke="#3fb950" stroke-width="1.6"/>
+  <text x="935" y="180" text-anchor="middle" class="h">Grade</text><text x="935" y="198" text-anchor="middle" class="s">1 to 7</text><text x="935" y="214" text-anchor="middle" class="s">+ conf.</text>
+
+  <g filter="url(#glow)">
+    <circle r="5" fill="#58a6ff"><animateMotion dur="1.8s" repeatCount="indefinite"><mpath href="#a"/></animateMotion></circle>
+    <circle r="5" fill="#3fb950"><animateMotion dur="1.8s" begin=".5s" repeatCount="indefinite"><mpath href="#b"/></animateMotion></circle>
+    <circle r="5" fill="#58a6ff"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#c"/></animateMotion></circle>
+    <circle r="5" fill="#3fb950"><animateMotion dur="1.6s" begin=".4s" repeatCount="indefinite"><mpath href="#d"/></animateMotion></circle>
+    <circle r="5" fill="#f2cc60"><animateMotion dur="1s" repeatCount="indefinite"><mpath href="#e"/></animateMotion></circle>
+  </g>
+  <text x="30" y="360" class="s">p = 0.60 · p_CNN(MC mean) + 0.40 · p_RF   ·   uncertainty = std of Σ k·p_k over 30 passes   ·   OOD = Mahalanobis on 256-d features</text>
+</svg>

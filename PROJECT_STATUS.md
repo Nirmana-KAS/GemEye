@@ -2406,3 +2406,21 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-099, EDIT-101
 - **Reason:** CIECAM02 values were shown on the Result screen but missing from the certificate.
+
+### EDIT-121 | 07 October 2026 | IST
+- **Topic:** New visual README
+- **Summary:** Replaced the root README with the new diagram-based README and added its SVG assets under docs/assets/. No app or backend code changed.
+- **What was done:**
+  - Copied readme_drop/README.md over the root README.md and the 12 SVGs to docs/assets/ (byte-identical, verified with diff)
+  - Kept the API docs screenshot from the nested readme_drop/readme_drop/ copy in docs/assets/screenshots/api-docs.png (not referenced by the README)
+  - Verified "19 endpoints, 3 public": 13 routes in main.py/routers.py plus 6 in certificates.py; public are /health, /config, /public/v/{slug}; /docs is enabled (FastAPI default)
+  - Verified "Run locally" against backend/docker-compose.yml (port 8000, env_file .env, models mount), backend/README.md and the API_BASE_URL dart-define in app_config.dart; no README lines needed changes
+  - Deleted readme_drop/
+- **Files changed:**
+  - `~` README.md
+  - `+` docs/assets/architecture.svg, banner.svg, certificate.svg, colour-paths.svg, gates.svg, gradcam.svg, logo.svg, model.svg, pipeline.svg, results.svg, roadmap.svg, security.svg
+  - `+` docs/assets/screenshots/api-docs.png
+  - `-` readme_drop/
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** none
+- **Reason:** Clearer project overview on GitHub.
