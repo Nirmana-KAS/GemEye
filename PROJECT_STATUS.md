@@ -2424,3 +2424,33 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** none
 - **Reason:** Clearer project overview on GitHub.
+
+### EDIT-122 | 09 October 2026 | IST
+- **Topic:** Connectivity self-check and project state snapshot
+- **Summary:** Added a self-check script for MongoDB, S3, Firebase, API, model files, repo hygiene and Docker, and wrote the connectivity report and a project state document. No app or backend logic changed.
+- **What was done:**
+  - Wrote backend/scripts/self_check.py (checks 1-6 in the container with ENV=test, 7-8 on the host, --render builds the report); it never prints secret values
+  - Ran it: MongoDB ping fails (ServerSelectionTimeoutError, TCP to the shards works, so the Atlas IP access list probably lacks this PC's IP), which also fails /config, /me and /grade; S3 round trip, Firebase, 19 routes, model files and repo hygiene pass; four S3 bucket-config reads are SKIP (AccessDenied)
+  - Ran the suites: backend 43 passed, 43 failed (MongoDB down); flutter test 80 passed
+  - Started Docker Desktop and the gemeye-api container (healthy)
+- **Files changed:**
+  - `+` backend/scripts/self_check.py
+  - `+` docs/connectivity_check.md
+  - `+` docs/PROJECT_STATE.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-112, EDIT-118 (demo launcher "Fix Database" button for the Atlas IP)
+- **Reason:** Establish the real state of the connections and the project before the demo.
+
+### EDIT-123 | 09 October 2026 | IST
+- **Topic:** Re-run of the connectivity check after the Atlas IP was added
+- **Summary:** MongoDB is reachable now; the self-check shows 23 PASS, 0 FAIL, 6 SKIP and the backend suite passes 86 of 86. Docs updated; no code changed.
+- **What was done:**
+  - Re-ran self_check.py (checks 1-6 in the container, 7-8 on the host) and the backend suite (86 passed)
+  - Updated the connectivity report and the phase table, test counts and open problems in PROJECT_STATE.md
+  - Remaining SKIPs: four S3 bucket-config reads (AccessDenied) and two MongoDB checks on gemeye_test, which the test suite empties at the end of its session
+- **Files changed:**
+  - `~` docs/connectivity_check.md
+  - `~` docs/PROJECT_STATE.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-122
+- **Reason:** Confirm the database connection after the user whitelisted the current IP.
