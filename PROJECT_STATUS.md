@@ -2454,3 +2454,96 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-122
 - **Reason:** Confirm the database connection after the user whitelisted the current IP.
+
+### EDIT-124 | 11 October 2026 | IST
+- **Topic:** Phase C1 - calibration validity 24 h and calibration statistics script
+- **Summary:** Default calibration validity raised from 8 to 24 hours and a read-only calibration statistics script was added. The gemeye_dev config update and the statistics run could not be done because MongoDB Atlas is unreachable from this PC.
+- **What was done:**
+  - DEFAULT_APP_CONFIG calibration_validity_hours 8 -> 24 in backend/app/db.py; README example updated; no test expects 8
+  - Wrote backend/scripts/calibration_stats.py (refuses ENV=production, read-only, prints no uid or email, markdown report on stdout, summary on stderr, X/Y only when 5 or more sessions exist); self-check on the training patches gives relative_residual 6e-16 and all sanity checks pass
+  - Not done: the one-off gemeye_dev update to 24, the script run, docs/calibration_stats.md, the backend suite and the /config check. The container's MongoDB ping fails with an SSL handshake error; public IP is 223.224.0.33, which probably is missing from the Atlas IP access list (same symptom as EDIT-122)
+- **Files changed:**
+  - `~` backend/app/db.py
+  - `~` backend/README.md
+  - `+` backend/scripts/calibration_stats.py
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-122, EDIT-123
+- **Reason:** A longer calibration window and data to set evidence-based residual limits.
+
+### EDIT-125 | 11 October 2026 | IST
+- **Topic:** Phase C1 completed after the Atlas IP was added
+- **Summary:** MongoDB is reachable; gemeye_dev now has calibration_validity_hours 24, the statistics report is written, and the backend suite passes 86 of 86. Only 3 sessions are stored, so no X/Y limits are proposed.
+- **What was done:**
+  - Ping ok; one-off update of gemeye_dev app_config/"global" to 24 (production untouched); after a container restart GET /config returns 24
+  - Ran calibration_stats.py (ENV=development): 3 sessions, 1 device, relative_residual min 0.2479, median 0.2668, p90 0.2668, max 0.2668; 0 sanity failures in every check; fewer than 5 sessions, so no X/Y
+  - Backend suite with ENV=test: 86 passed
+- **Files changed:**
+  - `+` docs/calibration_stats.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-124
+- **Reason:** Finish the steps EDIT-124 could not run.
+
+### EDIT-126 | 11 October 2026 | IST
+- **Topic:** Phase C2 - calibration usability in the app
+- **Summary:** Calibration validity now comes from the server (default 24 h, clamped 1-72), the status banners use a 1-hour amber rule, Grade a Stone shows a pulsing recalibrate warning, and the guidance is shorter. The calibration maths, grading and Photo Check are unchanged.
+- **What was done:**
+  - RemoteConfigService reads calibration_validity_hours; new sessions use it (saved sessions keep their validUntil); removed kCalibrationValidity; "8 hours" texts now use the value (calibration start, history sheet, reminder text)
+  - Home banner green/amber/red ("Calibration expires in N min. Recalibrate soon." at 1 hour or less; "Calibration expired. Recalibrate before grading." after expiry); Settings status uses the same 1-hour rule; expiry notification text updated
+  - Capture: location/lighting warning (StatusBanner with optional bold title, Recalibrate action, 3 opacity pulses of 600 ms, none when animations are disabled); four checkboxes replaced by one remembered tick (SharedPreferences key holding the session id, reset on a new session or expiry); hint now "Confirm your setup below to capture"
+  - Calibration start: "Before you start" has 3 lines, 6-patch preview card removed, time note shows the hours value
+  - Tests added for validity from remote config (default, clamp), the amber rule and the tick reset; flutter analyze 0 issues; flutter test 84 passed
+  - Built the release APK (flutter build apk --release, copied to app/build/gemeye.apk); launcher unchanged
+- **Files changed:**
+  - `~` app/lib/services/remote_config_service.dart, calibration_service.dart
+  - `~` app/lib/screens/home_screen.dart, settings_screen.dart, capture_screen.dart, calibration_screen.dart
+  - `~` app/lib/widgets/status_banner.dart, calibration_history_sheet.dart
+  - `~` app/test/calibration_service_test.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-124, EDIT-125
+- **Reason:** A 24 h window and clearer reminders so users recalibrate when the light changes.
+
+### EDIT-127 | 11 October 2026 | IST
+- **Topic:** Phase C3 - relative calibration check
+- **Summary:** The calibration verdict now comes from the fit to the training session's patches (relative residual, X = 0.27, Y = 0.54) instead of the absolute residual, with capture-time and finish-time sanity checks and trimmed patch uniformity. The absolute CCM and residual are still computed, stored and sent exactly as before; backend, server request, model path and gates are unchanged.
+- **What was done:**
+  - calibration_service.dart: kTrainingPatchRgb (from export_extra.json), relativeFit, quality from the relative residual (kRelativeExcellent 0.27, kRelativeAcceptable 0.54; X/Y chosen by the user from the C1 rule applied to the 3 stored sessions, provisional), CalibrationSession.relativeResidual / relativePerPatchError (JSON only, optional, not in serverBody), patchSanityFailure (white overexposed, blue, red) and patchOrderFailure (grey order, white vs grey_50) with the calibration_stats.py definitions, trimmed uniformity (5% each end, pass <= 0.10*255, warning <= 0.15*255, else fail)
+  - calibration_patch_screen.dart: hard fail shows the reason in red and disables Next; warning shows "Small glare or texture detected - you can continue." and allows Next; the old snackbar removed
+  - calibration_result_screen.dart: "Match to reference setup" value and chip (Good match / Lighting differs / Too different), amber and red notes, ordering failure blocks Save, patch tiles show the relative per-patch error coloured against X/Y
+  - calibration_history_sheet.dart: shows relativeResidual when present; QualityChip takes an optional label
+  - Tests: X/Y boundaries, training self-fit and uniform gain, each sanity check, trimmed uniformity (3% glare pass, half shadow fail, texture warning), old session JSON loads; flutter analyze 0 issues; flutter test 95 passed
+  - Built the release APK to app/build/gemeye.apk
+- **Files changed:**
+  - `~` app/lib/services/calibration_service.dart
+  - `~` app/lib/screens/calibration_patch_screen.dart, calibration_result_screen.dart
+  - `~` app/lib/widgets/calibration_history_sheet.dart
+  - `~` app/test/calibration_service_test.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-124, EDIT-125, EDIT-126
+- **Reason:** The absolute residual is always high (training itself 0.2548), so real users got "Poor" and could not save; the relative check measures how close the light is to the training session.
+
+### EDIT-128 | 11 October 2026 | IST
+- **Topic:** Phase C2b - calibration start screen sequence card
+- **Summary:** The calibration start screen keeps exactly 3 guidance lines and now shows a "Calibration sequence" card with the 6 patches in capture order. Calibration maths, patch capture, result screen, Photo Check, server call and grading are unchanged.
+- **What was done:**
+  - Added the sequence card (2 rows of 3 tiles: numbered badge, swatch, name, hex; chevrons between tiles, a divider with a down arrow between the rows, hint line)
+  - Time note keeps using RemoteConfigService.calibrationValidityHours
+  - Added a widget test (3 guidance lines, title, 6 names and hex values, removed lines absent, no overflow at 360 dp with 1.6x text); flutter analyze 0 issues; flutter test 97 passed
+  - Built the release APK to app/build/gemeye.apk
+- **Files changed:**
+  - `~` app/lib/screens/calibration_screen.dart
+  - `+` app/test/calibration_screen_test.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-126
+- **Reason:** Users should see the colour order of the patches before starting.
+
+### EDIT-129 | 11 October 2026 | IST
+- **Topic:** Calibration start screen - intro card removed
+- **Summary:** Removed the intro card from the calibration start screen; the 3 guidance lines, the sequence card and the time note remain.
+- **What was done:**
+  - Deleted the intro card and its builder from calibration_screen.dart
+  - flutter analyze 0 issues; flutter test all pass; release APK rebuilt to app/build/gemeye.apk
+- **Files changed:**
+  - `~` app/lib/screens/calibration_screen.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-128
+- **Reason:** Shorter start screen.

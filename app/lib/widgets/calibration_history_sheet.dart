@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../config/theme.dart';
 import '../services/calibration_service.dart';
+import '../services/remote_config_service.dart';
 import 'app_buttons.dart';
 import 'empty_state.dart';
 
@@ -63,15 +64,17 @@ class CalibrationHistorySheet extends StatelessWidget {
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xxl, AppSpacing.lg, AppSpacing.xxl, AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Calibration history', style: AppText.sectionHeader),
-                  SizedBox(height: AppSpacing.xs),
-                  Text('Each session is valid for 8 hours',
+                  const Text('Calibration history',
+                      style: AppText.sectionHeader),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                      'Each session is valid for ${RemoteConfigService.calibrationValidityHours} hours',
                       style: AppText.secondary),
                 ],
               ),
@@ -208,7 +211,8 @@ class _SessionRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                session.residual.toStringAsFixed(2),
+                (session.relativeResidual ?? session.residual)
+                    .toStringAsFixed(2),
                 style: AppText.sectionHeader.copyWith(
                   color: strong,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -237,6 +241,9 @@ class QualityChip extends StatelessWidget {
   final bool small;
   final bool muted;
 
+  /// Replaces [CalibrationQualityLabel.label] when set.
+  final String? label;
+
   const QualityChip({
     super.key,
     required this.quality,
@@ -244,6 +251,7 @@ class QualityChip extends StatelessWidget {
     required this.tint,
     this.small = false,
     this.muted = false,
+    this.label,
   });
 
   @override
@@ -268,7 +276,7 @@ class QualityChip extends StatelessWidget {
           ),
           SizedBox(width: small ? AppSpacing.xs : AppSpacing.sm),
           Text(
-            quality.label,
+            label ?? quality.label,
             style: AppText.button.copyWith(
               fontSize: small ? 10 : 12,
               color: muted ? AppColors.textMuted : AppColors.textPrimary,

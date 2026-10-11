@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
 import '../services/calibration_service.dart';
+import '../services/remote_config_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/calibration_history_sheet.dart';
@@ -81,11 +82,9 @@ class CalibrationScreen extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.xl),
                 children: [
-                  _buildIntro(),
-                  const SizedBox(height: AppSpacing.lg),
                   _buildChecklist(),
                   const SizedBox(height: AppSpacing.lg),
-                  _buildPatches(),
+                  _buildSequence(),
                   const SizedBox(height: AppSpacing.lg),
                   Padding(
                     padding:
@@ -98,7 +97,7 @@ class CalibrationScreen extends StatelessWidget {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
-                            'Takes about 2 minutes. Valid for this session (8 hours).',
+                            'Takes about 2 minutes. Valid for ${RemoteConfigService.calibrationValidityHours} hours.',
                             style: AppText.body14.copyWith(
                                 fontSize: 13, color: AppColors.textSecondary),
                           ),
@@ -121,50 +120,11 @@ class CalibrationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildIntro() {
-    return CardContainer(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: const Icon(Icons.palette_rounded,
-                size: 22, color: AppColors.primary),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your phone changes colours. GemEye measures 6 known colour patches and corrects every photo in this session.',
-                  style: AppText.body14.copyWith(height: 1.5),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Use the same Pro-mode exposure for the patches and the stones.',
-                  style: AppText.body14Medium.copyWith(height: 1.5),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildChecklist() {
     const items = [
       (Icons.wb_incandescent_rounded, 'Same lighting you will grade in'),
-      (Icons.videocam_rounded, 'Phone on tripod'),
-      (Icons.flare_rounded, 'Macro lens + CPL attached'),
-      (Icons.wb_sunny_rounded,
-          'Camera in Pro mode, white balance ‘Daylight’ locked'),
+      (Icons.wb_sunny_rounded, "Pro mode, white balance 'Daylight' locked"),
+      (Icons.exposure_rounded, 'Same exposure for the patches and the stones'),
     ];
     return CardContainer(
       child: Column(
@@ -187,10 +147,11 @@ class CalibrationScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPatches() {
+  Widget _buildSequence() {
     Widget tile(int i) {
       final p = kCalibrationPatches[i];
       return Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
             width: 62,
@@ -221,17 +182,20 @@ class CalibrationScreen extends StatelessWidget {
                   ),
                   child: Text('${i + 1}',
                       style: AppText.button
-                          .copyWith(fontSize: 11, color: AppColors.primary)),
+                          .copyWith(fontSize: 11, color: AppColors.textPrimary)),
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(p.name,
-              style: AppText.body14Medium.copyWith(fontSize: 12),
-              maxLines: 1),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: AppText.body14Medium.copyWith(fontSize: 12)),
           const SizedBox(height: AppSpacing.xxs),
           Text(rgbHex(p.rgb),
+              maxLines: 1,
               style: AppText.monoValue
                   .copyWith(fontSize: 11, color: AppColors.textSecondary)),
         ],
@@ -239,9 +203,17 @@ class CalibrationScreen extends StatelessWidget {
     }
 
     Widget row(int start) => Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            for (var i = start; i < start + 3; i++)
+            for (var i = start; i < start + 3; i++) ...[
+              if (i > start)
+                const Padding(
+                  padding: EdgeInsets.only(top: 20),
+                  child: Icon(Icons.chevron_right_rounded,
+                      size: 18, color: AppColors.textMuted),
+                ),
               Expanded(child: tile(i)),
+            ],
           ],
         );
 
@@ -249,14 +221,30 @@ class CalibrationScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('6 patches, in this order', style: AppText.sectionHeader),
+          const Text('Calibration sequence', style: AppText.sectionHeader),
           const SizedBox(height: AppSpacing.xxs),
-          const Text('One photo per patch · patch fills the frame',
+          const Text('6 patches, in this order. One photo each.',
               style: AppText.secondary),
           const SizedBox(height: AppSpacing.lg),
           row(0),
-          const SizedBox(height: AppSpacing.lg),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Row(
+              children: [
+                Expanded(child: Divider(height: 1, color: AppColors.border)),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                  child: Icon(Icons.keyboard_arrow_down_rounded,
+                      size: 18, color: AppColors.textMuted),
+                ),
+                Expanded(child: Divider(height: 1, color: AppColors.border)),
+              ],
+            ),
+          ),
           row(3),
+          const SizedBox(height: AppSpacing.lg),
+          const Text('Fill the frame with each patch. The centre 50% is measured.',
+              style: AppText.secondary),
         ],
       ),
     );

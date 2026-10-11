@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/routes.dart';
 import '../config/theme.dart';
 import '../services/remote_config_service.dart';
@@ -40,19 +42,77 @@ class CaptureScreen extends StatefulWidget {
   State<CaptureScreen> createState() => _CaptureScreenState();
 }
 
-class _CaptureScreenState extends State<CaptureScreen> {
-  static const List<String> _checkLabels = [
-    'Macro lens attached',
-    'CPL filter on',
-    'Stone face-up on white tray',
-    'Even daylight, no direct sun',
-  ];
+class _CaptureScreenState extends State<CaptureScreen>
+    with SingleTickerProviderStateMixin {
+  static const String _tickKey = 'capture_setup_ticked_session';
 
-  final List<bool> _checks = List<bool>.filled(_checkLabels.length, false);
+  late final AnimationController _pulse;
+  late final Animation<double> _pulseOpacity = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.35), weight: 1),
+    TweenSequenceItem(tween: Tween(begin: 0.35, end: 1.0), weight: 1),
+  ]).animate(_pulse);
+  String? _tickedSessionId;
   bool _repeatability = false;
+  bool _pulseStarted = false;
   ImageSource? _busySource;
 
-  int get _ticked => _checks.where((c) => c).length;
+  @override
+  void initState() {
+    super.initState();
+    _pulse = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    _loadTick();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_pulseStarted) return;
+    _pulseStarted = true;
+    if (!MediaQuery.disableAnimationsOf(context)) _runPulse();
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  /// Opacity 1.0 -> 0.35 -> 1.0, three times, then fully visible.
+  Future<void> _runPulse() async {
+    for (var i = 0; i < 3; i++) {
+      if (!mounted) return;
+      try {
+        await _pulse.forward(from: 0).orCancel;
+      } on TickerCanceled {
+        return;
+      }
+    }
+  }
+
+  Future<void> _loadTick() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final id = prefs.getString(_tickKey);
+      if (mounted) setState(() => _tickedSessionId = id);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Setup tick not loaded: $e');
+    }
+  }
+
+  Future<void> _setTick(CalibrationSession session, bool value) async {
+    setState(() => _tickedSessionId = value ? session.id : null);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (value) {
+        await prefs.setString(_tickKey, session.id);
+      } else {
+        await prefs.remove(_tickKey);
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Setup tick not saved: $e');
+    }
+  }
 
   Future<void> _capture(ImageSource source) async {
     setState(() => _busySource = source);
@@ -78,10 +138,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
         valueListenable: CalibrationService.session,
         builder: (context, session, _) {
           final calibrated = session?.isValid ?? false;
-          final allTicked = _ticked == _checkLabels.length;
+          final allTicked = isSetupTickValid(_tickedSessionId, session);
           final unlocked =
               online && calibrated && allTicked && _busySource == null;
-          final remaining = _checkLabels.length - _ticked;
 
           return Scaffold(
             backgroundColor: AppColors.background,
@@ -114,6 +173,22 @@ class _CaptureScreenState extends State<CaptureScreen> {
                     ),
                     const SizedBox(height: AppSpacing.lg),
                   ],
+                  if (calibrated) ...[
+                    FadeTransition(
+                      opacity: _pulseOpacity,
+                      child: StatusBanner(
+                        type: StatusBannerType.error,
+                        icon: Icons.warning_amber_rounded,
+                        title:
+                            'Changed location or lighting? Recalibrate with the CCC card before grading.',
+                        message:
+                            'Accurate grades need a calibration made in your current light.',
+                        actionLabel: 'Recalibrate',
+                        onAction: _openCalibration,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                  ],
                   _buildRecommendedCard(unlocked),
                   const SizedBox(height: AppSpacing.lg),
                   _buildQuickCard(unlocked),
@@ -128,7 +203,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                               size: 16, color: AppColors.primary),
                           const SizedBox(width: AppSpacing.sm),
                           Text(
-                            'Tick $remaining more check${remaining == 1 ? '' : 's'} below to capture',
+                            'Confirm your setup below to capture',
                             style: AppText.secondary.copyWith(
                                 fontWeight: FontWeight.w500,
                                 color: AppColors.textSecondary),
@@ -140,7 +215,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
                   const SizedBox(height: AppSpacing.lg),
                   _buildFramingCard(),
                   const SizedBox(height: AppSpacing.lg),
-                  _buildChecklist(allTicked),
+                  _buildChecklist(session, allTicked),
                   const SizedBox(height: AppSpacing.lg),
                   if (RemoteConfigService.repeatabilityEnabled)
                     ToggleRow(
@@ -282,37 +357,17 @@ class _CaptureScreenState extends State<CaptureScreen> {
     );
   }
 
-  Widget _buildChecklist(bool allTicked) {
+  Widget _buildChecklist(CalibrationSession? session, bool allTicked) {
     return CardContainer(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xl, vertical: AppSpacing.md),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: Row(
-              children: [
-                const Expanded(
-                    child:
-                        Text('Before you capture', style: AppText.titleSmall)),
-                Text(
-                  '$_ticked of ${_checkLabels.length}',
-                  style: AppText.secondary.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color:
-                        allTicked ? AppColors.success : AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          for (var i = 0; i < _checkLabels.length; i++)
-            AppCheckbox(
-              value: _checks[i],
-              onChanged: (v) => setState(() => _checks[i] = v),
-              label: Text(_checkLabels[i]),
-            ),
-        ],
+      child: AppCheckbox(
+        value: allTicked,
+        onChanged: session != null && session.isValid
+            ? (v) => _setTick(session, v)
+            : null,
+        label: const Text(
+            'My setup matches calibration: macro + CPL, white tray, same light'),
       ),
     );
   }

@@ -5,6 +5,9 @@ import 'api_client.dart';
 /// Server blur gate (`app/gates.py`), used until `/config` has been read.
 const double kDefaultBlurMinVariance = 29.474166117400628;
 
+/// Calibration validity used until `/config` has been read, or when invalid.
+const int kDefaultCalibrationValidityHours = 24;
+
 /// Remote config from `GET /config` (public). Defaults apply until the first
 /// successful fetch, and when the server cannot be reached.
 class RemoteConfigService {
@@ -20,6 +23,9 @@ class RemoteConfigService {
   static bool sessionMapping = false;
   static bool maintenance = false;
   static String maintenanceMessage = '';
+
+  /// How long a new calibration session stays valid, in hours (1-72).
+  static int calibrationValidityHours = kDefaultCalibrationValidityHours;
 
   /// Fetches `/config`; failures keep the current values.
   static Future<void> refresh({ApiClient? client}) async {
@@ -41,6 +47,10 @@ class RemoteConfigService {
     repeatabilityEnabled = features['repeatability_mode'] as bool? ?? true;
     minAppVersion = json['min_app_version'] as String? ?? '';
     sessionMapping = features['session_mapping'] as bool? ?? false;
+    final hours = json['calibration_validity_hours'];
+    calibrationValidityHours = hours is num
+        ? hours.round().clamp(1, 72)
+        : kDefaultCalibrationValidityHours;
     maintenance = m['enabled'] as bool? ?? false;
     maintenanceMessage = m['message'] as String? ?? '';
     changes.value++;

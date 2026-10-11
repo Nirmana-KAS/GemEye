@@ -213,7 +213,7 @@ are revoked (see Auth). Returns 204.
 missing from the stored document fall back to the defaults:
 
 ```
-referral_threshold_default: 0.60, calibration_validity_hours: 8, min_app_version: "1.0.0",
+referral_threshold_default: 0.60, calibration_validity_hours: 24, min_app_version: "1.0.0",
 maintenance: {enabled: false, message: ""},
 features: {repeatability_mode: true, gradcam: true, public_verification: true,
            session_mapping: false}

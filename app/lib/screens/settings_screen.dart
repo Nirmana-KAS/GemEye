@@ -482,11 +482,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             sub = s == null
                 ? 'Calibrate before grading'
                 : 'Last session expired · calibrate before grading';
-          } else if (s.validUntil.difference(now) <
-              const Duration(minutes: 30)) {
+          } else if (calibrationStatusAt(s.validUntil, now) ==
+              CalibrationStatus.expiringSoon) {
             (dot, halo) = (AppColors.warning, AppColors.warningTint);
             title = 'Calibration expires soon';
-            sub = 'Less than 30 min left · recalibrate before grading';
+            sub = '1 hour or less left · recalibrate before grading';
           } else {
             (dot, halo) = (AppColors.success, AppColors.successTint);
             final until = '${s.validUntil.hour.toString().padLeft(2, '0')}:'

@@ -13,7 +13,7 @@ DEFAULT_USER_SETTINGS = {"show_name_on_certificates": False, "referral_threshold
 # from the stored document fall back to these defaults.
 DEFAULT_APP_CONFIG = {
     "referral_threshold_default": 0.60,
-    "calibration_validity_hours": 8,
+    "calibration_validity_hours": 24,
     "min_app_version": "1.0.0",
     "maintenance": {"enabled": False, "message": ""},
     "features": {"repeatability_mode": True, "gradcam": True, "public_verification": True,

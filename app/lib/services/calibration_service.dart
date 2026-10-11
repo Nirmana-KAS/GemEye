@@ -8,20 +8,53 @@ import 'package:image/image.dart' as img;
 import '../models/app_notification.dart';
 import 'api_client.dart';
 import 'notification_service.dart';
+import 'remote_config_service.dart';
 import 'settings_service.dart';
 
-/// Max per-channel standard deviation (0-255) inside the measured region
-/// before a patch photo is rejected as not uniform.
-// TODO: tune kPatchMaxStd on real captures.
-const double kPatchMaxStd = 0.06 * 255;
+// Patch uniformity, per-channel std (0-255) after trimming the brightest and
+// darkest [kPatchTrimFraction] of pixels.
+// Provisional - no stored per-pixel data.
+const double kPatchTrimFraction = 0.05;
+const double kPatchStdPass = 0.10 * 255;
+const double kPatchStdWarn = 0.15 * 255;
 
-// Residual thresholds (normalised RGB units).
-// Provisional - training session residual was 0.2548.
-const double kResidualExcellent = 0.30;
-const double kResidualAcceptable = 0.45;
+// Relative residual limits (normalised RGB units, fit to the training
+// session's patches). X = p90 and Y = max(2X, 1.2 x max) of the stored
+// sessions in docs/calibration_stats.md, rounded. Provisional - 3 sessions.
+const double kRelativeExcellent = 0.27;
+const double kRelativeAcceptable = 0.54;
 
-/// How long a calibration session stays valid.
-const Duration kCalibrationValidity = Duration(hours: 8);
+/// Training session patch colours (0-255) in capture order (white, black,
+/// grey_18, grey_50, blue, red). Source: backend/export/export_extra.json
+/// "training_patch_rgb_0_255".
+const List<List<double>> kTrainingPatchRgb = [
+  [188.4585251522898, 194.66672505754937, 190.58923132769974],
+  [65.48079357036892, 77.48993699378417, 88.96273444798094],
+  [132.2953558050891, 139.24495524854055, 144.7075691365225],
+  [182.26940670054515, 189.62009115454674, 192.4585913940475],
+  [7.243393415098233, 112.03174923284685, 182.77944232683447],
+  [167.3453241709697, 89.41685673144326, 113.52533423382869],
+];
+
+/// Remaining time at or below which the calibration status turns amber.
+const Duration kCalibrationWarnWindow = Duration(hours: 1);
+
+/// Where a calibration session stands against the clock.
+enum CalibrationStatus { none, valid, expiringSoon, expired }
+
+/// [CalibrationStatus.expiringSoon] when [kCalibrationWarnWindow] or less is left.
+CalibrationStatus calibrationStatusAt(DateTime? validUntil, DateTime now) {
+  if (validUntil == null) return CalibrationStatus.none;
+  final left = validUntil.difference(now);
+  if (left <= Duration.zero) return CalibrationStatus.expired;
+  if (left <= kCalibrationWarnWindow) return CalibrationStatus.expiringSoon;
+  return CalibrationStatus.valid;
+}
+
+/// The remembered "my setup matches calibration" tick only counts for the
+/// session it was made for, and only while that session is valid.
+bool isSetupTickValid(String? storedSessionId, CalibrationSession? session) =>
+    session != null && session.isValid && storedSessionId == session.id;
 
 /// Max sessions kept in the calibration history.
 const int kCalibrationHistoryMax = 50;
@@ -54,21 +87,77 @@ extension CalibrationQualityLabel on CalibrationQuality {
       };
 }
 
-CalibrationQuality qualityForResidual(double residual) {
-  if (residual <= kResidualExcellent) return CalibrationQuality.excellent;
-  if (residual <= kResidualAcceptable) return CalibrationQuality.acceptable;
+/// Verdict from the RELATIVE residual (fit to the training session).
+CalibrationQuality qualityForResidual(double relativeResidual) {
+  if (relativeResidual <= kRelativeExcellent) {
+    return CalibrationQuality.excellent;
+  }
+  if (relativeResidual <= kRelativeAcceptable) {
+    return CalibrationQuality.acceptable;
+  }
   return CalibrationQuality.poor;
 }
 
-/// Mean and per-channel standard deviation (0-255) of a patch photo's
-/// central 50% region.
+/// Fit of the measured patches to the training session's patches: the same
+/// lstsq and RMS as the server's session_matrix and calibration_stats.py.
+CcmResult relativeFit(List<List<double>> measured) =>
+    CalibrationService.computeCcm(measured, kTrainingPatchRgb);
+
+enum PatchUniformity { pass, warning, fail }
+
+const String kPatchMsgOverexposed =
+    'White patch overexposed - lower the exposure in Pro mode and retake.';
+const String kPatchMsgNotBlue =
+    'This does not look like the Blue patch - check the patch and retake.';
+const String kPatchMsgNotRed =
+    'This does not look like the Red patch - check the patch and retake.';
+const String kPatchMsgNotUniform =
+    'Shadow or edge in the patch - retake with the patch filling the frame.';
+const String kOrderMsgGreys =
+    'The Black, 18% Grey and 50% Grey patches are not in order of brightness - check the patches and recalibrate.';
+const String kOrderMsgWhite =
+    'The White patch is darker than the 50% Grey patch - check the patches and recalibrate.';
+
+double _luminance(List<double> rgb) =>
+    0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2];
+
+/// Capture-time check of patch [index] (capture order) from its mean RGB.
+/// Returns the failure message, or null. Same rules as calibration_stats.py.
+String? patchSanityFailure(int index, List<double> rgb) {
+  final r = rgb[0], g = rgb[1], b = rgb[2];
+  switch (index) {
+    case 0:
+      if (rgb.every((v) => v >= 250)) return kPatchMsgOverexposed;
+    case 4:
+      if (!(b > r + 20 && b > g)) return kPatchMsgNotBlue;
+    case 5:
+      if (!(r > b + 20 && r > g)) return kPatchMsgNotRed;
+  }
+  return null;
+}
+
+/// Finish-time brightness order of the 6 patches (capture order), or null.
+String? patchOrderFailure(List<List<double>> measured) {
+  final y = measured.map(_luminance).toList();
+  if (!(y[3] > y[2] + 5 && y[2] > y[1] + 5)) return kOrderMsgGreys;
+  if (!(y[0] >= y[3] - 5)) return kOrderMsgWhite;
+  return null;
+}
+
+/// Trimmed mean and per-channel standard deviation (0-255) of a patch
+/// photo's central 50% region.
 class PatchMeasurement {
   final List<double> mean;
   final List<double> std;
 
   const PatchMeasurement({required this.mean, required this.std});
 
-  bool get isUniform => std.every((s) => s <= kPatchMaxStd);
+  PatchUniformity get uniformity {
+    final worst = std.reduce(math.max);
+    if (worst <= kPatchStdPass) return PatchUniformity.pass;
+    if (worst <= kPatchStdWarn) return PatchUniformity.warning;
+    return PatchUniformity.fail;
+  }
 
   List<int> get meanRgb => mean.map((v) => v.round().clamp(0, 255)).toList();
 }
@@ -103,6 +192,11 @@ class CalibrationSession {
   final List<List<double>> measured;
   final List<double> perPatchError;
 
+  /// Fit to the training session ([relativeFit]); null for sessions saved
+  /// before the relative check existed.
+  final double? relativeResidual;
+  final List<double>? relativePerPatchError;
+
   const CalibrationSession({
     required this.id,
     required this.createdAt,
@@ -113,6 +207,8 @@ class CalibrationSession {
     required this.quality,
     required this.measured,
     required this.perPatchError,
+    this.relativeResidual,
+    this.relativePerPatchError,
   });
 
   bool get isValid => DateTime.now().isBefore(validUntil);
@@ -136,6 +232,9 @@ class CalibrationSession {
         'quality': quality.name,
         'measured': measured,
         'perPatchError': perPatchError,
+        if (relativeResidual != null) 'relativeResidual': relativeResidual,
+        if (relativePerPatchError != null)
+          'relativePerPatchError': relativePerPatchError,
       };
 
   factory CalibrationSession.fromJson(Map<String, dynamic> json) {
@@ -154,6 +253,10 @@ class CalibrationSession {
       ),
       measured: (json['measured'] as List).map(doubles).toList(),
       perPatchError: doubles(json['perPatchError']),
+      relativeResidual: (json['relativeResidual'] as num?)?.toDouble(),
+      relativePerPatchError: json['relativePerPatchError'] == null
+          ? null
+          : doubles(json['relativePerPatchError']),
     );
   }
 }
@@ -174,7 +277,7 @@ class CalibrationService {
   static final ValueNotifier<CalibrationSession?> session =
       ValueNotifier<CalibrationSession?>(null);
 
-  /// True when a saved session exists and is under 8 hours old.
+  /// True when a saved session exists and has not passed its validUntil.
   static bool get isValidNow => session.value?.isValid ?? false;
 
   /// Loads the saved session so [session] is correct at startup.
@@ -353,6 +456,7 @@ class CalibrationService {
           .map((p) => p.rgb.map((v) => v.toDouble()).toList())
           .toList(),
     );
+    final relative = relativeFit(measured);
     final now = DateTime.now();
     final sameDay = (await history())
         .where((h) =>
@@ -364,13 +468,16 @@ class CalibrationService {
     return CalibrationSession(
       id: 'S-${now.year}-${two(now.month)}-${two(now.day)}-${two(sameDay + 1)}',
       createdAt: now,
-      validUntil: now.add(kCalibrationValidity),
+      validUntil:
+          now.add(Duration(hours: RemoteConfigService.calibrationValidityHours)),
       deviceModel: await deviceModel(),
       ccm: result.ccm,
       residual: result.residual,
-      quality: result.quality,
+      quality: relative.quality,
       measured: measured,
       perPatchError: result.perPatchError,
+      relativeResidual: relative.residual,
+      relativePerPatchError: relative.perPatchError,
     );
   }
 
@@ -383,7 +490,7 @@ class CalibrationService {
       await NotificationService.add(
         type: AppNotificationType.warning,
         title: 'Recalibrate',
-        message: 'Your calibration is over 8 hours old.',
+        message: 'Your calibration has expired. Recalibrate before grading.',
         action: AppNotificationAction.openCalibration,
         category: NotificationCategory.calibration,
       );
@@ -504,24 +611,43 @@ List<List<double>> _measureBytes(Uint8List bytes) {
   final w = oriented.width, h = oriented.height;
   final crop = img.copyCrop(oriented,
       x: w ~/ 4, y: h ~/ 4, width: w ~/ 2, height: h ~/ 2);
-  final rgb = crop
+  return trimmedPatchStats(crop
       .convert(format: img.Format.uint8, numChannels: 3)
-      .getBytes(order: img.ChannelOrder.rgb);
+      .getBytes(order: img.ChannelOrder.rgb));
+}
 
-  final sum = [0.0, 0.0, 0.0];
-  final sumSq = [0.0, 0.0, 0.0];
+/// Per-channel mean and std (0-255) of interleaved RGB bytes, ignoring the
+/// brightest and darkest [kPatchTrimFraction] of pixels in each channel.
+/// Returns [mean, std].
+List<List<double>> trimmedPatchStats(Uint8List rgb) {
   final count = rgb.length ~/ 3;
-  for (var i = 0; i < rgb.length; i += 3) {
-    for (var ch = 0; ch < 3; ch++) {
-      final v = rgb[i + ch].toDouble();
-      sum[ch] += v;
-      sumSq[ch] += v * v;
-    }
+  final hist = List.generate(3, (_) => List<int>.filled(256, 0));
+  for (var i = 0; i < count * 3; i += 3) {
+    hist[0][rgb[i]]++;
+    hist[1][rgb[i + 1]]++;
+    hist[2][rgb[i + 2]]++;
   }
-  final mean = [for (final s in sum) s / count];
-  final std = [
-    for (var ch = 0; ch < 3; ch++)
-      math.sqrt(math.max(0, sumSq[ch] / count - mean[ch] * mean[ch])),
-  ];
+  final trim = (count * kPatchTrimFraction).floor();
+  final mean = <double>[], std = <double>[];
+  for (final hc in hist) {
+    // Keep the sorted ranks [trim, count - trim).
+    var skipLow = trim, keep = count - 2 * trim;
+    var n = 0;
+    var sum = 0.0, sumSq = 0.0;
+    for (var v = 0; v < 256 && keep > 0; v++) {
+      var c = hc[v];
+      final drop = math.min(c, skipLow);
+      skipLow -= drop;
+      c -= drop;
+      final take = math.min(c, keep);
+      keep -= take;
+      n += take;
+      sum += v * take;
+      sumSq += v * v * take.toDouble();
+    }
+    final m = n == 0 ? 0.0 : sum / n;
+    mean.add(m);
+    std.add(n == 0 ? 0.0 : math.sqrt(math.max(0, sumSq / n - m * m)));
+  }
   return [mean, std];
 }

@@ -9,6 +9,9 @@ enum StatusBannerType { success, warning, error, info }
 class StatusBanner extends StatelessWidget {
   final StatusBannerType type;
   final String message;
+
+  /// Optional bold first line; [message] then becomes the second line.
+  final String? title;
   final VoidCallback? onTap;
 
   /// Replaces the status dot (e.g. wifi_off for the offline banner).
@@ -20,6 +23,7 @@ class StatusBanner extends StatelessWidget {
     super.key,
     required this.type,
     required this.message,
+    this.title,
     this.onTap,
     this.icon,
     this.actionLabel,
@@ -78,10 +82,26 @@ class StatusBanner extends StatelessWidget {
                 ),
               const SizedBox(width: AppSpacing.lg),
               Expanded(
-                child: Text(
-                  message,
-                  style: AppText.body14Medium.copyWith(height: 1.35),
-                ),
+                child: title == null
+                    ? Text(
+                        message,
+                        style: AppText.body14Medium.copyWith(height: 1.35),
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title!,
+                            style: AppText.body14Medium.copyWith(
+                                height: 1.35, fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: AppSpacing.xxs),
+                          Text(
+                            message,
+                            style: AppText.secondary.copyWith(height: 1.35),
+                          ),
+                        ],
+                      ),
               ),
               if (hasAction)
                 TextButton(

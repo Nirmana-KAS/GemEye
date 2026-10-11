@@ -13,9 +13,6 @@ import '../widgets/step_progress.dart';
 import 'calibration_result_screen.dart';
 import 'calibration_screen.dart';
 
-const String _notUniformMessage =
-    'Patch not uniform - shadow or edge detected. Retake.';
-
 /// Captures the 6 calibration patches one by one. Pops with true once the
 /// session is saved from the result screen.
 class CalibrationPatchScreen extends StatefulWidget {
@@ -43,6 +40,14 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
   bool get _isLast => _step == _patchCount - 1;
   bool get _isDarkPatch => _step != 0 && _step != 3;
 
+  /// Hard-fail reason for the current measurement, or null.
+  String? get _failure {
+    final m = _measurement;
+    if (m == null) return null;
+    return patchSanityFailure(_step, m.mean) ??
+        (m.uniformity == PatchUniformity.fail ? kPatchMsgNotUniform : null);
+  }
+
   Future<void> _capture(ImageSource source) async {
     try {
       final picked = await _picker.pickImage(
@@ -64,13 +69,6 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
         _measurement = m;
         _measuring = false;
       });
-      if (!m.isUniform) {
-        AppSnackBar.show(context,
-            message: _notUniformMessage,
-            type: AppSnackBarType.error,
-            actionLabel: 'Retake',
-            onAction: _retake);
-      }
     } catch (e) {
       if (kDebugMode) debugPrint('Patch capture failed: $e');
       if (!mounted) return;
@@ -86,7 +84,6 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
   }
 
   void _retake() {
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     setState(() {
       _photo = null;
       _measurement = null;
@@ -95,7 +92,7 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
 
   Future<void> _next() async {
     final m = _measurement;
-    if (m == null || !m.isUniform) return;
+    if (m == null || _failure != null) return;
     _results[_step] = m;
     if (!_isLast) {
       setState(() {
@@ -284,8 +281,8 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Text(
-                        m != null && !m.isUniform
-                            ? 'captured photo · not uniform'
+                        _failure != null
+                            ? 'captured photo · retake'
                             : 'captured photo',
                         style: AppText.caption
                             .copyWith(color: AppColors.textSecondary),
@@ -315,7 +312,13 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
 
   Widget _buildMeasurementCard(PatchMeasurement m) {
     final rgb = m.meanRgb;
-    final ok = m.isUniform;
+    final failure = _failure;
+    final warn = failure == null && m.uniformity == PatchUniformity.warning;
+    final (IconData icon, Color color, String title) = failure != null
+        ? (Icons.error_rounded, AppColors.error, 'Retake this patch')
+        : warn
+            ? (Icons.warning_rounded, AppColors.warning, 'Patch usable')
+            : (Icons.check_circle_rounded, AppColors.success, 'Patch uniform');
     return CardContainer(
       padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xl, vertical: AppSpacing.lg),
@@ -334,20 +337,27 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
               children: [
                 Row(
                   children: [
-                    Icon(ok ? Icons.check_circle_rounded : Icons.error_rounded,
-                        size: 18,
-                        color: ok ? AppColors.success : AppColors.error),
+                    Icon(icon, size: 18, color: color),
                     const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(ok ? 'Patch uniform' : 'Patch not uniform',
-                          style: AppText.titleSmall),
-                    ),
+                    Flexible(child: Text(title, style: AppText.titleSmall)),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text('Measured RGB ${rgb.join(', ')}',
                     style: AppText.monoValue
                         .copyWith(color: AppColors.textSecondary)),
+                if (failure != null || warn) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    failure ??
+                        'Small glare or texture detected - you can continue.',
+                    style: AppText.secondary.copyWith(
+                        height: 1.35,
+                        color: failure != null
+                            ? AppColors.errorText
+                            : AppColors.warningText),
+                  ),
+                ],
               ],
             ),
           ),
@@ -448,7 +458,7 @@ class _CalibrationPatchScreenState extends State<CalibrationPatchScreen> {
         ],
       );
     }
-    final canNext = _measurement?.isUniform ?? false;
+    final canNext = _measurement != null && _failure == null;
     return Row(
       children: [
         Expanded(

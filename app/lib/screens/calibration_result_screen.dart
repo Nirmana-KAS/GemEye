@@ -27,6 +27,13 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
 
   CalibrationSession get _s => widget.session;
 
+  /// Relative residual (fit to the training session); the absolute one for
+  /// sessions saved before the relative check.
+  double get _match => _s.relativeResidual ?? _s.residual;
+
+  /// Brightness order of the patches, checked once at finish.
+  late final String? _orderFailure = patchOrderFailure(_s.measured);
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
@@ -35,7 +42,7 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
       if (!mounted) return;
       AppSnackBar.show(context,
           message: sent
-              ? 'Calibrated - residual ${_s.residual.toStringAsFixed(2)}'
+              ? 'Calibrated - match ${_match.toStringAsFixed(2)}'
               : 'Calibrated on this device. It will be sent to the server '
                   'when you are online.',
           type: AppSnackBarType.success,
@@ -54,7 +61,8 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final poor = _s.quality == CalibrationQuality.poor;
+    final blocked =
+        _s.quality == CalibrationQuality.poor || _orderFailure != null;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const GemAppBar(
@@ -83,7 +91,7 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
                   PrimaryButton(
                     label: 'Save & Start Grading',
                     isLoading: _saving,
-                    onPressed: poor ? null : _save,
+                    onPressed: blocked ? null : _save,
                   ),
                   const SizedBox(height: AppSpacing.md + 2),
                   SecondaryButton(
@@ -103,17 +111,22 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
 
   Widget _buildResidual() {
     final (dot, tint) = CalibrationHistorySheet.qualityColors(_s.quality);
-    final (IconData? icon, String? note) = switch (_s.quality) {
-      CalibrationQuality.excellent => (null, null),
-      CalibrationQuality.acceptable => (
-          Icons.warning_rounded,
-          'Consider improving lighting'
-        ),
-      CalibrationQuality.poor => (
-          Icons.error_rounded,
-          'Recalibrate: lighting too uneven'
-        ),
-    };
+    final (IconData? icon, Color noteColor, String? note) = _orderFailure !=
+            null
+        ? (Icons.error_rounded, AppColors.error, _orderFailure)
+        : switch (_s.quality) {
+            CalibrationQuality.excellent => (null, dot, null),
+            CalibrationQuality.acceptable => (
+                Icons.warning_rounded,
+                AppColors.warning,
+                'Lighting differs from the reference setup. Results may be less accurate. For best results, calibrate in even daylight.'
+              ),
+            CalibrationQuality.poor => (
+                Icons.error_rounded,
+                AppColors.error,
+                'Lighting is too different from the reference setup. Recalibrate in even daylight.'
+              ),
+          };
     return CardContainer(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -121,15 +134,19 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
           Row(
             children: [
               Expanded(
-                child: Text('Residual error',
+                child: Text('Match to reference setup',
                     style: AppText.label.copyWith(fontSize: 12)),
               ),
-              QualityChip(quality: _s.quality, dot: dot, tint: tint),
+              QualityChip(
+                  quality: _s.quality,
+                  dot: dot,
+                  tint: tint,
+                  label: matchLabel(_s.quality)),
             ],
           ),
           const SizedBox(height: AppSpacing.md + 2),
           Text(
-            _s.residual.toStringAsFixed(2),
+            _match.toStringAsFixed(2),
             style: AppText.display.copyWith(
               fontSize: 32,
               height: 1,
@@ -142,7 +159,7 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(icon, size: 18, color: dot),
+                Icon(icon, size: 18, color: noteColor),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(note,
@@ -160,10 +177,10 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
   Widget _buildPatches() {
     Widget tile(int i) {
       final c = _s.corrected(i);
-      final err = _s.perPatchError[i];
-      final errColor = err > 0.3
+      final err = _s.relativePerPatchError?[i] ?? _s.perPatchError[i];
+      final errColor = err > kRelativeAcceptable
           ? AppColors.error
-          : err > 0.15
+          : err > kRelativeExcellent
               ? AppColors.warning
               : AppColors.textSecondary;
       return Container(
@@ -281,3 +298,10 @@ class _CalibrationResultScreenState extends State<CalibrationResultScreen> {
     );
   }
 }
+
+/// Chip label for the relative calibration verdict.
+String matchLabel(CalibrationQuality q) => switch (q) {
+      CalibrationQuality.excellent => 'Good match',
+      CalibrationQuality.acceptable => 'Lighting differs',
+      CalibrationQuality.poor => 'Too different',
+    };

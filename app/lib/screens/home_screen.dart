@@ -186,9 +186,16 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
           type = StatusBannerType.error;
           message = 'Not calibrated. Calibrate before grading.';
         } else if (!s.isValid) {
+          type = StatusBannerType.error;
+          message = 'Calibration expired. Recalibrate before grading.';
+        } else if (calibrationStatusAt(s.validUntil, DateTime.now()) ==
+            CalibrationStatus.expiringSoon) {
+          final mins = s.validUntil
+              .difference(DateTime.now())
+              .inMinutes
+              .clamp(1, 60);
           type = StatusBannerType.warning;
-          message =
-              'Calibration is over 8 hours old. Recalibrate for best accuracy.';
+          message = 'Calibration expires in $mins min. Recalibrate soon.';
         } else {
           final when = isSameDay(s.createdAt, DateTime.now())
               ? 'today ${DateFormat('HH:mm').format(s.createdAt)}'
