@@ -2,22 +2,19 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:image/image.dart' as img;
 import 'package:uuid/uuid.dart';
 import '../config/constants.dart';
 import '../models/grading_response.dart';
 import 'api_client.dart';
+import '../utils/upload_jpeg.dart';
 import 'calibration_service.dart';
 
-/// Longest side of the photo sent to the server.
-const int kUploadMaxSide = 2048;
-
-/// JPEG quality of the photo sent to the server.
-const int kUploadJpegQuality = 95;
+export '../utils/upload_jpeg.dart';
 
 /// Sends a cropped, calibrated photo for grading.
 class GradingService {
-  /// Grades [image] with `POST /grade`. The photo is re-encoded as JPEG
+  /// Grades [image] with `POST /grade`. An upright JPEG with longer side at
+  /// most 2048 px is sent unchanged; anything else is re-encoded as JPEG
   /// (EXIF orientation applied, longer side at most 2048 px, quality 95).
   ///
   /// [patches]: the session's 6 measured patch means (0-255, capture order).
@@ -63,23 +60,4 @@ class GradingService {
     return GradingResponse.fromJson(json,
         capturedImagePath: image.path, sessionId: sessionId);
   }
-}
-
-/// Isolate entry: decodes, applies EXIF orientation, downscales so the
-/// longer side is at most [kUploadMaxSide] and encodes JPEG
-/// [kUploadJpegQuality]. Metadata (including EXIF) is not kept.
-Uint8List prepareUploadJpeg(Uint8List bytes) {
-  final decoded = img.decodeImage(bytes);
-  if (decoded == null) throw const FormatException('Unreadable image');
-  var image = img.bakeOrientation(decoded);
-  final longer = image.width >= image.height ? image.width : image.height;
-  if (longer > kUploadMaxSide) {
-    image = image.width >= image.height
-        ? img.copyResize(image,
-            width: kUploadMaxSide, interpolation: img.Interpolation.average)
-        : img.copyResize(image,
-            height: kUploadMaxSide, interpolation: img.Interpolation.average);
-  }
-  image.exif = img.ExifData();
-  return img.encodeJpg(image, quality: kUploadJpegQuality);
 }

@@ -3,6 +3,7 @@
 Runs INSIDE the container against the running development server:
     docker compose exec api python tests/parity/run_parity.py
     docker compose exec api python tests/parity/run_parity.py --downscale 2048
+    docker compose exec api python tests/parity/run_parity.py --image-dir /data/autocrop_test
 
 Authenticates as a temporary Firebase test user (tests/helpers/firebase_test_user.py);
 the user, its gradings and S3 images are deleted at the end.
@@ -13,6 +14,11 @@ parity_reference.csv (deterministic Colab reference: RF with GrabCut seeded 42 p
 image, deterministic CNN) and, for information, with final_per_image_predictions.csv
 (unseeded Colab run). Writes parity_report.md and parity_mismatches.csv next to
 this file.
+
+--image-dir DIR grades the same 112 names read from DIR (the app's auto-cropped
+images, app/tool/autocrop_batch.dart) and the originals, each with gates on and
+gates=false, and writes parity_autocrop_report.md only (--report NAME.md
+writes NAME.md next to this file instead).
 """
 import csv
 import glob
@@ -65,7 +71,7 @@ def app_upload_bytes(path, max_side):
     return buf.tobytes()
 
 
-def post(path, downscale=None):
+def post(path, downscale=None, gates=False):
     if downscale:
         img = app_upload_bytes(path, downscale)
         path = os.path.splitext(path)[0] + ".jpg"
@@ -79,8 +85,10 @@ def post(path, downscale=None):
         f"filename=\"{os.path.basename(path)}\"\r\nContent-Type: {ctype}\r\n\r\n".encode() + img + b"\r\n",
         f"--{b}\r\nContent-Disposition: form-data; name=\"debug\"\r\n\r\ntrue\r\n".encode(),
         # Development only: grade every image even if a quality gate fails, so the
-        # model path is compared on all 112 images (Phase 3).
-        f"--{b}\r\nContent-Disposition: form-data; name=\"gates\"\r\n\r\nfalse\r\n".encode(),
+        # model path is compared on all 112 images (Phase 3). gates=True only for
+        # --image-dir (as the app sends).
+        f"--{b}\r\nContent-Disposition: form-data; name=\"gates\"\r\n\r\n"
+        f"{'true' if gates else 'false'}\r\n".encode(),
         f"--{b}\r\nContent-Disposition: form-data; name=\"referral_threshold\"\r\n\r\n0.60\r\n".encode(),
         f"--{b}--\r\n".encode(),
     ]
@@ -189,6 +197,108 @@ def main_downscale(max_side):
         f.write("\n".join(out) + "\n")
     print(f"agreement {agree}/{n}; correct normal {ok_n}, downscaled {ok_d}; "
           f"within +/-1 image: {verdict(passed)}")
+
+
+GATE_CODES = ["invalid_image", "no_stone", "blurry", "not_blue", "not_recognised"]
+
+
+def main_image_dir(img_dir, report="parity_autocrop_report.md"):
+    """Grades the 112 test names read from img_dir (auto-cropped) and the
+    originals, gates on and gates=false. Writes parity_autocrop_report.md only."""
+    with open(CSV_IN, newline="") as f:
+        rows_in = list(csv.DictReader(f))
+    leaks = load_leaks()
+    detect = {}
+    det_csv = os.path.join(img_dir, "autocrop.csv")
+    # upload.csv marks an upload-bytes run; a leftover autocrop.csv is ignored then.
+    if os.path.exists(det_csv) and not os.path.exists(os.path.join(img_dir, "upload.csv")):
+        with open(det_csv, newline="") as f:
+            detect = {r["name"]: r for r in csv.DictReader(f)}
+    missing = [r["image"] for r in rows_in if not os.path.exists(os.path.join(img_dir, r["image"]))]
+    if missing:
+        sys.exit(f"FAIL: {len(missing)} of 112 images not found under {img_dir}: {missing}")
+
+    rows = []
+    for i, r in enumerate(rows_in, 1):
+        orig = find_image(r["image"], r["true_grade"])
+        crop = os.path.join(img_dir, r["image"])
+        res = {}
+        for key, path, g in (("n_off", orig, False), ("n_on", orig, True),
+                             ("a_off", crop, False), ("a_on", crop, True)):
+            body, _ = post(path, gates=g)
+            if not g and body.get("status") != "ok":
+                sys.exit(f"Bad response for {r['image']} ({key}): {body.get('detail')}")
+            res[key] = body
+        rows.append({"image": r["image"], "true": int(r["true_grade"]),
+                     "normal": res["n_off"]["grade"], "auto": res["a_off"]["grade"],
+                     "conf_normal": res["n_off"]["confidence"], "conf_auto": res["a_off"]["confidence"],
+                     "gate_normal": res["n_on"]["status"], "gate_auto": res["a_on"]["status"],
+                     "grade_on_normal": res["n_on"].get("grade"), "grade_on_auto": res["a_on"].get("grade"),
+                     "ratio": (detect.get(r["image"]) or {}).get("stoneWidthRatio", "")})
+        x = rows[-1]
+        print(f"[{i:3d}/112] {r['image']:<14} true={x['true']} normal={x['normal']} auto={x['auto']} "
+              f"gates normal={x['gate_normal']} auto={x['gate_auto']}", flush=True)
+
+    n = len(rows)
+    clean = [r for r in rows if r["image"] not in leaks]
+    ok_n = sum(r["true"] == r["normal"] for r in clean)
+    ok_a = sum(r["true"] == r["auto"] for r in clean)
+    agree = sum(r["normal"] == r["auto"] for r in rows)
+    rej_n = [r for r in rows if r["gate_normal"] != "ok"]
+    rej_a = [r for r in rows if r["gate_auto"] != "ok"]
+    acc_ok = abs(ok_a - ok_n) <= 1
+    rej_ok = len(rej_a) <= len(rej_n) + 1
+    unchanged = None
+    up_csv = os.path.join(img_dir, "upload.csv")
+    if os.path.exists(up_csv):
+        with open(up_csv, newline="") as f:
+            unchanged = sum(r["unchanged"] == "true" for r in csv.DictReader(f))
+    status_counts = {}
+    for d in detect.values():
+        status_counts[d["status"]] = status_counts.get(d["status"], 0) + 1
+
+    def on_acc(key, gate):
+        acc_rows = [r for r in clean if r[gate] == "ok"]
+        good = sum(r["true"] == r[key] for r in acc_rows)
+        return f"{good}/{len(acc_rows)} ({100.0 * good / max(1, len(acc_rows)):.2f}%)"
+
+    diff = [r for r in rows if r["normal"] != r["auto"]]
+    out = [f"# Image-dir parity ({img_dir})", "",
+           f"The 112 test images graded as originals and as read from the image dir "
+           f"(`run_parity.py --image-dir {img_dir}`), each with gates on (as the app) and "
+           "gates=false. Same server, no patches, referral_threshold 0.60.", "",
+           "Auto-crop detection status (autocrop.csv): "
+           + (", ".join(f"{k} {v}" for k, v in sorted(status_counts.items())) or "not available")
+           + ("" if unchanged is None else f". Upload bytes identical to the original (upload.csv): {unchanged}/{n}"),
+           "",
+           "| Metric | Normal | Image dir |", "|---|---|---|",
+           f"| Clean-98 accuracy, gates=false | {ok_n}/98 ({100.0 * ok_n / 98:.2f}%) | "
+           f"{ok_a}/98 ({100.0 * ok_a / 98:.2f}%) |",
+           f"| All-112 accuracy, gates=false | {sum(r['true'] == r['normal'] for r in rows)}/{n} | "
+           f"{sum(r['true'] == r['auto'] for r in rows)}/{n} |",
+           f"| Clean-98 accuracy on accepted images, gates on | {on_acc('grade_on_normal', 'gate_normal')} | "
+           f"{on_acc('grade_on_auto', 'gate_auto')} |",
+           f"| Gate rejections, gates on (all 112) | {len(rej_n)} | {len(rej_a)} |"]
+    out += [f"| - {c} | {sum(r['gate_normal'] == c for r in rows)} | {sum(r['gate_auto'] == c for r in rows)} |"
+            for c in GATE_CODES]
+    out += [f"| Grade agreement, image dir vs normal (gates=false) | {agree}/{n} ({100.0 * agree / n:.2f}%) | |",
+            f"| Mean abs confidence change | {sum(abs(r['conf_normal'] - r['conf_auto']) for r in rows) / n:.4f} | |",
+            "", "| Criterion | Value | Result |", "|---|---|---|",
+            f"| Clean-98 accuracy within +/-1 image | {ok_a - ok_n:+d} image(s) | **{verdict(acc_ok)}** |",
+            f"| Gate rejections <= normal + 1 | {len(rej_a)} vs {len(rej_n)} | **{verdict(rej_ok)}** |",
+            f"| Overall | | **{verdict(acc_ok and rej_ok)}** |",
+            "", f"## Grade changes ({len(diff)})", "",
+            "| Image | True | Clean | Normal | Image dir | Conf normal | Conf image dir | Stone ratio |",
+            "|---|---|---|---|---|---|---|---|"]
+    out += [f"| {r['image']} | {r['true']} | {r['image'] not in leaks} | {r['normal']} | {r['auto']} | "
+            f"{r['conf_normal']:.4f} | {r['conf_auto']:.4f} | {r['ratio']} |" for r in diff]
+    out += ["", "## Gate rejections", "", "| Image | True | Normal | Image dir |", "|---|---|---|---|"]
+    out += [f"| {r['image']} | {r['true']} | {r['gate_normal']} | {r['gate_auto']} |"
+            for r in rows if r["gate_normal"] != "ok" or r["gate_auto"] != "ok"]
+    with open(os.path.join(HERE, report), "w") as f:
+        f.write("\n".join(out) + "\n")
+    print(f"clean-98 normal {ok_n}, auto {ok_a}; agreement {agree}/{n}; rejections normal "
+          f"{len(rej_n)}, auto {len(rej_a)}; {verdict(acc_ok and rej_ok)}")
 
 
 def verdict(ok):
@@ -369,8 +479,19 @@ if __name__ == "__main__":
     ds = None
     if "--downscale" in sys.argv:
         ds = int(sys.argv[sys.argv.index("--downscale") + 1])
+    image_dir = None
+    if "--image-dir" in sys.argv:
+        image_dir = sys.argv[sys.argv.index("--image-dir") + 1]
     with FirebaseTestUser() as USER:
         try:
-            main_downscale(ds) if ds else main()
+            if image_dir:
+                if "--report" in sys.argv:
+                    main_image_dir(image_dir, os.path.basename(sys.argv[sys.argv.index("--report") + 1]))
+                else:
+                    main_image_dir(image_dir)
+            elif ds:
+                main_downscale(ds)
+            else:
+                main()
         finally:
             print(f"cleanup: {purge_user_data(USER.uid)}")

@@ -2547,3 +2547,107 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-128
 - **Reason:** Shorter start screen.
+
+### EDIT-130 | 11 October 2026 | IST
+- **Topic:** Phase F1 - stone auto-crop detector and batch tool
+- **Summary:** Added a pure-Dart stone detector and square cropper (package:image only) and a `dart run` batch tool; target ratio and limits taken from the 1008 training/validation images. The app flow is not wired to it (the accuracy check in EDIT-132 failed).
+- **What was done:**
+  - stone_autocrop.dart: decode + EXIF orientation, 512 px working copy, tray colour = median of an 8% border ring, RGB distance mask (kStoneDistance 80; 40 let the tray shade band join the stone), 3x3 open, largest central component (0.2%-40% area), square crop of side diameter / kTargetStoneRatio from the full-resolution image, statuses ok / notFound / tooClose / tooSmallImage (side < 300 px), JPEG quality 100
+  - kTargetStoneRatio 0.3485 (median), kMinStoneRatio 0.1865 (p1), kMaxStoneRatio 0.5090 (p99) from training/validation images only; notFound 0/1008
+  - tool/autocrop_batch.dart: crop a folder (CSV of name, status, ratio) or --stats on the originals; --only / --exclude name lists
+  - Unit tests on synthetic trays (centred, near an edge, small, tooClose, notFound, tooSmallImage, unreadable); flutter analyze 0 issues; flutter test 105 passed
+- **Files changed:**
+  - `+` app/lib/utils/stone_autocrop.dart
+  - `+` app/tool/autocrop_batch.dart
+  - `+` app/test/stone_autocrop_test.dart
+  - `~` .gitignore (dataset/autocrop_test/)
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-131, EDIT-132
+- **Reason:** Frame every photo like the training images automatically instead of the free crop and "70% of the frame" guidance.
+
+### EDIT-131 | 11 October 2026 | IST
+- **Topic:** Phase F1 - parity test for auto-cropped images
+- **Summary:** run_parity.py gained --image-dir DIR (the 112 test names read from DIR, originals and crops, gates on and gates=false, writes parity_autocrop_report.md); docker-compose.yml mounts dataset/autocrop_test read-only. Server code, model path, gates and thresholds are unchanged; the normal run still passes A-D.
+- **What was done:**
+  - run_parity.py: post() takes gates (default false, normal output unchanged); main_image_dir() with detection counts, clean-98 accuracy, gate rejections per gate, agreement and changed grades
+  - docker-compose.yml: `../dataset/autocrop_test:/data/autocrop_test:ro` (development only); container recreated
+  - Normal run_parity.py rerun: A PASS (112/112), B PASS (112/112), C PASS (87.76%), D PASS (9/9); its regenerated report files were restored to the committed ones
+- **Files changed:**
+  - `~` backend/tests/parity/run_parity.py
+  - `~` backend/docker-compose.yml
+  - `+` backend/tests/parity/parity_autocrop_report.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-130, EDIT-132
+- **Reason:** Measure the effect of the auto-crop on grading before changing the app.
+
+### EDIT-132 | 11 October 2026 | IST
+- **Topic:** Phase F1 - auto-crop accuracy result (FAIL)
+- **Summary:** Auto-crop lowers clean-98 accuracy from 86/98 to 80/98 (limit +/-1), so the app flow (step 5) was not changed. Gate rejections 1 vs 3 (pass).
+- **What was done:**
+  - Test detection: ok 112, notFound 0, tooClose 0; 45 zoomed, 67 full frame
+  - Grade agreement 96/112; 16 changed grades (10 of 45 zoomed, 6 of 67 full-frame re-encodes); mean abs confidence change 0.055
+  - Cause: zooming changes the model input scale; package:image decode + re-encode shifts pixels (mean +0.63 levels, max 23) enough to move borderline stones
+  - Report written to docs/autocrop_report.md; no tuning on the test set
+- **Files changed:**
+  - `+` docs/autocrop_report.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-130, EDIT-131
+- **Reason:** Phase F1 pass rule (clean-98 within +/-1 image, rejections <= normal + 1).
+
+### EDIT-133 | 11 October 2026 | IST
+- **Topic:** Phase F2 - Photo Check framing uses the tray-relative detector
+- **Summary:** The near-white stone-share check (pixel is tray only when every channel >= 200) rejected most real photos because the training tray is about RGB 184-211; it is replaced by the stone_autocrop.dart detector (detection only, no crop, no size limit). The blur check and threshold are unchanged.
+- **What was done:**
+  - Verified the finding on dataset/merged with tool/photo_check_batch.dart (old path: forced re-encode): old stone share min 0.460, p1 0.551, median 0.996, max 1.000; old check rejected 650/1008 training images (framing 647, blur 4) and 77/112 test images (framing 77)
+  - New Photo Check (upload bytes, server blur threshold 29.47 + detector): framing rejections 0/1008 and 0/112; blur rejections 4/1008 (g3_041, g3_042, g3_043, g7_081, same as before) and 0/112
+  - Removed kNearWhiteLevel, kStoneShareMin, kStoneShareMax and stoneShare; PhotoCheckResult.stoneFound; blur code moved unchanged to lib/utils/photo_check_math.dart (pure Dart, re-exported by photo_check_service.dart)
+  - autoCropStone / kTargetStoneRatio are not used in the app flow (detector and batch tool only); comment added
+  - Tests: framing (tray RGB 185/195/195 with a blue stone found, empty tray not found)
+- **Files changed:**
+  - `+` app/lib/utils/photo_check_math.dart
+  - `~` app/lib/services/photo_check_service.dart
+  - `~` app/lib/utils/stone_autocrop.dart
+  - `+` app/tool/photo_check_batch.dart
+  - `+` app/test/photo_framing_test.dart
+  - `~` app/test/photo_check_test.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-130, EDIT-132, EDIT-134, EDIT-135
+- **Reason:** False "Stone not found - recentre" rejections on correctly framed photos.
+
+### EDIT-134 | 11 October 2026 | IST
+- **Topic:** Phase F2 - optional square crop and untouched upload
+- **Summary:** The cropper no longer opens automatically: a Photo Preview screen offers "Use photo", "Crop (optional)" (square locked) and "Retake". Upright JPEGs up to 2048 px and 15 MB are uploaded byte-identical (no decode or re-encode); Photo Check analyses exactly the upload bytes.
+- **What was done:**
+  - StoneCaptureService: pick() and cropSquare() (image_cropper locked 1:1, square preset only); PhotoCheckScreen.captureFrom (used by Capture and Repeatability capture; Photo Check Retake returns to these screens) opens PhotoPreviewScreen; preview Retake picks again from the same source
+  - lib/utils/upload_jpeg.dart: canUploadUnchanged (JPEG signature, orientation 1 or missing, longer side <= 2048, <= 15 MB), prepareUploadJpeg returns the original bytes when allowed, reencodeUploadJpeg is the old path; grading_service.dart re-exports it
+  - Removed every "70% of the frame" text (Capture framing card, No stone screen, grade 7 tip); framing card: "Place the stone in the centre of the white tray. Do not zoom. Cropping is optional." with a small stone in a square of tray
+  - Tests: untouched upload (small upright and orientation 1 identical; > 2048 px, rotated and PNG re-encoded), preview buttons and 360 dp large-text layout
+- **Files changed:**
+  - `+` app/lib/utils/upload_jpeg.dart
+  - `+` app/lib/screens/photo_preview_screen.dart
+  - `~` app/lib/services/stone_capture_service.dart, grading_service.dart
+  - `~` app/lib/screens/photo_check_screen.dart, capture_screen.dart, not_accepted_screen.dart
+  - `~` app/assets/data/colour_grades.json
+  - `+` app/test/photo_preview_screen_test.dart
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-132, EDIT-133, EDIT-135
+- **Reason:** Photos should reach the server as taken, like the training images, without forced cropping or re-encoding.
+
+### EDIT-135 | 11 October 2026 | IST
+- **Topic:** Phase F2 - upload parity verification (PASS)
+- **Summary:** The new upload path sends all 112 test images byte-identical and grades them exactly as the normal run (clean-98 86/98, PASS). The old forced re-encode path changed 7/112 grades (clean-98 88/98, all-112 unchanged at 98/112, every change below 0.60 confidence), so today's app was affected only on borderline stones.
+- **What was done:**
+  - tool/upload_batch.dart writes prepareUploadJpeg (or --force-reencode) bytes to dataset/autocrop_test (F1 read-only mount)
+  - run_parity.py --image-dir: --report NAME.md option, report labels generalised ("Image dir"), upload.csv byte-identical count, a leftover autocrop.csv is ignored in upload runs
+  - New path, gates on: 112/112 byte-identical, clean-98 86/98 vs 86/98, agreement 112/112, rejections 3 vs 3: PASS (parity_upload_report.md)
+  - Old path: clean-98 88/98 vs 86/98, agreement 105/112, rejections 3 vs 3 (parity_upload_old_report.md); changed: g2_148, g2_085, g3_030, g3_010, g5_129, g6_101, g6_085
+  - Normal run_parity.py: A, B, C (87.76%), D all PASS; its regenerated report files were restored from copies taken before the run
+  - flutter analyze 0 issues; flutter test 114 passed; release APK built to app/build/gemeye.apk
+  - Not done: removing the stale F1 crops list dataset/autocrop_test/autocrop.csv (delete was blocked; the folder is gitignored)
+- **Files changed:**
+  - `+` app/tool/upload_batch.dart
+  - `~` backend/tests/parity/run_parity.py
+  - `+` backend/tests/parity/parity_upload_report.md, parity_upload_old_report.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-131, EDIT-133, EDIT-134
+- **Reason:** Phase F2 pass rule and to measure the effect of the old re-encode on grading.

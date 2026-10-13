@@ -44,6 +44,8 @@ dataset/**/*.webp
 dataset/**/*.HEIC
 dataset/**/*.heic
 !dataset/**/.gitkeep
+# App auto-crop check output (app/tool/autocrop_batch.dart, run_parity.py --image-dir)
+dataset/autocrop_test/
 
 # Trained model weights (large files)
 # Uncomment below if model files exceed 100MB

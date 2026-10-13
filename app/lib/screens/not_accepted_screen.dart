@@ -30,7 +30,7 @@ class NotAcceptedScreen extends StatelessWidget {
             Icons.image_search_rounded,
             'No gemstone detected',
             "We couldn't find a stone in this photo. Centre the stone on the "
-                'white tray and fill ~70% of the frame.',
+                'white tray and keep plenty of tray around it.',
           ),
         GradingStatus.blurry => (
             Icons.blur_on_rounded,

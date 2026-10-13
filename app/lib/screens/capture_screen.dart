@@ -320,15 +320,16 @@ class _CaptureScreenState extends State<CaptureScreen>
               borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: AppColors.border),
             ),
+            // A small stone with plenty of white tray around it.
             child: CustomPaint(
               painter: const DashedBorderPainter(color: AppColors.primary),
               child: Container(
-                width: 78,
-                height: 78,
+                width: 88,
+                height: 88,
                 alignment: Alignment.center,
                 child: Container(
-                  width: 67,
-                  height: 67,
+                  width: 26,
+                  height: 26,
                   decoration: const BoxDecoration(
                       color: AppColors.grade4, shape: BoxShape.circle),
                 ),
@@ -343,7 +344,8 @@ class _CaptureScreenState extends State<CaptureScreen>
                 const Text('Framing', style: AppText.titleSmall),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Stone should fill about 70% of the frame',
+                  'Place the stone in the centre of the white tray. Do not zoom. '
+                  'Cropping is optional.',
                   style: AppText.body14.copyWith(
                       fontSize: 13,
                       height: 1.45,

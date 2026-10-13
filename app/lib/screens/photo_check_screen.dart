@@ -11,13 +11,14 @@ import '../widgets/app_snack_bar.dart';
 import '../widgets/card_container.dart';
 import '../widgets/gem_app_bar.dart';
 import 'capture_screen.dart';
+import 'photo_preview_screen.dart';
 import 'processing_screen.dart';
 import 'repeatability_capture_screen.dart';
 
 /// Number of captures in Repeatability mode.
 const int kRepeatabilityCaptures = 3;
 
-/// Photo Check: shown after the cropper. Grading is blocked while the
+/// Photo Check: shown after the photo preview. Grading is blocked while the
 /// sharpness, framing or calibration check fails.
 class PhotoCheckScreen extends StatefulWidget {
   final String imagePath;
@@ -33,8 +34,9 @@ class PhotoCheckScreen extends StatefulWidget {
     this.repeatability = false,
   });
 
-  /// Picks from [source], crops, then opens Photo Check. Shows a friendly
-  /// snackbar when the camera or gallery cannot be opened.
+  /// Picks from [source], shows the photo preview (crop optional), then opens
+  /// Photo Check. Shows a friendly snackbar when the camera or gallery cannot
+  /// be opened.
   static Future<void> captureFrom(
     BuildContext context,
     ImageSource source, {
@@ -42,19 +44,43 @@ class PhotoCheckScreen extends StatefulWidget {
     bool repeatability = false,
   }) async {
     try {
-      final shot = await StoneCaptureService.pickAndCrop(source);
-      if (shot == null || !context.mounted) return;
-      if (shot.cropFailed) {
-        AppSnackBar.show(context,
-            message: 'Crop unavailable - using original image',
-            type: AppSnackBarType.warning);
+      final path = await StoneCaptureService.pick(source);
+      if (path == null || !context.mounted) return;
+      void openCheck(BuildContext previewContext, String imagePath) {
+        AppRoutes.pushReplacement(
+          previewContext,
+          PhotoCheckScreen(
+            imagePath: imagePath,
+            previousPaths: previousPaths,
+            repeatability: repeatability,
+          ),
+        );
       }
+
       AppRoutes.push(
         context,
-        PhotoCheckScreen(
-          imagePath: shot.path,
-          previousPaths: previousPaths,
-          repeatability: repeatability,
+        PhotoPreviewScreen(
+          imagePath: path,
+          onUse: (c) => openCheck(c, path),
+          onCrop: (c) async {
+            try {
+              final cropped = await StoneCaptureService.cropSquare(path);
+              if (cropped != null && c.mounted) openCheck(c, cropped);
+            } catch (e) {
+              debugPrint('Cropper failed: $e');
+              if (!c.mounted) return;
+              AppSnackBar.show(c,
+                  message: 'Crop unavailable - use the photo as taken',
+                  type: AppSnackBarType.warning);
+            }
+          },
+          onRetake: (c) {
+            Navigator.of(c).pop();
+            if (context.mounted) {
+              captureFrom(context, source,
+                  previousPaths: previousPaths, repeatability: repeatability);
+            }
+          },
         ),
       );
     } catch (e) {

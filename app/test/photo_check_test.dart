@@ -31,7 +31,7 @@ void main() {
   test('sharp / blurry against the server threshold', () {
     const t = kDefaultBlurMinVariance;
     PhotoCheckResult r(double v) =>
-        PhotoCheckResult(blurVariance: v, stoneShare: 0.3, blurThreshold: t);
+        PhotoCheckResult(blurVariance: v, stoneFound: true, blurThreshold: t);
     expect(r(kServerBlurVariance['fast2x_1024x768_blur.png']!).isSharp, isFalse);
     expect(r(kServerBlurVariance['portrait_700x1050_blur.png']!).isSharp, isTrue);
     expect(r(t).isSharp, isTrue);
