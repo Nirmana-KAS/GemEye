@@ -64,6 +64,20 @@ class Database:
         # Tombstones of deleted accounts outlive any ID token issued before the deletion.
         self.deleted_accounts.create_index([("deleted_at", ASCENDING)],
                                            expireAfterSeconds=DELETED_ACCOUNT_TTL_S)
+        # Admin dashboard queries (Phase 10a).
+        self.gradings.create_index([("created_at", DESCENDING), ("_id", DESCENDING)])
+        self.gradings.create_index([("result.grade", ASCENDING), ("created_at", DESCENDING)])
+        self.gradings.create_index([("result.model_version", ASCENDING), ("created_at", DESCENDING)])
+        self.gradings.create_index([("device", ASCENDING), ("created_at", DESCENDING)])
+        self.rejections.create_index([("status", ASCENDING), ("created_at", DESCENDING)])
+        self.calibrations.create_index([("created_at", DESCENDING), ("_id", DESCENDING)])
+        self.certificates.create_index([("issued_at", DESCENDING), ("_id", DESCENDING)])
+        self.certificates.create_index([("status", ASCENDING), ("issued_at", DESCENDING)])
+        self.feedback.create_index([("created_at", DESCENDING), ("_id", DESCENDING)])
+        self.audit_log.create_index([("at", DESCENDING), ("_id", DESCENDING)])
+        self.audit_log.create_index([("action", ASCENDING), ("at", DESCENDING)])
+        self.users.create_index([("created_at", DESCENDING)])
+        self.users.create_index([("email", ASCENDING)])
         # counters, app_config and certificates (cert_no) are looked up by _id.
 
     def seed_app_config(self):

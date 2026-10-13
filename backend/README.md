@@ -332,3 +332,31 @@ decoded exactly as `/grade` decodes uploads. It produced the reference values in
 - `.env`
 - anything in `models/` (except `.gitkeep`)
 - anything in `secrets/` (except `.gitkeep`)
+
+## Admin roles and admin read API (Phase 10a)
+
+Two Firebase custom claims: `admin` (every `/admin/*` route) and `reviewer` (only
+`GET /admin/gradings` and `/admin/gradings/{id}`, without user email or phone). Tokens
+are checked with `check_revoked=True` and the deleted-account tombstone; a missing claim
+is 403 `{code: "forbidden"}`. Rate limit 120 requests/min per uid (429). CORS is open only
+to `http://localhost:3000` and `https://gemeye-app-2026.web.app`, and only on `/admin/*`.
+Responses never contain tokens, certificate tokens, verify URLs, storage keys or secrets.
+
+Make the first admin (works in development and production, refuses `ENV=test`; the user
+must sign in again to get the claim; use `--role none` to remove a role):
+
+```
+docker compose exec api python scripts/set_role.py --email gemeyeapp@gmail.com --role admin
+```
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/admin/stats/summary?days=1\|7\|30` | gradings, unique users, referral and rejection rates, rejections per status, mean confidence / uncertainty / latency, certificates, feedback, server + DB status |
+| GET | `/admin/stats/timeseries?metric=gradings\|rejections\|referral_rate\|avg_confidence&days=30&bucket=day` | Asia/Colombo days, gaps filled |
+| GET | `/admin/users`, `/admin/users/{uid}` | `q` (email/name), `sort=created\|last_active`, `limit`, `cursor`; detail adds counts, last 10 gradings, calibrations, devices, Firebase `disabled` |
+| GET | `/admin/gradings`, `/admin/gradings/{id}` | `from, to, grade, referred, model_version, uid, device, status`, cursor paging, fresh image URL; detail adds the full result, heatmap URL if cached, certificate (admin and reviewer) |
+| GET | `/admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | filters, cursor paging; certificates search by number prefix (`q`) and `status` |
+| GET | `/admin/model/monitoring?days=30` | per model version and day: count, mean confidence / uncertainty, referral rate, `unusual_image` warnings, mean latency; rejections per day and gate (rejections carry no model version) |
+
+Admin writes (Phase 10b) call `audit(db, action, admin_uid, target, before, after)`, which
+stores only the admin's `uid_hash` in `audit_log`; reads are not logged.

@@ -78,3 +78,35 @@ def active_user_strict(request: Request,
     user = _verify(creds, check_revoked=False)
     _refuse_deleted(request, user)
     return _verify(creds, check_revoked=True)
+
+
+# ---- Admin roles (Firebase custom claims "admin" and "reviewer") ----
+
+def _role_user(request, creds, allowed):
+    """Revocation-checked token, tombstone check, then the claim check (403 forbidden)."""
+    if creds is None or creds.scheme.lower() != "bearer" or not creds.credentials:
+        raise HTTPException(401, UNAUTHORISED)
+    try:
+        decoded = auth.verify_id_token(creds.credentials, check_revoked=True,
+                                       clock_skew_seconds=CLOCK_SKEW_S)
+    except Exception as e:
+        logger.info("Token rejected: %s", type(e).__name__)
+        raise HTTPException(401, UNAUTHORISED)
+    user = {"uid": decoded["uid"], "email": decoded.get("email"),
+            "email_verified": bool(decoded.get("email_verified", False)),
+            "auth_time": decoded.get("auth_time"),
+            "role": "admin" if decoded.get("admin") is True
+            else "reviewer" if decoded.get("reviewer") is True else None}
+    _refuse_deleted(request, user)
+    if user["role"] not in allowed:
+        raise ApiError(403, "forbidden", "You do not have access to this resource.")
+    return user
+
+
+def admin_user(request: Request, creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> dict:
+    return _role_user(request, creds, ("admin",))
+
+
+def reviewer_or_admin(request: Request,
+                      creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> dict:
+    return _role_user(request, creds, ("admin", "reviewer"))

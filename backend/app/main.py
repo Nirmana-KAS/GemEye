@@ -14,6 +14,8 @@ from fastapi.responses import JSONResponse
 from pymongo.errors import DuplicateKeyError
 from slowapi.errors import RateLimitExceeded
 
+from app.admin import admin_cors
+from app.admin import router as admin_router
 from app.assets import MODEL_LOCK, load_assets, warm_up
 from app.auth import active_user, init_firebase
 from app.certificates import limiter, public_headers
@@ -81,6 +83,8 @@ app = FastAPI(title="GemEye API", version="1.2.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.include_router(router)
 app.include_router(certificates_router)
+app.include_router(admin_router)
+app.middleware("http")(admin_cors)
 
 
 def _error(request, code, detail, extra=None, headers=None):

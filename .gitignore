@@ -90,3 +90,6 @@ backend/**/__pycache__/
 
 # Demo launcher local state
 launcher/.launcher_state.json
+
+# Local reference notes with service IDs and secret locations (never commit)
+*.local.md
