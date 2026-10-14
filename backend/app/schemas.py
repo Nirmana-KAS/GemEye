@@ -188,6 +188,7 @@ class GradingItem(BaseModel):
     app_version: Text = None
     device: Text = None
     referral_threshold_used: float
+    review: Optional[Dict[str, Any]] = None     # {gemologist_grade, reviewed_at} when reviewed
 
 
 class HeatmapOut(BaseModel):
@@ -325,6 +326,7 @@ class PublicCertificate(BaseModel):
     owner: Optional[CertificateOwner] = None
     revoked_reason: Text = None
     revoked_at: Optional[datetime] = None
+    superseded_by: Text = None          # cert_no of the replacement ("Replaced by ...")
     image_url: Text = None
     pdf_url: Text = None
     pdf_sha256: Text = None
@@ -354,6 +356,8 @@ class AppConfig(BaseModel):
     maintenance: Maintenance
     features: Features
     blur_min_variance: float
+    gates: Dict[str, float]
+    announcements: List[Dict[str, Any]] = []
 
 
 class FeedbackIn(BaseModel):

@@ -16,6 +16,11 @@ TRADE_NAMES = ["Midnight Blue", "Twilight Blue", "Royal Blue", "Intense Cornflow
 GRADES = np.arange(1, 8, dtype=np.float64)
 
 
+def model_version(assets):
+    """Model version from the export manifest (the one place it is defined)."""
+    return str(assets.manifest.get("model_version", "v3"))
+
+
 def blur_variance(rgb):
     """Gate definition from gate_stats.json, measured on the RAW upload."""
     g = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
@@ -67,7 +72,8 @@ def rejection(code, diagnostics):
     return {"status": code, "message": gates.MESSAGES[code], "diagnostics": diagnostics}
 
 
-def grade(assets, raw_rgb, patches, referral_threshold, debug=False, enforce_gates=True):
+def grade(assets, raw_rgb, patches, referral_threshold, debug=False, enforce_gates=True,
+          gate_cfg=None):
     """Gates in order, stopping at the first failure: invalid_image, no_stone,
     blurry, not_blue, not_recognised. The cheap gates run before the models.
 
@@ -78,6 +84,7 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False, enforce_gat
     enforce_gates=False (development only, for the parity test) evaluates every
     gate but grades anyway; the failed gates are listed in debug.gates_bypassed."""
     t0 = time.perf_counter()
+    cfg = gate_cfg or gates.DEFAULTS     # effective gate values (remote config)
     h, w = raw_rgb.shape[:2]
     diag = {"short_side_px": int(min(h, w)), "min_short_side_px": gates.MIN_SHORT_SIDE_PX}
     bypassed = []
@@ -87,29 +94,29 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False, enforce_gat
         bypassed.append("invalid_image")
 
     wb = display.tray_balanced_measure(raw_rgb)
-    diag.update(gate_stone_area=wb.area, no_stone_min_area=gates.NO_STONE_MIN_AREA,
+    diag.update(gate_stone_area=wb.area, no_stone_min_area=cfg["no_stone_min_area"],
                 stone_tray_contrast_de00=wb.contrast,
-                no_stone_min_contrast_de00=gates.NO_STONE_MIN_CONTRAST_DE00,
+                no_stone_min_contrast_de00=cfg["no_stone_min_contrast_de00"],
                 gate_centre_fallback=wb.centre_fallback)
-    if gates.no_stone(wb):
+    if gates.no_stone(wb, cfg):
         if enforce_gates:
             return rejection("no_stone", diag)
         bypassed.append("no_stone")
 
     blur = blur_variance(raw_rgb)
-    diag.update(blur_variance=blur, blur_min_variance=gates.BLUR_MIN_VARIANCE)
-    if blur < gates.BLUR_MIN_VARIANCE:
+    diag.update(blur_variance=blur, blur_min_variance=cfg["blur_min_variance"])
+    if blur < cfg["blur_min_variance"]:
         if enforce_gates:
             return rejection("blurry", diag)
         bypassed.append("blurry")
 
     # The hue gate runs only when GrabCut segmented the stone (no fallback).
     seg_reliable = not wb.fallback
-    diag.update(hue_wb=wb.H, hue_gate_min=gates.HUE_GATE_MIN, hue_gate_max=gates.HUE_GATE_MAX,
-                hue_in_gate=gates.HUE_GATE_MIN <= wb.H <= gates.HUE_GATE_MAX,
-                chroma_wb=wb.C, min_chroma=gates.MIN_CHROMA,
+    diag.update(hue_wb=wb.H, hue_gate_min=cfg["hue_min"], hue_gate_max=cfg["hue_max"],
+                hue_in_gate=cfg["hue_min"] <= wb.H <= cfg["hue_max"],
+                chroma_wb=wb.C, min_chroma=cfg["min_chroma"],
                 segmentation_reliable=seg_reliable, hue_gate_skipped=not seg_reliable)
-    if seg_reliable and gates.not_blue(wb):
+    if seg_reliable and gates.not_blue(wb, cfg):
         if enforce_gates:
             return rejection("not_blue", diag)
         bypassed.append("not_blue")
@@ -136,12 +143,12 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False, enforce_gat
                 # Information only: GrabCut fallback on the model path (does not affect
                 # segmentation_reliable, which comes from the tray-balanced image).
                 model_segmentation_fallback=stone.fallback,
-                ood_distance=ood, ood_warn=gates.OOD_WARN, ood_threshold=gates.OOD_REJECT)
-    if ood > gates.OOD_REJECT:
+                ood_distance=ood, ood_warn=cfg["ood_warn"], ood_threshold=cfg["ood_reject"])
+    if ood > cfg["ood_reject"]:
         if enforce_gates:
             return rejection("not_recognised", diag)
         bypassed.append("not_recognised")
-    warnings = ["unusual_image"] if ood > gates.OOD_WARN else []
+    warnings = ["unusual_image"] if ood > cfg["ood_warn"] else []
 
     probs = assets.w_cnn * cnn["mc_mean"] + (1.0 - assets.w_cnn) * rf_p
     probs = probs / probs.sum()
@@ -168,7 +175,7 @@ def grade(assets, raw_rgb, patches, referral_threshold, debug=False, enforce_gat
         "colour": colour_vals,
         "delta_e00_to_typical": de,
         "calibration_mode": mode,
-        "model_version": "v3",
+        "model_version": model_version(assets),
         "timings_ms": {
             "total": (t4 - t0) * 1000.0,
             "preprocess": ((t1 - t0) + (t4 - t3)) * 1000.0,

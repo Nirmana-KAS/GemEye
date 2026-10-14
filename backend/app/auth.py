@@ -3,7 +3,8 @@
 current_user: local signature check only (Google certs are cached), for reads.
 current_user_strict: also checks revocation with Firebase.
 active_user / active_user_strict: the same, for writes and user-creating requests, and
-they also refuse uids of accounts deleted in the last 2 hours (401 account_deleted)."""
+they also refuse uids of accounts deleted in the last 2 hours (401 account_deleted) and
+accounts disabled by an admin (401 account_disabled)."""
 import hashlib
 import logging
 
@@ -65,9 +66,17 @@ def _refuse_deleted(request, user):
         raise ApiError(401, "account_deleted", "This account has been deleted.")
 
 
+def _refuse_disabled(request, user):
+    db = getattr(request.app.state, "db", None)
+    if db is not None and db.disabled_accounts.find_one({"_id": uid_hash(user["uid"])}, {"_id": 1}):
+        raise ApiError(401, "account_disabled",
+                       "This account has been disabled. Please contact GemEye support.")
+
+
 def active_user(request: Request, creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> dict:
     user = _verify(creds, check_revoked=False)
     _refuse_deleted(request, user)
+    _refuse_disabled(request, user)
     return user
 
 
@@ -77,6 +86,7 @@ def active_user_strict(request: Request,
     # fails too, but with the generic message.
     user = _verify(creds, check_revoked=False)
     _refuse_deleted(request, user)
+    _refuse_disabled(request, user)
     return _verify(creds, check_revoked=True)
 
 
@@ -98,6 +108,7 @@ def _role_user(request, creds, allowed):
             "role": "admin" if decoded.get("admin") is True
             else "reviewer" if decoded.get("reviewer") is True else None}
     _refuse_deleted(request, user)
+    _refuse_disabled(request, user)
     if user["role"] not in allowed:
         raise ApiError(403, "forbidden", "You do not have access to this resource.")
     return user

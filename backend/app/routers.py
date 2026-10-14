@@ -89,17 +89,13 @@ def put_me(body: ProfileUpdate, user=Depends(active_user_strict), db=Depends(get
     return user_response(db.users.find_one({"_id": user["uid"]}), user)
 
 
-@router.delete("/me", status_code=204)
-def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Depends(get_storage)):
-    """Deletes the account: gradings + images, calibrations, rejections, feedback,
-    certificate PDFs, the profile and the Firebase user. Certificates are kept as
-    "withdrawn" with only cert_no, issued_at, status and the reason."""
+def delete_account(uid, db, storage):
+    """Deletes an account: gradings + images, reviews of them, calibrations, rejections,
+    feedback, certificate PDFs, the profile and the Firebase user. Certificates are kept as
+    "withdrawn" with only cert_no, issued_at, status and the reason. Used by DELETE /me
+    and the admin DELETE /admin/users/{uid}."""
     from app.certificates import PRIVATE_FIELDS, WITHDRAWN_REASON
 
-    auth_time = user.get("auth_time")
-    if not isinstance(auth_time, (int, float)) or time.time() - auth_time > REAUTH_MAX_AGE_S:
-        raise ApiError(401, "reauth_required", "Please sign in again to delete your account.")
-    uid = user["uid"]
     # Tombstone first, so the uid's still-valid ID tokens can no longer write or
     # re-create the user while (and after) the data is deleted. DELETE /me itself
     # does not check it, so a failed deletion can be retried.
@@ -121,6 +117,8 @@ def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Dep
     except Exception:
         logger.exception("S3 delete failed")
         raise HTTPException(503, UNAVAILABLE)
+    db.reviews.delete_many({"grading_id": {"$in": [g["_id"] for g in
+                                                    db.gradings.find({"uid": uid}, {"_id": 1})]}})
     for coll in (db.gradings, db.calibrations, db.rejections, db.feedback):
         coll.delete_many({"uid": uid})
     now = utcnow()
@@ -128,6 +126,7 @@ def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Dep
         "$set": {"status": "withdrawn", "revoked_reason": WITHDRAWN_REASON, "withdrawn_at": now},
         "$unset": {f: "" for f in PRIVATE_FIELDS}})
     db.users.delete_one({"_id": uid})
+    db.disabled_accounts.delete_one({"_id": uid_hash(uid)})
     try:
         firebase_auth.delete_user(uid)
     except firebase_auth.UserNotFoundError:
@@ -137,12 +136,28 @@ def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Dep
         raise HTTPException(503, UNAVAILABLE)
     db.audit_log.insert_one({"_id": uuid.uuid4().hex, "action": "account_deleted",
                              "uid_hash": uid_hash(uid), "at": now})
+
+
+@router.delete("/me", status_code=204)
+def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Depends(get_storage)):
+    """Deletes the account of the caller (see delete_account). Needs a recent sign-in."""
+    auth_time = user.get("auth_time")
+    if not isinstance(auth_time, (int, float)) or time.time() - auth_time > REAUTH_MAX_AGE_S:
+        raise ApiError(401, "reauth_required", "Please sign in again to delete your account.")
+    delete_account(user["uid"], db, storage)
     return Response(status_code=204)
 
 
 # ---- Gradings ----
 
-def grading_item(doc, storage):
+def review_info(db, ids):
+    """{grading_id: {gemologist_grade, reviewed_at}} (no reviewer identity)."""
+    return {r["grading_id"]: {"gemologist_grade": r["gemologist_grade"],
+                              "reviewed_at": r["created_at"]}
+            for r in db.reviews.find({"grading_id": {"$in": list(ids)}})}
+
+
+def grading_item(doc, storage, review=None):
     url = None
     if doc.get("image_key"):
         try:
@@ -151,7 +166,7 @@ def grading_item(doc, storage):
             logger.exception("Presign failed")
     return {
         "grading_id": doc["_id"], "stone_id": doc["stone_id"], "created_at": doc["created_at"],
-        "status": doc["status"], "result": doc["result"], "image_url": url,
+        "status": doc["status"], "result": doc["result"], "image_url": url, "review": review,
         **{k: doc.get(k) for k in ("calibration_session_id", "app_version", "device",
                                    "referral_threshold_used")},
     }
@@ -198,7 +213,8 @@ def list_gradings(
     docs = list(db.gradings.find(q).sort([("created_at", -1), ("_id", -1)]).limit(limit + 1))
     more = len(docs) > limit
     docs = docs[:limit]
-    return {"items": [grading_item(d, storage) for d in docs],
+    reviews = review_info(db, [d["_id"] for d in docs])
+    return {"items": [grading_item(d, storage, reviews.get(d["_id"])) for d in docs],
             "next_cursor": _encode_cursor(docs[-1]) if more else None}
 
 
@@ -212,7 +228,8 @@ def _own_grading(db, uid, grading_id):
 @router.get("/gradings/{grading_id}", response_model=GradingItem)
 def get_grading(grading_id: str, user=Depends(current_user), db=Depends(get_db),
                 storage=Depends(get_storage)):
-    return grading_item(_own_grading(db, user["uid"], grading_id), storage)
+    doc = _own_grading(db, user["uid"], grading_id)
+    return grading_item(doc, storage, review_info(db, [doc["_id"]]).get(doc["_id"]))
 
 
 @router.delete("/gradings/{grading_id}", status_code=204)
@@ -366,8 +383,31 @@ def post_feedback(body: FeedbackIn, user=Depends(active_user), db=Depends(get_db
 
 # ---- Remote config (public) ----
 
+def announcement_public(a):
+    return {"id": a["_id"], **{k: a.get(k) for k in ("title", "message", "level", "starts_at",
+                                                      "ends_at")}}
+
+
+def _active_announcements(db):
+    now = utcnow()
+    docs = db.announcements.find({"active": True, "starts_at": {"$lte": now}, "ends_at": {"$gte": now}}
+                                 ).sort([("starts_at", -1), ("_id", -1)]).limit(20)
+    return [announcement_public(a) for a in docs]
+
+
 @router.get("/config", response_model=AppConfig)
 def get_config(db=Depends(get_db)):
     # blur_min_variance is the server's blurry gate, so the app's Photo Check uses
-    # the same threshold; it is not part of the stored document.
-    return {**db.get_app_config(), "blur_min_variance": gates.BLUR_MIN_VARIANCE}
+    # the same threshold; gates are the effective values (read-only in the app).
+    cfg = db.get_app_config()
+    g = gates.effective(cfg)
+    return {**{k: cfg[k] for k in ("referral_threshold_default", "calibration_validity_hours",
+                                   "min_app_version", "maintenance", "features")},
+            "blur_min_variance": g["blur_min_variance"], "gates": g,
+            "announcements": _active_announcements(db)}
+
+
+@router.get("/announcements")
+def get_announcements(db=Depends(get_db)):
+    """Active announcements inside their time window (public)."""
+    return {"items": _active_announcements(db)}

@@ -19,6 +19,7 @@ from firebase_admin import auth as firebase_auth
 
 from app.auth import admin_user, reviewer_or_admin, uid_hash
 from app.db import utcnow
+from app.pipeline.inference import model_version
 from app.routers import NOT_FOUND, _utc, get_db, get_storage
 
 COLOMBO = ZoneInfo("Asia/Colombo")
@@ -71,9 +72,14 @@ def clean(v):
 router = APIRouter(prefix="/admin")
 
 
+CORS_PUBLIC_PATHS = ("/health", "/announcements")
+
+
 async def admin_cors(request: Request, call_next):
-    """CORS for /admin/* only (middleware registered in main.py)."""
-    if not request.url.path.startswith("/admin"):
+    """CORS for the dashboard origins on /admin/*, /health and /announcements
+    (middleware registered in main.py)."""
+    path = request.url.path
+    if not (path.startswith("/admin") or path in CORS_PUBLIC_PATHS):
         return await call_next(request)
     origin = request.headers.get("origin")
     ok = origin in ADMIN_ORIGINS
@@ -86,16 +92,18 @@ async def admin_cors(request: Request, call_next):
         return Response(status_code=204 if ok else 403, headers=headers)
     response = await call_next(request)
     response.headers.update(headers)
-    response.headers["Cache-Control"] = "no-store"
+    if path.startswith("/admin"):
+        response.headers["Cache-Control"] = "no-store"
     return response
 
 
 # ---- Audit (admin writes only; stores uid_hash, never the uid) ----
 
-def audit(db, action, admin_uid, target, before=None, after=None):
+def audit(db, action, admin_uid, target, before=None, after=None, role="admin"):
+    """before/after must never hold secrets (links, tokens, keys, emails)."""
     db.audit_log.insert_one({"_id": uuid.uuid4().hex, "action": action,
-                             "uid_hash": uid_hash(admin_uid), "admin": True, "target": target,
-                             "before": before, "after": after, "at": utcnow()})
+                             "uid_hash": uid_hash(admin_uid), "admin": True, "role": role,
+                             "target": target, "before": before, "after": after, "at": utcnow()})
 
 
 # ---- Helpers ----
@@ -186,6 +194,9 @@ def stats_summary(request: Request, days: int = Query(7), user=Depends(admin_onl
                     "lat": {"$avg": "$result.timings_ms.total"},
                     "users": {"$addToSet": "$uid"}}}]))
     g = g[0] if g else {"n": 0, "referred": 0, "conf": None, "unc": None, "lat": None, "users": []}
+    dist = {str(r["_id"]): r["n"] for r in db.gradings.aggregate([
+        {"$match": {"created_at": {"$gte": since}, "result.grade": {"$gte": 1, "$lte": 7}}},
+        {"$group": {"_id": "$result.grade", "n": {"$sum": 1}}}])}
     rej = {r["_id"]: r["n"] for r in db.rejections.aggregate([
         {"$match": {"created_at": {"$gte": since}}},
         {"$group": {"_id": "$status", "n": {"$sum": 1}}}])}
@@ -207,10 +218,12 @@ def stats_summary(request: Request, days: int = Query(7), user=Depends(admin_onl
         "rejection_rate": round(rejected / attempts, 4) if attempts else None,
         "avg_confidence": _mean(g["conf"]), "avg_uncertainty": _mean(g["unc"]),
         "avg_latency_ms": _mean(g["lat"]),
+        "grade_distribution": {str(k): dist.get(str(k), 0) for k in range(1, 8)},
         "certificates_issued": db.certificates.count_documents({"issued_at": {"$gte": since}}),
         "feedback_count": db.feedback.count_documents({"created_at": {"$gte": since}}),
         "server": {"status": "ok" if assets is not None else "degraded",
-                   "models_loaded": assets is not None, "model_version": "v3"},
+                   "models_loaded": assets is not None,
+                   "model_version": model_version(assets) if assets is not None else "unknown"},
         "database": {"status": "ok" if db_ok else "down"},
     }
 
@@ -249,12 +262,34 @@ def stats_timeseries(metric: str = Query(...), days: int = Query(30, ge=1, le=90
 
 # ---- Users ----
 
+def _firebase_flags(db, uids):
+    """{uid: (role, disabled)} from Firebase (role "admin" | "reviewer" | "none").
+    If Firebase is unreachable, role is None and disabled comes from the marker."""
+    out = {}
+    try:
+        for i in range(0, len(uids), 100):
+            res = firebase_auth.get_users([firebase_auth.UidIdentifier(u) for u in uids[i:i + 100]])
+            for fb in res.users:
+                c = fb.custom_claims or {}
+                role = "admin" if c.get("admin") is True else (
+                    "reviewer" if c.get("reviewer") is True else "none")
+                out[fb.uid] = (role, bool(fb.disabled))
+        return out
+    except Exception:
+        marked = {m["_id"] for m in db.disabled_accounts.find(
+            {"_id": {"$in": [uid_hash(u) for u in uids]}}, {"_id": 1})}
+        return {u: (None, uid_hash(u) in marked) for u in uids}
+
+
 @router.get("/users")
 def list_users(q: Optional[str] = Query(None, max_length=100), sort: str = Query("created"),
                limit: int = Query(25, ge=1, le=100), cursor: Optional[str] = None,
+               role: Optional[str] = Query(None), disabled: Optional[bool] = None,
                user=Depends(admin_only), db=Depends(get_db)):
     if sort not in ("created", "last_active"):
         _bad("sort must be created or last_active.")
+    if role is not None and role not in ("admin", "reviewer", "none"):
+        _bad("role must be admin, reviewer or none.")
     try:
         offset = int(cursor) if cursor else 0
         if offset < 0:
@@ -271,14 +306,26 @@ def list_users(q: Optional[str] = Query(None, max_length=100), sort: str = Query
     floor = datetime.min.replace(tzinfo=timezone.utc)
 
     def key(d):
-        t = last.get(d["_id"]) or d.get("created_at") if sort == "last_active" else d.get("created_at")
+        if sort == "last_active":
+            t = last.get(d["_id"]) or d.get("created_at")
+        else:
+            t = d.get("created_at")
         return (_utc(t) or floor, d["_id"])
 
     docs.sort(key=key, reverse=True)
+    filtered = role is not None or disabled is not None
+    flags = _firebase_flags(db, [d["_id"] for d in docs]) if filtered else {}
+    if filtered:
+        docs = [d for d in docs if (role is None or flags.get(d["_id"], (None, None))[0] == role)
+                and (disabled is None or flags.get(d["_id"], (None, None))[1] == disabled)]
     page = docs[offset:offset + limit]
+    if not filtered:
+        flags = _firebase_flags(db, [d["_id"] for d in page])
     items = [{"uid": d["_id"], "email": d.get("email"), "display_name": d.get("display_name"),
               "account_type": d.get("account_type"), "country": d.get("country"),
-              "created_at": d.get("created_at"), "last_active": last.get(d["_id"]) or d.get("created_at")}
+              "created_at": d.get("created_at"), "last_active": last.get(d["_id"]) or d.get("created_at"),
+              "role": flags.get(d["_id"], (None, None))[0],
+              "disabled": flags.get(d["_id"], (None, None))[1]}
              for d in page]
     return clean({"items": items,
                   "next_cursor": str(offset + limit) if offset + limit < len(docs) else None})
@@ -289,10 +336,12 @@ def get_user(uid: str, user=Depends(admin_only), db=Depends(get_db)):
     doc = db.users.find_one({"_id": uid})
     if doc is None:
         raise HTTPException(404, NOT_FOUND)
-    disabled = last_sign_in = None
+    disabled = last_sign_in = role = None
     try:
         fb = firebase_auth.get_user(uid)
         disabled = fb.disabled
+        c = fb.custom_claims or {}
+        role = "admin" if c.get("admin") is True else ("reviewer" if c.get("reviewer") is True else "none")
         ms = fb.user_metadata.last_sign_in_timestamp
         last_sign_in = datetime.fromtimestamp(ms / 1000, timezone.utc) if ms else None
     except Exception:
@@ -309,7 +358,8 @@ def get_user(uid: str, user=Depends(admin_only), db=Depends(get_db)):
     return clean({"profile": profile, "settings": doc.get("settings") or {}, "counts": counts,
                   "last_gradings": [_grading_row(g, None, None) for g in grad],
                   "calibrations": [_calibration_row(c) for c in cals],
-                  "devices": devices, "disabled": disabled, "last_sign_in": last_sign_in})
+                  "devices": devices, "disabled": disabled, "last_sign_in": last_sign_in,
+                  "role": role})
 
 
 # ---- Gradings (reviewers allowed; no email for them) ----
@@ -372,6 +422,10 @@ def get_grading(grading_id: str, user=Depends(staff), db=Depends(get_db),
         except Exception:
             pass
     cert = db.certificates.find_one({"grading_id": d["_id"]}, sort=[("issued_at", -1)])
+    rv = db.reviews.find_one({"grading_id": d["_id"]})
+    out["review"] = None if rv is None else {
+        "gemologist_grade": rv.get("gemologist_grade"), "agrees": rv.get("agrees"),
+        "notes": rv.get("notes"), "reviewed_at": rv.get("updated_at") or rv.get("created_at")}
     out["certificate"] = None if cert is None else {
         "cert_no": cert["_id"], "status": cert.get("status"), "issued_at": cert.get("issued_at")}
     return clean(out)
@@ -422,7 +476,9 @@ def list_feedback(
             q[field] = val
     docs, nxt = _page(db.feedback, q, "created_at", limit, cursor)
     items = [{"feedback_id": f["_id"], "uid": f["uid"],
-              **{k: f.get(k) for k in ("created_at", "rating", "category", "comment", "app_version")}}
+              **{k: f.get(k) for k in ("created_at", "rating", "category", "comment", "app_version",
+                                       "status_note", "status_at")},
+              "status": f.get("status") or "open"}
              for f in docs]
     return clean({"items": items, "next_cursor": nxt})
 
@@ -443,7 +499,7 @@ def list_certificates(
     items = [{"cert_no": c["_id"], "uid": c.get("uid"), "grading_id": c.get("grading_id"),
               **{k: c.get(k) for k in ("status", "issued_at", "snapshot", "owner", "pdf_sha256",
                                        "pdf_uploaded_at", "revoked_reason", "revoked_at",
-                                       "withdrawn_at")}} for c in docs]
+                                       "withdrawn_at", "superseded_by")}} for c in docs]
     return clean({"items": items, "next_cursor": nxt})
 
 
@@ -485,13 +541,40 @@ def model_monitoring(days: int = Query(30, ge=1, le=90), user=Depends(admin_only
             "day": r["_id"]["day"], "count": r["n"], "mean_confidence": _mean(r["conf"]),
             "mean_uncertainty": _mean(r["unc"]), "referral_rate": round(r["referred"] / r["n"], 4),
             "unusual_image": r["unusual"], "mean_latency_ms": _mean(r["lat"])})
-    # Rejections carry no model version: reported per day and gate for all versions.
-    gates = [{"day": r["_id"]["day"], "gate": r["_id"]["s"], "count": r["n"]} for r in
+    # Rejections store model_version from Phase 10b on; older records are "unknown".
+    gates = [{"day": r["_id"]["day"], "gate": r["_id"]["s"],
+              "model_version": r["_id"].get("v") or "unknown", "count": r["n"]} for r in
              db.rejections.aggregate([
                  {"$match": {"created_at": {"$gte": since}}},
-                 {"$group": {"_id": {"day": _day_expr("$created_at"), "s": "$status"},
-                             "n": {"$sum": 1}}}])]
-    return {"days": days, "timezone": "Asia/Colombo",
-            "versions": [{"model_version": v, "days": sorted(d, key=lambda x: x["day"])}
-                         for v, d in sorted(versions.items())],
-            "rejections_by_gate": sorted(gates, key=lambda x: (x["day"], x["gate"]))}
+                 {"$group": {"_id": {"day": _day_expr("$created_at"), "s": "$status",
+                                     "v": "$model_version"}, "n": {"$sum": 1}}}])]
+    # Review agreement per version and grading day (reviews joined to their gradings).
+    agree = defaultdict(lambda: defaultdict(lambda: [0, 0]))
+    for g_created, version, _model, _gem, same in review_rows(db, since):
+        cell = agree[version or "unknown"][g_created.astimezone(COLOMBO).strftime("%Y-%m-%d")]
+        cell[0] += 1
+        cell[1] += 1 if same else 0
+    out = []
+    for v, d in sorted(versions.items()):
+        out.append({"model_version": v, "days": sorted(d, key=lambda x: x["day"]),
+                    "review_agreement": [
+                        {"day": day, "reviewed": n, "agreed": k, "agreement_rate": round(k / n, 4)}
+                        for day, (n, k) in sorted(agree.get(v, {}).items())]})
+    return {"days": days, "timezone": "Asia/Colombo", "versions": out,
+            "rejections_by_gate": sorted(gates, key=lambda x: (x["day"], x["gate"], x["model_version"]))}
+
+
+def review_rows(db, since=None):
+    """(grading created_at, model_version, model_grade, gemologist_grade, agrees) for every
+    review whose grading still exists, optionally only gradings created since `since`."""
+    reviews = {r["grading_id"]: r for r in db.reviews.find().limit(50000)}
+    q = {"_id": {"$in": list(reviews)}}
+    if since is not None:
+        q["created_at"] = {"$gte": since}
+    rows = []
+    for g in db.gradings.find(q, {"created_at": 1, "result.grade": 1, "result.model_version": 1}):
+        r = reviews[g["_id"]]
+        mg = (g.get("result") or {}).get("grade")
+        rows.append((g["created_at"], (g.get("result") or {}).get("model_version"), mg,
+                     r["gemologist_grade"], mg == r["gemologist_grade"]))
+    return rows

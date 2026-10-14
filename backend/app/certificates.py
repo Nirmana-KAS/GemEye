@@ -26,7 +26,8 @@ router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
 
 COLOMBO = ZoneInfo("Asia/Colombo")
-VERIFY_BASE_URL = "https://gemeye-app-2026.web.app/v/"
+# Certificates issued before verify_base_url became editable have no verify_base field.
+LEGACY_VERIFY_BASE = "https://gemeye-app-2026.web.app"
 PUBLIC_ORIGINS = ("https://gemeye-app-2026.web.app", "http://localhost:3000")
 SLUG = re.compile(r"^(GE-\d{6}-\d{5})-(.+)$")
 MAX_PDF_BYTES = 5 * 1024 * 1024
@@ -36,7 +37,7 @@ WITHDRAWN_REASON = "Owner account deleted"
 # Removed when a certificate is withdrawn (account deletion); cert_no, issued_at,
 # status, the reason and the token hash stay so old links show "withdrawn".
 PRIVATE_FIELDS = ("uid", "grading_id", "token", "snapshot", "owner", "image_key", "pdf_key", "pdf_sha256",
-                  "pdf_uploaded_at", "revoked_at")
+                  "pdf_uploaded_at", "revoked_at", "verify_base")
 SNAPSHOT_FIELDS = ("grade", "grade_name", "trade_name", "confidence", "uncertainty", "referred",
                    "colour", "delta_e00_to_typical", "model_version")
 _DUMMY_HASH = hashlib.sha256(b"no-such-certificate").hexdigest()
@@ -56,7 +57,8 @@ def public_headers(request):
 
 
 def verify_url(doc):
-    return f"{VERIFY_BASE_URL}{doc['_id']}-{doc['token']}"
+    """Each certificate keeps the base URL it was issued with."""
+    return f"{doc.get('verify_base') or LEGACY_VERIFY_BASE}/v/{doc['_id']}-{doc['token']}"
 
 
 def certificate_item(doc):
@@ -118,7 +120,8 @@ def issue_certificate(body: CertificateIn, response: Response, user=Depends(acti
     doc = {"_id": f"GE-{month}-{seq:05d}", "uid": uid, "grading_id": grading["_id"],
            "token": token, "token_sha256": _sha256(token), "status": "valid", "issued_at": now,
            "snapshot": _snapshot(db, grading, now), "owner": owner,
-           "image_key": None, "pdf_key": None, "pdf_sha256": None}
+           "image_key": None, "pdf_key": None, "pdf_sha256": None,
+           "verify_base": str(db.get_app_config().get("verify_base_url") or LEGACY_VERIFY_BASE).rstrip("/")}
     # The grading's S3 key contains the uid, so the public page links a copy.
     if grading.get("image_key"):
         image_key = storage.certificate_key(doc["_id"], grading["image_key"].rsplit(".", 1)[1])
@@ -199,7 +202,7 @@ def upload_pdf(cert_no: str, file: UploadFile = File(...), user=Depends(active_u
 @router.post("/certificates/{cert_no}/revoke", response_model=CertificateItem)
 def revoke_certificate(cert_no: str, body: RevokeIn, user=Depends(active_user_strict),
                        db=Depends(get_db)):
-    """Owner only for now (admin revoke comes in Phase 10)."""
+    """Owner revoke (admins use POST /admin/certificates/{cert_no}/revoke)."""
     doc = _own_certificate(db, user["uid"], cert_no)
     if doc["status"] != "valid":
         raise HTTPException(409, "Certificate is not valid.")
@@ -234,7 +237,8 @@ def verify_certificate(slug: str, request: Request, response: Response, db=Depen
            "revoked_reason": doc.get("revoked_reason"), "disclaimer": DISCLAIMER}
     if doc["status"] == "withdrawn":
         return out
-    out.update(snapshot=doc["snapshot"], owner=doc.get("owner"), revoked_at=doc.get("revoked_at"))
+    out.update(snapshot=doc["snapshot"], owner=doc.get("owner"), revoked_at=doc.get("revoked_at"),
+               superseded_by=doc.get("superseded_by"))
     try:
         if doc.get("image_key"):
             out["image_url"] = storage.presigned_get(doc["image_key"])

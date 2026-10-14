@@ -2686,3 +2686,74 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-136, EDIT-122, EDIT-123
 - **Reason:** Phase 10a groundwork for the admin dashboard.
+
+### EDIT-138 | 14 October 2026 | IST
+- **Topic:** Scripts runnable as `python scripts/<name>.py` (set_role.py fix)
+- **Summary:** `set_role.py` failed with "No module named app" because only `scripts/` was on the import path. It and the other scripts that import `app` now add the backend root to `sys.path`.
+- **What was done:**
+  - set_role.py: backend root (parent of scripts/) added to sys.path at the top
+  - blur_variance.py, get_token.py, self_check.py: replaced the working-directory-dependent `sys.path.insert(0, ".")` with the same file-based path (calibration_stats.py already did this)
+  - README: note that no PYTHONPATH is needed; the command is unchanged
+  - Checked: `docker compose exec api python scripts/set_role.py --email <unknown> --role none` runs and prints "No Firebase user with that email."; the other four scripts start from any working directory
+- **Files changed:**
+  - `~` backend/scripts/set_role.py, blur_variance.py, get_token.py, self_check.py
+  - `~` backend/README.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-137
+- **Reason:** Fix from the 10a review so the first-admin command works as documented.
+
+### EDIT-139 | 14 October 2026 | IST
+- **Topic:** Phase 10b - admin write API, review queue, announcements, config editor
+- **Summary:** Added the admin write routes (users, remote config with gate thresholds, announcements, gemologist reviews, feedback status, certificate revoke/supersede), all audited. Gate defaults, the model path and parity are unchanged.
+- **What was done:**
+  - 10a fixes: `list_users` sort=created uses `created_at` only; stats `server.model_version` and rejection records now use the real version from the export manifest (`inference.model_version`); monitoring groups rejections by version ("unknown" for old ones)
+  - Users: disable/enable (Firebase flag, token revoke, `disabled_accounts` marker, app gets 401 `account_disabled`), role (no self-demotion), password-reset (Firebase email, link fallback never logged), delete (new shared `delete_account`, same logic as `DELETE /me`, also removes reviews of the user's gradings); disabling or deleting yourself is refused
+  - Remote config: `GET/PUT /admin/config` with strict bounds, `POST /admin/config/reset-gates`; gates moved to `app_config.gates` (defaults = the old constants, hard bounds in `gates.py`), `/grade` reads the effective values (60 s cache); `verify_base_url` stored per new certificate (`verify_base`, removed on withdrawal); public `GET /config` adds read-only `gates` and `announcements`
+  - Announcements (admin CRUD, public `GET /announcements` with time window); reviews (queue, create with 409, admin correct, stats with confusion matrix, CSV export without uids/emails, agreement in model monitoring, `review` on the owner's gradings); feedback status; certificate detail, revoke, supersede ("Replaced by" on the public page)
+  - Tests: new tests/test_admin_writes.py (16 tests); full suite 132 passed. test_phase4b updated for the new public config fields; `test_delete_me_requires_recent_auth` now uses -3600 s instead of -1 s (it failed because the container clock is ~2 s behind Google's auth_time)
+  - run_parity.py A-D PASS, unchanged (clean-98 87.76%, 9/9); parity_report.md and parity_mismatches.csv restored from backup
+  - README and docs/GemEye_API_Reference.md list all admin routes
+- **Files changed:**
+  - `+` backend/app/admin_write.py, backend/tests/test_admin_writes.py
+  - `~` backend/app/admin.py, auth.py, certificates.py, db.py, gates.py, main.py, routers.py, schemas.py, backend/app/pipeline/inference.py
+  - `~` backend/tests/test_phase4b.py, backend/README.md, docs/GemEye_API_Reference.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-137, EDIT-138
+- **Reason:** Phase 10b of the admin dashboard plan (write side).
+
+### EDIT-140 | 14 October 2026 | IST
+- **Topic:** Phase 10c - admin dashboard shell, login, Overview
+- **Summary:** New Next.js admin dashboard in `admin/` (static export) with Firebase sign-in limited to the `admin` / `reviewer` claims, role guard, sidebar layout, typed API client and the Overview page. Small read-only additions on the server for CORS and the overview charts.
+- **What was done:**
+  - admin/: Next.js 16.4 (App Router, TypeScript strict, `output: "export"`, `trailingSlash`), Tailwind 4 + shadcn/ui (Base UI), lucide-react, Recharts, TanStack Query and Table v9, react-hook-form + zod, Firebase web SDK, date-fns, next-themes; Royal Blue theme (#1E3A8A / #2563EB), Inter, light default + dark toggle
+  - Login (Google + email/password); `getIdTokenResult(true)`; accounts without a claim are signed out with "This account has no dashboard access."; reviewers see only Gradings and Review queue
+  - AuthProvider + RoleGuard on every page; 401 retried once with a fresh token, then sign-out; 403 shows "No access"
+  - Layout: sidebar (all 11 sections, unbuilt ones show "Coming in next phase"), top bar with DEV/PROD badge, server status dot (`/health` every 30 s), user menu
+  - lib/api.ts (Bearer token, `{code, message}` errors as toasts, cursor paging helper), lib/types.ts, lib/roles.ts
+  - Overview: 1/7/30-day selector, 8 KPI cards, gradings per day, rejections per day by reason (stacked, from `/admin/model/monitoring`), referral rate, average confidence, grade distribution in the GEMCLOUD grade colours; skeletons, empty states, retry
+  - Server (additive only): admin CORS also on `/health` and `/announcements` incl. preflight (no `no-store` on those); `grade_distribution` in `/admin/stats/summary`
+  - Env: `admin/.env.local.example`; `admin/.env.local` from the web Firebase config in firebase_options.dart (public values); .gitignore entries
+  - Checks: lint, typecheck, Vitest (25 tests) and `npm run build` (admin/out) pass; live CORS checked with curl
+- **Files changed:**
+  - `+` admin/ (package.json, next.config.ts, vitest.config.mts, app/, components/, lib/, tests/, README.md, .env.local.example; .env.local git-ignored)
+  - `~` backend/app/admin.py, backend/tests/test_admin.py
+  - `~` backend/README.md, docs/GemEye_API_Reference.md, .gitignore
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-137, EDIT-139
+- **Reason:** Phase 10c of the admin dashboard plan.
+
+### EDIT-141 | 14 October 2026 | IST
+- **Topic:** Phase 10d - dashboard Users, Gradings, Calibrations
+- **Summary:** Users (list, detail, admin actions), Gradings (list, detail with photo, Grad-CAM, probabilities, colour values, gates, certificate and review) and Calibrations (table and residual charts). The server now returns user role/disabled and the grading review to the admin.
+- **What was done:**
+  - Users: search, role and status filters, sort created/last active, cursor paging, CSV export of the current filter (no uids); detail with profile, counts, recent gradings, calibrations, devices; disable/enable, set role, password reset (link fallback shown once), delete with typed email; all disabled for your own account
+  - Gradings: date range, grade, referred, model version, device and user email filters (email resolved to a uid); user column hidden for reviewers; admin CSV export; detail page via `?id=`
+  - Calibrations: time, device, residual, relative residual, quality, valid until; residual over time per device and mean per device
+  - Server (additive only): `/admin/users` rows have `role` and `disabled` from Firebase and accept `role` / `disabled` filters; `/admin/users/{uid}` adds `role`; `/admin/gradings/{id}` adds `review`; 4 new tests (all pass; test_admin.py 34 passed before the detail-field change). Full suite before the last change: 135 passed, 1 failed (the new role test, then fixed). The final full rerun did not finish: Docker hung with under 1 GB free on C:
+  - Not available from the API: relative residual (the app does not send it, column shows "-") and the separate CNN/RF outputs (debug is not stored; the page says so)
+- **Files changed:**
+  - `+` admin/app/admin/(dash)/users/, gradings/, calibrations/ pages; admin/components/data-table.tsx, filters.tsx, confirm-dialog.tsx, user-badges.tsx, grade-chip.tsx
+  - `~` backend/app/admin.py, backend/tests/test_admin.py, backend/README.md, docs/GemEye_API_Reference.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-140, EDIT-139, EDIT-137
+- **Reason:** Phase 10d of the admin dashboard plan.

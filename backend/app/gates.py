@@ -53,13 +53,65 @@ MESSAGES = {
 }
 
 
-def no_stone(m):
+# ------------------------------------------------------------------ remote config
+# The editable gates live in app_config.gates (admin dashboard). The constants above are
+# the defaults; BOUNDS are hard limits enforced in code. MIN_SHORT_SIDE_PX is not editable.
+
+DEFAULTS = {
+    "blur_min_variance": BLUR_MIN_VARIANCE,
+    "no_stone_min_area": NO_STONE_MIN_AREA,
+    "no_stone_min_contrast_de00": NO_STONE_MIN_CONTRAST_DE00,
+    "hue_min": HUE_GATE_MIN,
+    "hue_max": HUE_GATE_MAX,
+    "min_chroma": MIN_CHROMA,
+    "ood_warn": OOD_WARN,
+    "ood_reject": OOD_REJECT,
+}
+BOUNDS = {
+    "blur_min_variance": (5.0, 200.0),
+    "no_stone_min_area": (0.002, 0.05),
+    "no_stone_min_contrast_de00": (1.0, 15.0),
+    "hue_min": (100.0, 200.0),
+    "hue_max": (230.0, 320.0),
+    "min_chroma": (0.0, 5.0),
+    "ood_warn": (5.0, 60.0),
+    "ood_reject": (10.0, 80.0),
+}
+
+
+def valid(cfg):
+    """True if every value is a number inside its bounds and ood_warn < ood_reject."""
+    try:
+        ok = all(not isinstance(cfg[k], bool) and isinstance(cfg[k], (int, float))
+                 and lo <= cfg[k] <= hi for k, (lo, hi) in BOUNDS.items())
+        return ok and cfg["ood_warn"] < cfg["ood_reject"] and cfg["hue_min"] < cfg["hue_max"]
+    except (KeyError, TypeError):
+        return False
+
+
+def effective(config=None):
+    """Gate values from a remote config dict (db.get_app_config(), cached 60 s). An
+    invalid stored value falls back to its default, so a bad document cannot break grading."""
+    stored = (config or {}).get("gates") or {}
+    cfg = {k: (stored[k] if k in stored else d) for k, d in DEFAULTS.items()}
+    if valid(cfg):
+        return cfg
+    cfg = {}
+    for k, d in DEFAULTS.items():
+        v, (lo, hi) = stored.get(k, d), BOUNDS[k]
+        cfg[k] = v if (not isinstance(v, bool) and isinstance(v, (int, float)) and lo <= v <= hi) else d
+    return cfg if valid(cfg) else dict(DEFAULTS)
+
+
+def no_stone(m, cfg=None):
     """m: display.WBMeasure."""
-    return (m.area < NO_STONE_MIN_AREA
-            or m.contrast < NO_STONE_MIN_CONTRAST_DE00
-            or (m.centre_fallback and m.contrast < 2 * NO_STONE_MIN_CONTRAST_DE00))
+    cfg = cfg or DEFAULTS
+    return (m.area < cfg["no_stone_min_area"]
+            or m.contrast < cfg["no_stone_min_contrast_de00"]
+            or (m.centre_fallback and m.contrast < 2 * cfg["no_stone_min_contrast_de00"]))
 
 
-def not_blue(m):
+def not_blue(m, cfg=None):
     """m: display.WBMeasure. Only applied when the segmentation is reliable."""
-    return not (HUE_GATE_MIN <= m.H <= HUE_GATE_MAX) or m.C < MIN_CHROMA
+    cfg = cfg or DEFAULTS
+    return not (cfg["hue_min"] <= m.H <= cfg["hue_max"]) or m.C < cfg["min_chroma"]

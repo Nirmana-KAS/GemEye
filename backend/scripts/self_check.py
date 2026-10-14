@@ -14,10 +14,11 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 import time
 import urllib.request
 
-sys.path.insert(0, ".")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 RESULTS = []
 

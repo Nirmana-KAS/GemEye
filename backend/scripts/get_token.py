@@ -9,10 +9,11 @@ import argparse
 import getpass
 import json
 import sys
+from pathlib import Path
 import urllib.error
 import urllib.request
 
-sys.path.insert(0, ".")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.config import get_settings  # noqa: E402
 
 SIGN_IN_URL = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword"

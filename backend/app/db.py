@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 
 from pymongo import ASCENDING, DESCENDING, MongoClient, ReturnDocument
 
+from app import gates
+
 DEFAULT_USER_SETTINGS = {"show_name_on_certificates": False, "referral_threshold": 0.60}
 
 # Remote config (app_config/"global"), seeded at startup if missing. Fields missing
@@ -18,6 +20,10 @@ DEFAULT_APP_CONFIG = {
     "maintenance": {"enabled": False, "message": ""},
     "features": {"repeatability_mode": True, "gradcam": True, "public_verification": True,
                  "session_mapping": False},
+    # Editable gate thresholds; the defaults are the original gates.py constants.
+    "gates": dict(gates.DEFAULTS),
+    # Base of the verify links of NEW certificates (existing ones keep theirs).
+    "verify_base_url": "https://gemeye-app-2026.web.app",
 }
 CONFIG_CACHE_SECONDS = 60
 DELETED_ACCOUNT_TTL_S = 2 * 3600    # ID tokens live at most 1 hour
@@ -42,6 +48,9 @@ class Database:
         self.app_config = self.db["app_config"]
         self.audit_log = self.db["audit_log"]
         self.deleted_accounts = self.db["deleted_accounts"]
+        self.disabled_accounts = self.db["disabled_accounts"]
+        self.announcements = self.db["announcements"]
+        self.reviews = self.db["reviews"]
         self._config, self._config_at = None, 0.0
         self._config_lock = threading.Lock()
 
@@ -78,6 +87,10 @@ class Database:
         self.audit_log.create_index([("action", ASCENDING), ("at", DESCENDING)])
         self.users.create_index([("created_at", DESCENDING)])
         self.users.create_index([("email", ASCENDING)])
+        # Phase 10b: one review per grading, announcement windows.
+        self.reviews.create_index([("grading_id", ASCENDING)], unique=True, name="grading_unique")
+        self.reviews.create_index([("created_at", DESCENDING)])
+        self.announcements.create_index([("active", ASCENDING), ("starts_at", ASCENDING)])
         # counters, app_config and certificates (cert_no) are looked up by _id.
 
     def seed_app_config(self):

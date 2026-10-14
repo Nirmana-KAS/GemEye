@@ -142,7 +142,7 @@ Other endpoints (all authenticated, own records only):
 | GET | `/certificates` | own certificates, newest first (`limit` 1-100, default 50) |
 | GET | `/certificates/{cert_no}` | own certificate with `verify_url`, snapshot, owner, PDF hash, revocation |
 | POST | `/certificates/{cert_no}/pdf` | multipart `file`, `application/pdf`, at most 5 MB; once only (409 afterwards); 201 |
-| POST | `/certificates/{cert_no}/revoke` | `{reason}` (1-500 chars), owner only (admin in Phase 10); 409 if not valid |
+| POST | `/certificates/{cert_no}/revoke` | `{reason}` (1-500 chars), owner only (admins: `/admin/certificates/{cert_no}/revoke`); 409 if not valid |
 
 Public endpoints (no auth):
 
@@ -336,14 +336,16 @@ decoded exactly as `/grade` decodes uploads. It produced the reference values in
 ## Admin roles and admin read API (Phase 10a)
 
 Two Firebase custom claims: `admin` (every `/admin/*` route) and `reviewer` (only
-`GET /admin/gradings` and `/admin/gradings/{id}`, without user email or phone). Tokens
+`GET /admin/gradings`, `/admin/gradings/{id}`, the review queue and `POST /admin/reviews`,
+without user email or phone). Tokens
 are checked with `check_revoked=True` and the deleted-account tombstone; a missing claim
 is 403 `{code: "forbidden"}`. Rate limit 120 requests/min per uid (429). CORS is open only
-to `http://localhost:3000` and `https://gemeye-app-2026.web.app`, and only on `/admin/*`.
+to `http://localhost:3000` and `https://gemeye-app-2026.web.app`, and only on `/admin/*`, `/health` and `/announcements` (for the dashboard).
 Responses never contain tokens, certificate tokens, verify URLs, storage keys or secrets.
 
 Make the first admin (works in development and production, refuses `ENV=test`; the user
-must sign in again to get the claim; use `--role none` to remove a role):
+must sign in again to get the claim; use `--role none` to remove a role). The scripts in
+`scripts/` add the backend root to `sys.path`, so no `PYTHONPATH` is needed:
 
 ```
 docker compose exec api python scripts/set_role.py --email gemeyeapp@gmail.com --role admin
@@ -351,12 +353,52 @@ docker compose exec api python scripts/set_role.py --email gemeyeapp@gmail.com -
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/admin/stats/summary?days=1\|7\|30` | gradings, unique users, referral and rejection rates, rejections per status, mean confidence / uncertainty / latency, certificates, feedback, server + DB status |
+| GET | `/admin/stats/summary?days=1\|7\|30` | gradings, unique users, referral and rejection rates, rejections per status, `grade_distribution` (1-7), mean confidence / uncertainty / latency, certificates, feedback, server + DB status |
 | GET | `/admin/stats/timeseries?metric=gradings\|rejections\|referral_rate\|avg_confidence&days=30&bucket=day` | Asia/Colombo days, gaps filled |
-| GET | `/admin/users`, `/admin/users/{uid}` | `q` (email/name), `sort=created\|last_active`, `limit`, `cursor`; detail adds counts, last 10 gradings, calibrations, devices, Firebase `disabled` |
-| GET | `/admin/gradings`, `/admin/gradings/{id}` | `from, to, grade, referred, model_version, uid, device, status`, cursor paging, fresh image URL; detail adds the full result, heatmap URL if cached, certificate (admin and reviewer) |
+| GET | `/admin/users`, `/admin/users/{uid}` | `q` (email/name), `sort=created\|last_active`, `role=admin\|reviewer\|none`, `disabled=true\|false`, `limit`, `cursor`; rows have Firebase `role` and `disabled`; detail adds counts, last 10 gradings, calibrations, devices, `role`, `disabled` |
+| GET | `/admin/gradings`, `/admin/gradings/{id}` | `from, to, grade, referred, model_version, uid, device, status`, cursor paging, fresh image URL; detail adds the full result, heatmap URL if cached, certificate and `review` (admin and reviewer) |
 | GET | `/admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | filters, cursor paging; certificates search by number prefix (`q`) and `status` |
-| GET | `/admin/model/monitoring?days=30` | per model version and day: count, mean confidence / uncertainty, referral rate, `unusual_image` warnings, mean latency; rejections per day and gate (rejections carry no model version) |
+| GET | `/admin/model/monitoring?days=30` | per model version and day: count, mean confidence / uncertainty, referral rate, `unusual_image` warnings, mean latency; rejections per day, gate and model version |
 
-Admin writes (Phase 10b) call `audit(db, action, admin_uid, target, before, after)`, which
-stores only the admin's `uid_hash` in `audit_log`; reads are not logged.
+Admin writes (Phase 10b, below) call `audit(db, action, admin_uid, target, before, after)`,
+which stores only the admin's `uid_hash` in `audit_log`; reads are not logged.
+
+### Admin write API (Phase 10b)
+
+Writes are admin-only unless marked `staff` (reviewer or admin). Every write calls
+`audit()` with before/after values (never links, tokens, keys or emails). Unknown body
+fields are rejected (400). An admin cannot disable, delete or demote their own account
+(400 `self_action`). Disabled accounts get 401 `{code: "account_disabled"}` in the app.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/admin/users/{uid}/disable`, `/enable` | Firebase `disabled` flag + token revoke; app calls get 401 `account_disabled` |
+| POST | `/admin/users/{uid}/role` | `{role: admin\|reviewer\|none}`; tokens revoked when a role is removed or changed |
+| POST | `/admin/users/{uid}/password-reset` | Firebase email template -> `{status: "sent"}`; if sending fails `{status: "link", link}` (admin only, never logged or audited) |
+| DELETE | `/admin/users/{uid}` | same logic as `DELETE /me` (data, S3, certificates withdrawn, tombstone, Firebase user) |
+| GET, PUT | `/admin/config` | partial update, strict bounds: `referral_threshold_default` 0.40-0.90, `calibration_validity_hours` 1-72, `min_app_version` semver, `maintenance {enabled, message<=200}`, `features {repeatability_mode, gradcam, public_verification, session_mapping}`, `verify_base_url` (https, new certificates only), `gates` (below). GET also returns `gate_defaults` and `gate_bounds` |
+| POST | `/admin/config/reset-gates` | restores the default gates |
+| GET, POST | `/admin/announcements` | `{title<=80, message<=500, level info\|warning, starts_at?, ends_at, active}` |
+| PUT, DELETE | `/admin/announcements/{id}` | PUT replaces the editable fields |
+| GET | `/admin/review-queue` (staff) | referred, not deleted, not yet reviewed; `from, to, grade, model_version`, cursor paging |
+| POST | `/admin/reviews` (staff) | `{grading_id, gemologist_grade 1-7, notes<=500}`; 409 `already_reviewed` |
+| PUT | `/admin/reviews/{grading_id}` | admin corrects a review |
+| GET | `/admin/reviews/stats` | agreement overall, per model grade, per model version, 7x7 confusion matrix (rows model, columns gemologist), pending |
+| GET | `/admin/reviews/export` | CSV (grading_id, image_ref, model_grade, gemologist_grade, confidence, model_version, created_at); no emails or uids |
+| POST | `/admin/feedback/{id}/status` | `{status: open\|resolved, note<=300}` |
+| GET | `/admin/certificates/{cert_no}` | detail with presigned PDF and photo URLs |
+| POST | `/admin/certificates/{cert_no}/revoke` | `{reason}`; 409 if not valid |
+| POST | `/admin/certificates/{cert_no}/supersede` | `{new_cert_no, reason}`; revokes and records the replacement, the public page shows "Replaced by <new_cert_no>" |
+
+Editable gates (`app_config.gates`, cached 60 s; defaults are the original constants in
+`app/gates.py`, so parity is unchanged): `blur_min_variance` 29.474 (5-200),
+`no_stone_min_area` 0.01572 (0.002-0.05), `no_stone_min_contrast_de00` 5.0 (1-15),
+`hue_min` 170 (100-200), `hue_max` 265 (230-320), `min_chroma` 0.5 (0-5), `ood_warn` 20.649
+(5-60), `ood_reject` 25.685 (10-80); `hue_min < hue_max` and `ood_warn < ood_reject`.
+
+Public: `GET /announcements` (active, inside the time window) and `GET /config`, which keeps
+its fields and adds `gates` (effective values, read-only) and `announcements`. The owner's
+`GET /gradings` and `/gradings/{id}` include `review {gemologist_grade, reviewed_at}` when
+reviewed (no reviewer identity). Rejection records now store `model_version`;
+`/admin/model/monitoring` groups rejections by version ("unknown" for old records) and adds
+`review_agreement` per version and day.

@@ -18,7 +18,10 @@ Endpoints marked 🌐 are public.
 
 #### 🌐 `GET /config`
 - Remote settings the app reads at startup.
-- Includes the default referral threshold, how long a calibration stays valid (hours), maintenance mode, feature flags and the blur threshold.
+- Includes the default referral threshold, how long a calibration stays valid (hours), maintenance mode, feature flags, the blur threshold, the effective quality-gate values (`gates`, read-only) and the active `announcements`.
+
+#### 🌐 `GET /announcements`
+- Active announcements inside their start and end time (`id`, `title`, `message`, `level`, `starts_at`, `ends_at`).
 - Lets you change app behaviour without releasing a new app version.
 - **Response:** `AppConfig`
 
@@ -141,7 +144,7 @@ Endpoints marked 🌐 are public.
 | Code | Meaning |
 |---|---|
 | 400 | Bad input (wrong file type, invalid JSON) |
-| 401 | Not logged in / token invalid / account deleted |
+| 401 | Not logged in / token invalid / account deleted (`account_deleted`) or disabled by an admin (`account_disabled`) |
 | 404 | Not found (also used for other users' data) |
 | 409 | Conflict (duplicate, PDF already uploaded, certificate not valid) |
 | 413 | File too large |
@@ -234,6 +237,7 @@ Endpoints marked 🌐 are public.
 | `calibration_session_id`? | string | Calibration used |
 | `app_version`?, `device`? | string | Tracking |
 | `referral_threshold_used`* | number | Threshold at grading time |
+| `review`? | object | `{gemologist_grade, reviewed_at}` once a gemologist reviewed it |
 
 #### `GradingList`
 - `items`* - list of `GradingItem`; `next_cursor`? - for the next page.
@@ -342,6 +346,7 @@ Endpoints marked 🌐 are public.
 | `snapshot`? | `CertificateSnapshot` | Grade details (null if withdrawn) |
 | `owner`? | `CertificateOwner` | Only if allowed |
 | `revoked_reason`?, `revoked_at`? | | If revoked |
+| `superseded_by`? | string | Certificate number that replaced this one |
 | `image_url`?, `pdf_url`? | string | Links (10 min) |
 | `pdf_sha256`? | string | Check the PDF has not been edited |
 | `disclaimer`* | string | Legal note |
@@ -368,6 +373,8 @@ Endpoints marked 🌐 are public.
 | `maintenance`* | `Maintenance` |
 | `features`* | `Features` |
 | `blur_min_variance`* | Blur threshold shared with the app |
+| `gates`* | Effective quality-gate values (read-only) |
+| `announcements` | Active announcements |
 
 #### `Maintenance`
 - `enabled`* (boolean), `message`* (shown to users).
@@ -378,3 +385,82 @@ Endpoints marked 🌐 are public.
 #### `HTTPValidationError` / `ValidationError`
 - Returned with 422 when request fields are wrong.
 - `detail` is a list of `{loc, msg, type}`, showing which field failed and why.
+
+---
+
+## Part 3 - Admin API (Phase 10a read, Phase 10b write)
+
+Needs a Firebase ID token with the `admin` claim (🛡️ admin) or the `reviewer` claim (👁️ staff = reviewer or admin).
+Token revocation is checked on every call; a missing claim is `403 {code: "forbidden"}`; 120 requests/min per user (429).
+CORS only for `http://localhost:3000` and `https://gemeye-app-2026.web.app` (on `/admin/*`, `/health` and `/announcements`, including preflight). Responses are `Cache-Control: no-store` and never contain tokens, storage keys or secrets.
+Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` only). Unknown request fields return 400.
+
+### Read (Phase 10a)
+
+| Route | Who | Notes |
+|---|---|---|
+| `GET /admin/stats/summary?days=1\|7\|30` | 🛡️ | Counts, rates, `grade_distribution` (grades 1-7), server (real `model_version`) and DB status |
+| `GET /admin/stats/timeseries?metric=&days=&bucket=day` | 🛡️ | `gradings`, `rejections`, `referral_rate`, `avg_confidence` |
+| `GET /admin/users`, `GET /admin/users/{uid}` | 🛡️ | `q`, `sort=created\|last_active`, `role=admin\|reviewer\|none`, `disabled=true\|false`, `limit`, `cursor`; rows and detail include `role` and `disabled` (from Firebase) |
+| `GET /admin/gradings`, `GET /admin/gradings/{id}` | 👁️ | Reviewers get no email or phone; detail includes `review` (`gemologist_grade`, `agrees`, `notes`, `reviewed_at`) |
+| `GET /admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | 🛡️ | Filters and cursor paging; feedback rows have `status`, certificates `superseded_by` |
+| `GET /admin/model/monitoring?days=` | 🛡️ | Per version and day; rejections by gate and `model_version` ("unknown" for old records); `review_agreement` per version and day |
+
+### Users (🛡️)
+
+| Route | Request | Response / errors |
+|---|---|---|
+| `POST /admin/users/{uid}/disable` | - | `{uid, disabled: true}`. Revokes tokens. The app then gets `401 {code: "account_disabled"}`. 400 `self_action` for your own uid |
+| `POST /admin/users/{uid}/enable` | - | `{uid, disabled: false}` |
+| `POST /admin/users/{uid}/role` | `{role: "admin"\|"reviewer"\|"none"}` | `{uid, role}`. 400 `self_action` if you remove your own admin role |
+| `POST /admin/users/{uid}/password-reset` | - | `{status: "sent"}` (Firebase email), or `{status: "link", link}` if sending failed (shown to the admin only, never logged) |
+| `DELETE /admin/users/{uid}` | - | `204`. Same deletion as `DELETE /me`. 400 `self_action` for your own uid, 404 unknown |
+
+### Remote config (🛡️)
+
+- `GET /admin/config` - current values plus `gate_defaults` and `gate_bounds`.
+- `PUT /admin/config` - partial update; returns the new config. Fields and bounds:
+
+| Field | Rule |
+|---|---|
+| `referral_threshold_default` | 0.40 - 0.90 |
+| `calibration_validity_hours` | integer 1 - 72 |
+| `min_app_version` | `MAJOR.MINOR.PATCH` |
+| `maintenance` | `{enabled: bool, message: string <= 200}` (`/grade` returns 503 `maintenance` when enabled) |
+| `features` | `{repeatability_mode, gradcam, public_verification, session_mapping}` (booleans) |
+| `verify_base_url` | https only, default `https://gemeye-app-2026.web.app`; used for new certificates only |
+| `gates` | `blur_min_variance` 5-200, `no_stone_min_area` 0.002-0.05, `no_stone_min_contrast_de00` 1-15, `hue_min` 100-200, `hue_max` 230-320, `min_chroma` 0-5, `ood_warn` 5-60, `ood_reject` 10-80; `hue_min < hue_max`, `ood_warn < ood_reject`. Defaults = the original thresholds |
+
+- `POST /admin/config/reset-gates` - restores the default gates.
+- Public `GET /config` keeps its fields and adds `gates` (read-only effective values) and `announcements`.
+
+### Announcements
+
+| Route | Who | Notes |
+|---|---|---|
+| `GET /admin/announcements` | 🛡️ | All, newest first, with `state`: `live`, `scheduled`, `expired`, `disabled` |
+| `POST /admin/announcements` | 🛡️ | `{title <= 80, message <= 500, level: "info"\|"warning", starts_at?, ends_at, active}` -> 201 |
+| `PUT /admin/announcements/{id}` | 🛡️ | Same body, replaces the editable fields |
+| `DELETE /admin/announcements/{id}` | 🛡️ | 204 |
+| `GET /announcements` | 🌐 public | Only active announcements inside their time window |
+
+### Review queue
+
+| Route | Who | Notes |
+|---|---|---|
+| `GET /admin/review-queue` | 👁️ | Referred gradings not yet reviewed. Filters `from`, `to`, `grade`, `model_version`; `limit`, `cursor` |
+| `POST /admin/reviews` | 👁️ | `{grading_id, gemologist_grade 1-7, notes <= 500}` -> 201 `{agrees, ...}`; 409 `already_reviewed` |
+| `PUT /admin/reviews/{grading_id}` | 🛡️ | `{gemologist_grade, notes}` corrects a review (audited) |
+| `GET /admin/reviews/stats` | 🛡️ | `reviewed`, `agreed`, `agreement_rate`, `within_one_grade_rate`, `pending`, `per_grade`, `per_model_version`, `confusion_matrix` (rows = model, columns = gemologist) |
+| `GET /admin/reviews/export` | 🛡️ | CSV: `grading_id, image_ref, model_grade, gemologist_grade, confidence, model_version, created_at` (no emails or uids) |
+
+The owner's `GET /gradings` and `GET /gradings/{id}` add `review: {gemologist_grade, reviewed_at}` when the stone was reviewed (no reviewer identity).
+
+### Feedback and certificates (🛡️)
+
+| Route | Request | Notes |
+|---|---|---|
+| `POST /admin/feedback/{id}/status` | `{status: "open"\|"resolved", note <= 300}` | |
+| `GET /admin/certificates/{cert_no}` | - | Detail with presigned `pdf_url` and `image_url` |
+| `POST /admin/certificates/{cert_no}/revoke` | `{reason}` | Same effect as the owner revoke; 409 if not valid |
+| `POST /admin/certificates/{cert_no}/supersede` | `{new_cert_no, reason}` | Revokes and records the replacement (must be a different, valid certificate); the public page shows `superseded_by` ("Replaced by ...") |

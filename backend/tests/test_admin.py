@@ -235,11 +235,47 @@ def test_cors_admin_only(raw_client):
     assert ok.status_code == 204 and ok.headers["access-control-allow-origin"] == "http://localhost:3000"
     bad = raw_client.options("/admin/users", headers={"Origin": "https://evil.example"})
     assert bad.status_code == 403 and "access-control-allow-origin" not in bad.headers
-    health = raw_client.get("/health", headers={"Origin": "http://localhost:3000"})
-    assert "access-control-allow-origin" not in health.headers
+    other = raw_client.get("/config", headers={"Origin": "http://localhost:3000"})
+    assert "access-control-allow-origin" not in other.headers
+
+
+@pytest.mark.parametrize("path", ["/health", "/announcements"])
+def test_cors_dashboard_public_paths(raw_client, path):
+    origin = "http://localhost:3000"
+    pre = raw_client.options(path, headers={"Origin": origin, "Access-Control-Request-Method": "GET"})
+    assert pre.status_code == 204 and pre.headers["access-control-allow-origin"] == origin
+    got = raw_client.get(path, headers={"Origin": origin})
+    assert got.status_code == 200 and got.headers["access-control-allow-origin"] == origin
+    assert "no-store" not in got.headers.get("cache-control", "")
+    evil = raw_client.get(path, headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in evil.headers
+
+
+def test_summary_grade_distribution(admin_c, seeded):
+    dist = admin_c.get("/admin/stats/summary?days=1").json()["grade_distribution"]
+    assert list(dist) == [str(g) for g in range(1, 8)]
+    assert dist["3"] >= 1 and dist["4"] >= 2
+
+
+def test_users_role_and_disabled(admin_c, seeded):
+    assert admin_c.get("/me").status_code == 200     # creates the admin's users doc
+    rows = admin_c.get("/admin/users?limit=100").json()["items"]
+    assert all("role" in r and "disabled" in r for r in rows)
+    admins = admin_c.get("/admin/users?role=admin&limit=100").json()["items"]
+    assert admins and all(r["role"] == "admin" for r in admins)
+    enabled = admin_c.get("/admin/users?disabled=false&limit=100").json()["items"]
+    assert all(r["disabled"] is False for r in enabled)
+    assert admin_c.get("/admin/users?role=owner").status_code == 400
 
 
 def test_rate_limit(admin_c, monkeypatch):
     monkeypatch.setattr(admin, "RATE_LIMIT", 3)
     codes = [admin_c.get("/admin/audit-log").status_code for _ in range(5)]
     assert codes == [200, 200, 200, 429, 429]
+
+
+def test_detail_role_and_review_fields(admin_c, seeded):
+    me = admin_c.get("/me").json()["uid"]
+    assert admin_c.get(f"/admin/users/{me}").json()["role"] == "admin"
+    g = admin_c.get(f"/admin/gradings/{seeded['ids'][0]}").json()
+    assert "review" in g and g["review"] is None

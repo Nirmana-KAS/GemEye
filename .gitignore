@@ -93,3 +93,11 @@ launcher/.launcher_state.json
 
 # Local reference notes with service IDs and secret locations (never commit)
 *.local.md
+
+# Admin dashboard (Next.js)
+admin/.env.local
+admin/node_modules/
+admin/.next/
+admin/out/
+admin/next-env.d.ts
+admin/*.tsbuildinfo

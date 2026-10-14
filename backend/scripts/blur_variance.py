@@ -5,8 +5,9 @@ reference values of the app's Photo Check unit test (app/test/photo_check_test.d
     docker compose exec api python scripts/blur_variance.py /srv/tests/_tmp/a.png ..."""
 import argparse
 import sys
+from pathlib import Path
 
-sys.path.insert(0, ".")
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.config import get_settings  # noqa: E402
 from app.gates import BLUR_MIN_VARIANCE  # noqa: E402
 from app.pipeline.colour import decode_image  # noqa: E402

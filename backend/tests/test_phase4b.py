@@ -264,7 +264,7 @@ def test_other_users_get_404(client, client_b):
 def test_delete_me_requires_recent_auth(raw_client, monkeypatch):
     with FirebaseTestUser() as u:
         c = AuthedClient(raw_client, u)
-        monkeypatch.setattr(routers, "REAUTH_MAX_AGE_S", -1)    # every sign-in counts as old
+        monkeypatch.setattr(routers, "REAUTH_MAX_AGE_S", -3600)    # every sign-in counts as old
         r = c.delete("/me")
         assert r.status_code == 401 and r.json()["code"] == "reauth_required"
         assert firebase_auth.get_user(u.uid).uid == u.uid
@@ -342,7 +342,8 @@ def test_config_defaults(raw_client, app_state):
     app_state.db.invalidate_app_config()
     r = raw_client.get("/config")
     assert r.status_code == 200
-    assert r.json() == {**DEFAULT_APP_CONFIG, "blur_min_variance": gates.BLUR_MIN_VARIANCE}
+    public = {k: v for k, v in DEFAULT_APP_CONFIG.items() if k != "verify_base_url"}
+    assert r.json() == {**public, "blur_min_variance": gates.BLUR_MIN_VARIANCE, "announcements": []}
 
 
 def test_maintenance_blocks_grade(client, app_state):

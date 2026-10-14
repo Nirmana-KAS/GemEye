@@ -16,6 +16,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.admin import admin_cors
 from app.admin import router as admin_router
+from app.admin_write import router as admin_write_router
 from app.assets import MODEL_LOCK, load_assets, warm_up
 from app.auth import active_user, init_firebase
 from app.certificates import limiter, public_headers
@@ -24,7 +25,8 @@ from app.config import get_settings
 from app.db import Database, utcnow
 from app.errors import ApiError
 from app.pipeline.colour import decode_image
-from app.pipeline.inference import grade, rejection
+from app import gates
+from app.pipeline.inference import grade, model_version, rejection
 from app.routers import get_db, get_storage, router
 from app.schemas import GradeResponse, HealthResponse
 from app.storage import Storage
@@ -84,6 +86,7 @@ app.state.limiter = limiter
 app.include_router(router)
 app.include_router(certificates_router)
 app.include_router(admin_router)
+app.include_router(admin_write_router)
 app.middleware("http")(admin_cors)
 
 
@@ -149,7 +152,7 @@ def health(request: Request):
     assets = request.app.state.assets
     return {
         "status": "ok" if assets is not None else "degraded",
-        "model_version": "v3",
+        "model_version": model_version(assets) if assets is not None else "unknown",
         "models_loaded": assets is not None,
         "versions": _runtime_versions(),
         "ciecam02_display_available": bool(assets and assets.ciecam02_display_available),
@@ -207,7 +210,7 @@ def grade_stone(
     patches: Optional[str] = Form(None),
     referral_threshold: Optional[float] = Form(None),
     debug: bool = Form(False),
-    gates: bool = Form(True),
+    gates_param: bool = Form(True, alias="gates"),
     session_id: Optional[str] = Form(None),
     app_version: Optional[str] = Form(None),
     device: Optional[str] = Form(None),
@@ -266,7 +269,8 @@ def grade_stone(
             dev = not settings.is_production
             result = grade(assets, raw_rgb, p if session_mapping else None, threshold,
                            debug=debug and dev,
-                           enforce_gates=gates or not dev)
+                           enforce_gates=gates_param or not dev,
+                           gate_cfg=gates.effective(config))
         del raw_rgb
 
     stored = GradeResponse(**result).model_dump(mode="json", exclude_unset=True, exclude={"debug"})
@@ -277,7 +281,8 @@ def grade_stone(
             db.rejections.insert_one({
                 "_id": uuid.uuid4().hex, "uid": user["uid"], "created_at": utcnow(),
                 "status": result["status"], "message": result.get("message"),
-                "diagnostics": stored.get("diagnostics", {}), **meta})
+                "diagnostics": stored.get("diagnostics", {}),
+                "model_version": model_version(assets), **meta})
         except Exception:
             logger.exception("Could not record rejection")
         return result

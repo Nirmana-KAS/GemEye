@@ -7,11 +7,13 @@ mix. Prints only the result. The user must sign in again (or refresh the ID toke
 the new claim to appear."""
 import argparse
 import sys
+from pathlib import Path
 
-from firebase_admin import auth
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from firebase_admin import auth  # noqa: E402
 
-from app.auth import init_firebase
-from app.config import get_settings
+from app.auth import init_firebase  # noqa: E402
+from app.config import get_settings  # noqa: E402
 
 ROLES = ("admin", "reviewer", "none")
 
