@@ -36,13 +36,16 @@ cd admin && npm run dev        # http://localhost:3000/admin/
 |---|---|
 | `npm run lint` | ESLint |
 | `npm run typecheck` | TypeScript (strict) |
-| `npm test` | Vitest unit tests (`tests/`: API client errors, role guard) |
+| `npm test` | Vitest unit tests (`tests/`: API client errors, role guard, notifications, review form schema, agreement / confusion and monitoring helpers) |
 | `npm run build` | Static export to `out/` |
 
 ## Structure
 
 - `app/admin/login/` - Google and email sign-in; only `admin` / `reviewer` claims get in
-- `app/admin/(dash)/` - pages behind `RoleGuard` (Overview, Users, Gradings, Calibrations; other sections are placeholders for later phases)
+- `app/admin/(dash)/` - pages behind `RoleGuard` (Overview, Users, Gradings, Calibrations, Review queue, Model monitoring; other sections are placeholders for later phases)
+- Review queue (admin and reviewer): table of referred stones (filter pending / reviewed by me / all reviewed, model version, dates; cursor paging). Clicking a row opens the review panel: zoomable photo, Grad-CAM, model grade, probabilities and colour values, and a react-hook-form + zod form (true grade 1-7 as GEMCLOUD colour chips, reviewer confidence, "not a blue sapphire / unusable photo", notes up to 500). Keys `1`-`7` pick the grade and `Enter` saves (`Ctrl+Enter` from the notes box); "Save and next" opens the next pending stone. Reviewers edit only their own reviews. Admins also see the statistics card (agreement and the model vs gemologist confusion heatmap) and "Export reviewed as training labels" (CSV)
+- Model monitoring (admin): 7 / 30 / 90 days and a model version selector; KPI cards per version, charts for confidence and uncertainty, referral rate, rejections per gate, latency (avg and p95) and review agreement, and a side-by-side table when two versions (v3 and v5) have gradings
+- `lib/reviews.ts` (review form schema, agreement and confusion helpers) and `lib/monitoring.ts` (chart shaping) are pure and unit tested
 - Detail pages use query strings (`/admin/users/detail/?uid=...`, `/admin/gradings/detail/?id=...`) because a static export has no runtime dynamic routes
 - `lib/api.ts` - typed fetch client (Bearer token, one retry with a fresh token on 401, `{code, message}` errors as toasts, cursor paging)
 - `lib/roles.ts` - claims to role, menu per role, guard decision

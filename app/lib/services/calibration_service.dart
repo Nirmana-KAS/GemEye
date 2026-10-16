@@ -9,7 +9,6 @@ import '../models/app_notification.dart';
 import 'api_client.dart';
 import 'notification_service.dart';
 import 'remote_config_service.dart';
-import 'settings_service.dart';
 
 // Patch uniformity, per-channel std (0-255) after trimming the brightest and
 // darkest [kPatchTrimFraction] of pixels.

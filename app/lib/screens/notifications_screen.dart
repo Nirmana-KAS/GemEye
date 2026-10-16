@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
 import '../services/history_service.dart';
+import '../widgets/app_dialog.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/gem_app_bar.dart';
@@ -25,23 +27,47 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen> {
+class _NotificationsScreenState extends State<NotificationsScreen>
+    with WidgetsBindingObserver {
+  static const Duration _undoWindow = Duration(seconds: 4);
+
   List<AppNotification> _items = [];
   bool _loaded = false;
+
+  /// Clears waiting for the Undo window to pass before they are sent.
+  final Map<String, Timer> _pendingClears = {};
 
   bool get _hasUnread => _items.any((n) => !n.read);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // Leaving the screen ends the Undo window.
+    for (final id in _pendingClears.keys.toList()) {
+      _pendingClears.remove(id)!.cancel();
+      unawaited(NotificationService.clear(id));
+    }
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _load();
   }
 
   Future<void> _load() async {
     final items = await NotificationService.list();
     if (!mounted) return;
     setState(() {
-      _items = items;
+      _items =
+          items.where((n) => !_pendingClears.containsKey(n.id)).toList();
       _loaded = true;
     });
   }
@@ -51,9 +77,42 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     await _load();
   }
 
-  Future<void> _delete(AppNotification n) async {
+  void _clear(AppNotification n) {
     setState(() => _items.removeWhere((i) => i.id == n.id));
-    await NotificationService.delete(n.id);
+    _pendingClears[n.id]?.cancel();
+    _pendingClears[n.id] = Timer(_undoWindow, () {
+      _pendingClears.remove(n.id);
+      unawaited(NotificationService.clear(n.id));
+    });
+    AppSnackBar.show(
+      context,
+      message: 'Notification cleared',
+      type: AppSnackBarType.info,
+      actionLabel: 'Undo',
+      duration: _undoWindow,
+      onAction: () {
+        _pendingClears.remove(n.id)?.cancel();
+        if (mounted) _load();
+      },
+    );
+  }
+
+  Future<void> _clearAll() async {
+    final ok = await AppDialog.confirm(
+      context,
+      title: 'Clear all notifications?',
+      message: "You won't see them again.",
+      confirmLabel: 'Clear all',
+      type: AppDialogType.danger,
+      icon: Icons.clear_all_rounded,
+    );
+    if (!ok) return;
+    for (final t in _pendingClears.values) {
+      t.cancel();
+    }
+    _pendingClears.clear();
+    await NotificationService.clearAll();
+    await _load();
   }
 
   Future<void> _open(AppNotification n) async {
@@ -123,7 +182,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
             child: const Text('Mark all as read'),
           ),
-          const SizedBox(width: AppSpacing.xs),
+          PopupMenuButton<String>(
+            tooltip: 'More',
+            icon: const Icon(Icons.more_vert_rounded,
+                color: AppColors.textPrimary),
+            color: AppColors.card,
+            onSelected: (v) {
+              if (v == 'clearAll') _clearAll();
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'clearAll',
+                enabled: _items.isNotEmpty,
+                child: const Text('Clear all', style: AppText.body14),
+              ),
+            ],
+          ),
         ],
       ),
       body: SafeArea(top: false, child: _buildBody()),
@@ -133,14 +207,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildBody() {
     if (!_loaded) return const SizedBox.shrink();
     if (_items.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(AppSpacing.xl),
-          child: EmptyState(
-            icon: Icons.notifications_off_rounded,
-            title: "You're all caught up",
-            message:
-                'Referrals, calibration reminders and report updates will appear here.',
+      return RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.primary,
+        child: LayoutBuilder(
+          builder: (context, constraints) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(AppSpacing.xl),
+                    child: EmptyState(
+                      icon: Icons.notifications_off_rounded,
+                      title: "You're all caught up",
+                      message:
+                          'Referrals, calibration reminders and report updates will appear here.',
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -150,11 +238,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final today = _items.where((n) => isSameDay(n.createdAt, now)).toList();
     final earlier = _items.where((n) => !isSameDay(n.createdAt, now)).toList();
 
-    return ListView(
-      children: [
-        if (today.isNotEmpty) ..._section('Today', today),
-        if (earlier.isNotEmpty) ..._section('Earlier', earlier),
-      ],
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: AppColors.primary,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          if (today.isNotEmpty) ..._section('Today', today),
+          if (earlier.isNotEmpty) ..._section('Earlier', earlier),
+        ],
+      ),
     );
   }
 
@@ -175,7 +268,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         NotificationTile(
           notification: n,
           onTap: () => _open(n),
-          onDelete: () => _delete(n),
+          onClear: () => _clear(n),
         ),
     ];
   }

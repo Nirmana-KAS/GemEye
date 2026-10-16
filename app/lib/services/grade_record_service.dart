@@ -2,7 +2,6 @@ import '../models/app_notification.dart';
 import '../models/grade_result.dart';
 import 'certificate_api_service.dart';
 import 'notification_service.dart';
-import 'settings_service.dart';
 import 'storage_service.dart';
 
 /// Saving graded stones and preparing them for certificate export.

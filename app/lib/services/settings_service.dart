@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/app_notification.dart';
+
+export '../models/app_notification.dart' show NotificationCategory;
 
 /// Default certificate export format.
 enum ExportFormat {
@@ -11,8 +14,6 @@ enum ExportFormat {
   const ExportFormat(this.label);
 }
 
-/// Notification categories the user can switch off in Settings.
-enum NotificationCategory { calibration, referral, certificate }
 
 /// App preferences (SharedPreferences, not sensitive). Loaded once at
 /// startup by [init]; every screen reads the live [ValueNotifier]s so a

@@ -11,7 +11,6 @@ import '../services/certificate_api_service.dart';
 import '../services/certificate_service.dart';
 import '../models/app_notification.dart';
 import '../services/notification_service.dart';
-import '../services/settings_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/export_buttons.dart';

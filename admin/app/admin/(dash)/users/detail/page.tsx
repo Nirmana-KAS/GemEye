@@ -17,8 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RoleBadge, StatusBadge } from "@/components/user-badges";
+import { UserNotifications } from "@/components/user-notifications";
 import { fmtDateTime, fmtNum, fmtPct } from "@/lib/format";
 import type { CalibrationRow, GradingRow, PasswordResetResult, RoleSetting, UserDetail } from "@/lib/types";
 
@@ -64,7 +66,7 @@ function SelfGuard({ self, children }: { self: boolean; children: React.ReactEle
 type Dialogs = "disable" | "enable" | "role" | "reset" | "delete" | null;
 
 function UserDetailView({ uid }: { uid: string }) {
-  const { api, user: me } = useAuth();
+  const { api, user: me, role: myRole } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<Dialogs>(null);
@@ -261,28 +263,41 @@ function UserDetailView({ uid }: { uid: string }) {
         </Card>
       </div>
 
-      <h2 className="mb-2 mt-6 font-semibold">Recent gradings</h2>
-      {d.last_gradings.length ? (
-        <DataTable
-          columns={gradingColumns}
-          data={d.last_gradings}
-          getRowId={(r) => r.grading_id}
-          onRowClick={(r) => router.push(`/admin/gradings/detail/?id=${encodeURIComponent(r.grading_id)}`)}
-        />
-      ) : (
-        <Card>
-          <EmptyState title="No gradings" />
-        </Card>
-      )}
+      <Tabs defaultValue="activity" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="activity">Gradings and calibrations</TabsTrigger>
+          {myRole === "admin" && <TabsTrigger value="notifications">Notifications</TabsTrigger>}
+        </TabsList>
+        <TabsContent value="activity">
+          <h2 className="mb-2 mt-2 font-semibold">Recent gradings</h2>
+          {d.last_gradings.length ? (
+            <DataTable
+              columns={gradingColumns}
+              data={d.last_gradings}
+              getRowId={(r) => r.grading_id}
+              onRowClick={(r) => router.push(`/admin/gradings/detail/?id=${encodeURIComponent(r.grading_id)}`)}
+            />
+          ) : (
+            <Card>
+              <EmptyState title="No gradings" />
+            </Card>
+          )}
 
-      <h2 className="mb-2 mt-6 font-semibold">Calibrations</h2>
-      {d.calibrations.length ? (
-        <DataTable columns={calibrationColumns} data={d.calibrations} getRowId={(r) => r.calibration_id} />
-      ) : (
-        <Card>
-          <EmptyState title="No calibrations" />
-        </Card>
-      )}
+          <h2 className="mb-2 mt-6 font-semibold">Calibrations</h2>
+          {d.calibrations.length ? (
+            <DataTable columns={calibrationColumns} data={d.calibrations} getRowId={(r) => r.calibration_id} />
+          ) : (
+            <Card>
+              <EmptyState title="No calibrations" />
+            </Card>
+          )}
+        </TabsContent>
+        {myRole === "admin" && (
+          <TabsContent value="notifications" className="mt-2">
+            <UserNotifications uid={uid} />
+          </TabsContent>
+        )}
+      </Tabs>
 
       <ConfirmDialog
         open={dialog === "disable"}

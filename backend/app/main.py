@@ -21,6 +21,7 @@ from app.assets import MODEL_LOCK, load_assets, warm_up
 from app.auth import active_user, init_firebase
 from app.certificates import limiter, public_headers
 from app.certificates import router as certificates_router
+from app.notifications import router as notifications_router
 from app.config import get_settings
 from app.db import Database, utcnow
 from app.errors import ApiError
@@ -85,6 +86,7 @@ app = FastAPI(title="GemEye API", version="1.2.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.include_router(router)
 app.include_router(certificates_router)
+app.include_router(notifications_router)
 app.include_router(admin_router)
 app.include_router(admin_write_router)
 app.middleware("http")(admin_cors)

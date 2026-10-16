@@ -158,7 +158,6 @@ def test_permissions(client, reviewer_c, admin_c, fx):
         ("post", "/admin/announcements", {"title": "t", "message": "m", "ends_at": "2099-01-01T00:00:00Z"}),
         ("put", "/admin/announcements/x", {"title": "t", "message": "m", "ends_at": "2099-01-01T00:00:00Z"}),
         ("delete", "/admin/announcements/x", None),
-        ("put", f"/admin/reviews/{fx['ids'][0]}", {"gemologist_grade": 3}),
         ("get", "/admin/reviews/stats", None), ("get", "/admin/reviews/export", None),
         ("post", f"/admin/feedback/{MARK}-f/status", {"status": "resolved"}),
         ("get", f"/admin/certificates/{cn}", None),
@@ -166,7 +165,8 @@ def test_permissions(client, reviewer_c, admin_c, fx):
         ("post", f"/admin/certificates/{cn}/supersede", {"new_cert_no": fx["certs"][3], "reason": "x"}),
     ]
     review_routes = [("get", "/admin/review-queue", None),
-                     ("post", "/admin/reviews", {"grading_id": "nope", "gemologist_grade": 3})]
+                     ("post", "/admin/reviews", {"grading_id": "nope", "gemologist_grade": 3}),
+                     ("put", f"/admin/reviews/{fx['ids'][0]}", {"gemologist_grade": 3})]
     for who in (client, reviewer_c):
         for method, url, body in admin_only:
             r = getattr(who, method)(url, **({"json": body} if body is not None else {}))
@@ -367,9 +367,8 @@ def test_review_flow(admin_c, reviewer_c, client, raw_client, fx, app_state):
     assert reviewer_c.post("/admin/reviews", json={"grading_id": "nope", "gemologist_grade": 3}).status_code == 404
     assert ids[0] not in queue(reviewer_c) and ids[1] in queue(reviewer_c)
 
-    # Admin corrects (audited); a reviewer cannot.
+    # Admin corrects (audited); a reviewer edits only their own reviews (see test_model_monitoring).
     n1 = n_audit(db, "review_update")
-    assert reviewer_c.put(f"/admin/reviews/{ids[0]}", json={"gemologist_grade": 5}).status_code == 403
     r = admin_c.put(f"/admin/reviews/{ids[0]}", json={"gemologist_grade": 5})
     assert r.status_code == 200 and r.json()["agrees"] is False
     e = audited(db, "review_update", n1)
@@ -377,6 +376,7 @@ def test_review_flow(admin_c, reviewer_c, client, raw_client, fx, app_state):
     assert admin_c.put(f"/admin/reviews/{ids[1]}", json={"gemologist_grade": 5}).status_code == 404
 
     assert admin_c.post("/admin/reviews", json={"grading_id": ids[1], "gemologist_grade": 6}).status_code == 201
+    assert reviewer_c.put(f"/admin/reviews/{ids[1]}", json={"gemologist_grade": 5}).status_code == 403
     assert reviewer_c.post("/admin/reviews", json={"grading_id": ids[3], "gemologist_grade": 2}).status_code == 201
     assert admin_c.post("/admin/reviews", json={"grading_id": ids[4], "gemologist_grade": 3}).status_code == 201
 
@@ -405,7 +405,7 @@ def test_review_flow(admin_c, reviewer_c, client, raw_client, fx, app_state):
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/csv")
     rows = list(csv.reader(io.StringIO(r.text)))
     assert rows[0] == ["grading_id", "image_ref", "model_grade", "gemologist_grade", "confidence",
-                       "model_version", "created_at"]
+                       "model_version", "created_at", "reviewer_confidence", "unusable"]
     assert len(rows) == 5
     for secret in (fx["uid"], fx["own"], "@", "gradings/", ".jpg"):
         assert secret not in r.text

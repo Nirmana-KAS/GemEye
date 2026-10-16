@@ -29,17 +29,18 @@ import 'relative_time.dart';
     };
 
 /// One row in the Notifications list. Unread rows have a Primary Surface
-/// background and a Royal Blue dot. Swipe left to delete.
+/// background and a Royal Blue dot. The X button and a swipe left both
+/// clear the notification.
 class NotificationTile extends StatelessWidget {
   final AppNotification notification;
   final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback onClear;
 
   const NotificationTile({
     super.key,
     required this.notification,
     required this.onTap,
-    required this.onDelete,
+    required this.onClear,
   });
 
   @override
@@ -50,7 +51,7 @@ class NotificationTile extends StatelessWidget {
     return Dismissible(
       key: ValueKey(notification.id),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
+      onDismissed: (_) => onClear(),
       background: Container(
         color: AppColors.error,
         alignment: Alignment.centerRight,
@@ -58,9 +59,9 @@ class NotificationTile extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.delete_rounded, color: AppColors.onPrimary),
+            const Icon(Icons.close_rounded, color: AppColors.onPrimary),
             const SizedBox(height: AppSpacing.xxs),
-            Text('Delete',
+            Text('Clear',
                 style: AppText.titleSmall
                     .copyWith(fontSize: 11, color: AppColors.onPrimary)),
           ],
@@ -74,8 +75,8 @@ class NotificationTile extends StatelessWidget {
           highlightColor: AppColors.border,
           child: Container(
             constraints: const BoxConstraints(minHeight: 72),
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xl, vertical: 14),
+            padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl, 14, AppSpacing.xs, 14),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: AppColors.border)),
             ),
@@ -129,6 +130,13 @@ class NotificationTile extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+                IconButton(
+                  onPressed: onClear,
+                  tooltip: 'Clear',
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  color: AppColors.textMuted,
+                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),

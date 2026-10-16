@@ -14,7 +14,7 @@ from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from firebase_admin import auth as firebase_auth
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, StrictStr, field_validator, model_validator
 from pymongo.errors import DuplicateKeyError
 
 from app import gates
@@ -23,6 +23,7 @@ from app.auth import uid_hash
 from app.config import get_settings
 from app.db import utcnow
 from app.errors import ApiError
+from app.notifications import create_notification
 from app.routers import NOT_FOUND, UNAVAILABLE, _utc, delete_account, get_db, get_storage
 from app.schemas import RevokeIn
 
@@ -56,6 +57,9 @@ def _known_user(db, uid):
     if fb is None and db.users.find_one({"_id": uid}, {"_id": 1}) is None:
         raise HTTPException(404, NOT_FOUND)
     return fb
+
+
+ROLE_NAMES = {"admin": "Admin", "reviewer": "Reviewer", "none": "User"}
 
 
 def _role_of(claims):
@@ -122,6 +126,9 @@ def set_user_role(uid: str, body: RoleIn, user=Depends(admin_only), db=Depends(g
         logger.error("Firebase role update failed")
         raise HTTPException(503, UNAVAILABLE)
     audit(db, "user_role", user["uid"], {"uid": uid}, {"role": old}, {"role": body.role})
+    if old != body.role:
+        create_notification(db, uid, "info", "Account role updated",
+                            f"Your GemEye role is now {ROLE_NAMES[body.role]}.")
     return {"uid": uid, "role": body.role}
 
 
@@ -365,21 +372,72 @@ def delete_announcement(aid: str, user=Depends(admin_only), db=Depends(get_db)):
 
 # ---- Review queue (reviewer or admin) ----
 
-class ReviewIn(BaseModel):
+class _ReviewFields(BaseModel):
+    """A true grade 1-7, or unusable (not a blue sapphire / unusable photo) with no grade."""
     model_config = ConfigDict(extra="forbid")
+    gemologist_grade: Optional[StrictInt] = Field(None, ge=1, le=7)
+    reviewer_confidence: Optional[Literal["low", "medium", "high"]] = None
+    unusable: StrictBool = False
+    notes: Optional[Annotated[StrictStr, Field(max_length=500)]] = None
+
+    @model_validator(mode="after")
+    def _grade_or_unusable(self):
+        if self.unusable and self.gemologist_grade is not None:
+            raise ValueError("An unusable stone has no grade.")
+        if not self.unusable and self.gemologist_grade is None:
+            raise ValueError("gemologist_grade is required.")
+        return self
+
+
+class ReviewIn(_ReviewFields):
     grading_id: Annotated[StrictStr, Field(min_length=1, max_length=64)]
-    gemologist_grade: StrictInt = Field(ge=1, le=7)
-    notes: Optional[Annotated[StrictStr, Field(max_length=500)]] = None
 
 
-class ReviewUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    gemologist_grade: StrictInt = Field(ge=1, le=7)
-    notes: Optional[Annotated[StrictStr, Field(max_length=500)]] = None
+class ReviewUpdate(_ReviewFields):
+    pass
 
 
 def _review_view(r):
-    return {k: r.get(k) for k in ("grading_id", "gemologist_grade", "notes", "agrees")}
+    return {k: r.get(k) for k in ("grading_id", "gemologist_grade", "notes", "agrees",
+                                  "reviewer_confidence", "unusable")}
+
+
+def _review_values(body, g):
+    grade = body.gemologist_grade
+    return {"gemologist_grade": grade, "reviewer_confidence": body.reviewer_confidence,
+            "unusable": body.unusable, "notes": (body.notes or "").strip() or None,
+            "agrees": None if grade is None else grade == (g.get("result") or {}).get("grade")}
+
+
+def _referred_reasons(d):
+    r = d.get("result") or {}
+    out = []
+    conf, threshold = r.get("confidence"), d.get("referral_threshold_used")
+    if isinstance(conf, (int, float)) and isinstance(threshold, (int, float)) and conf < threshold:
+        out.append("low_confidence")
+    if "unusual_image" in (r.get("warnings") or []):
+        out.append("unusual_image")
+    return out or (["referred"] if r.get("referred") else [])
+
+
+def _queue_row(d, storage, review, me):
+    """A grading for the review panel: no user identity, presigned photo and Grad-CAM URLs,
+    the model grade, confidence, probabilities and colour values."""
+    row = _grading_row(d, storage, None)
+    row.pop("uid", None)
+    r = d.get("result") or {}
+    hm = d.get("heatmap") or {}
+    row.update({k: r.get(k) for k in ("trade_name", "probabilities", "second_grade", "colour",
+                                      "delta_e00_to_typical", "calibration_mode")})
+    row.update(referral_threshold_used=d.get("referral_threshold_used"),
+               referred_reasons=_referred_reasons(d),
+               heatmap_url=_presign(storage, hm.get("key")) if hm.get("key") else None)
+    row["review"] = None if review is None else {
+        **{k: review.get(k) for k in ("gemologist_grade", "reviewer_confidence", "notes", "agrees")},
+        "unusable": bool(review.get("unusable")),
+        "reviewed_at": review.get("updated_at") or review.get("created_at"),
+        "mine": review.get("reviewer_uid_hash") == me}
+    return row
 
 
 @router.get("/review-queue")
@@ -388,17 +446,28 @@ def review_queue(
     from_: Optional[datetime] = Query(None, alias="from"), to: Optional[datetime] = None,
     grade: Optional[int] = Query(None, ge=1, le=7),
     model_version: Optional[str] = Query(None, max_length=50),
+    status: Literal["pending", "mine", "reviewed"] = Query("pending"),
     user=Depends(staff), db=Depends(get_db), storage=Depends(get_storage),
 ):
-    reviewed = [r["grading_id"] for r in db.reviews.find({}, {"grading_id": 1})]
-    q = {"deleted": False, "status": "ok", "result.referred": True, "_id": {"$nin": reviewed}}
+    """pending = referred and not reviewed; mine = reviewed by me; reviewed = all reviewed."""
+    me = uid_hash(user["uid"])
+    if status == "pending":
+        reviewed = [r["grading_id"] for r in db.reviews.find({}, {"grading_id": 1})]
+        q = {"deleted": False, "status": "ok", "result.referred": True, "_id": {"$nin": reviewed}}
+    else:
+        rq = {"reviewer_uid_hash": me} if status == "mine" else {}
+        q = {"deleted": False, "status": "ok",
+             "_id": {"$in": [r["grading_id"] for r in db.reviews.find(rq, {"grading_id": 1})]}}
     _range(q, "created_at", from_, to)
     if grade is not None:
         q["result.grade"] = grade
     if model_version:
         q["result.model_version"] = model_version
     docs, nxt = _page(db.gradings, q, "created_at", limit, cursor)
-    return clean({"items": [_grading_row(d, storage, None) for d in docs], "next_cursor": nxt})
+    reviews = {} if status == "pending" else {
+        r["grading_id"]: r for r in db.reviews.find({"grading_id": {"$in": [d["_id"] for d in docs]}})}
+    return clean({"items": [_queue_row(d, storage, reviews.get(d["_id"]), me) for d in docs],
+                  "next_cursor": nxt})
 
 
 @router.post("/reviews", status_code=201)
@@ -409,10 +478,7 @@ def create_review(body: ReviewIn, user=Depends(staff), db=Depends(get_db)):
     if db.reviews.find_one({"grading_id": g["_id"]}, {"_id": 1}) is not None:
         raise ApiError(409, "already_reviewed", "This stone has already been reviewed.")
     doc = {"_id": uuid.uuid4().hex, "grading_id": g["_id"], "reviewer_uid_hash": uid_hash(user["uid"]),
-           "gemologist_grade": body.gemologist_grade,
-           "notes": (body.notes or "").strip() or None,
-           "agrees": body.gemologist_grade == (g.get("result") or {}).get("grade"),
-           "created_at": utcnow()}
+           **_review_values(body, g), "created_at": utcnow()}
     try:
         db.reviews.insert_one(doc)
     except DuplicateKeyError:
@@ -423,17 +489,18 @@ def create_review(body: ReviewIn, user=Depends(staff), db=Depends(get_db)):
 
 
 @router.put("/reviews/{grading_id}")
-def correct_review(grading_id: str, body: ReviewUpdate, user=Depends(admin_only), db=Depends(get_db)):
+def correct_review(grading_id: str, body: ReviewUpdate, user=Depends(staff), db=Depends(get_db)):
+    """Admins correct any review; a reviewer edits only their own."""
     old = db.reviews.find_one({"grading_id": grading_id})
     g = db.gradings.find_one({"_id": grading_id}, {"result.grade": 1})
     if old is None or g is None:
         raise HTTPException(404, NOT_FOUND)
-    new = {"gemologist_grade": body.gemologist_grade, "notes": (body.notes or "").strip() or None,
-           "agrees": body.gemologist_grade == (g.get("result") or {}).get("grade"),
-           "updated_at": utcnow(), "updated_by_hash": uid_hash(user["uid"])}
+    if user["role"] != "admin" and old.get("reviewer_uid_hash") != uid_hash(user["uid"]):
+        raise ApiError(403, "forbidden", "You can only edit your own reviews.")
+    new = {**_review_values(body, g), "updated_at": utcnow(), "updated_by_hash": uid_hash(user["uid"])}
     db.reviews.update_one({"_id": old["_id"]}, {"$set": new})
     audit(db, "review_update", user["uid"], {"grading_id": grading_id}, _review_view(old),
-          _review_view({**new, "grading_id": grading_id}))
+          _review_view({**new, "grading_id": grading_id}), role=user["role"])
     return {"grading_id": grading_id, **_review_view(new)}
 
 
@@ -461,6 +528,7 @@ def review_stats(user=Depends(admin_only), db=Depends(get_db)):
         "deleted": False, "status": "ok", "result.referred": True,
         "_id": {"$nin": [r["grading_id"] for r in db.reviews.find({}, {"grading_id": 1})]}})
     return {"reviewed": n, "agreed": agreed, "agreement_rate": _rate(n, agreed),
+            "unusable": db.reviews.count_documents({"unusable": True}),
             "within_one_grade_rate": _rate(n, within1),
             "pending": pending,
             "per_grade": [{"model_grade": g, "reviewed": c[0], "agreed": c[1], "agreement_rate": _rate(*c)}
@@ -473,19 +541,21 @@ def review_stats(user=Depends(admin_only), db=Depends(get_db)):
 
 @router.get("/reviews/export")
 def review_export(user=Depends(admin_only), db=Depends(get_db)):
-    """CSV of reviewed stones as training labels. No emails, uids or storage keys."""
+    """CSV of reviewed stones as training labels. No emails, uids or storage keys. Unusable
+    stones have an empty gemologist_grade and unusable=true."""
     reviews = {r["grading_id"]: r for r in db.reviews.find().sort("created_at", 1).limit(50000)}
     out = io.StringIO()
     w = csv.writer(out)
     w.writerow(["grading_id", "image_ref", "model_grade", "gemologist_grade", "confidence",
-                "model_version", "created_at"])
+                "model_version", "created_at", "reviewer_confidence", "unusable"])
     for g in db.gradings.find({"_id": {"$in": list(reviews)}},
                               {"result.grade": 1, "result.confidence": 1, "result.model_version": 1,
                                "image_key": 1}):
         r, res = reviews[g["_id"]], g.get("result") or {}
         w.writerow([g["_id"], g["_id"] if g.get("image_key") else "", res.get("grade"),
                     r["gemologist_grade"], res.get("confidence"), res.get("model_version"),
-                    r["created_at"].isoformat()])
+                    r["created_at"].isoformat(), r.get("reviewer_confidence") or "",
+                    "true" if r.get("unusable") else "false"])
     audit(db, "review_export", user["uid"], {"reviews": len(reviews)})
     return Response(out.getvalue(), media_type="text/csv",
                     headers={"Content-Disposition": 'attachment; filename="gemeye_reviews.csv"'})
@@ -557,6 +627,9 @@ def revoke(cert_no: str, body: RevokeIn, user=Depends(admin_only), db=Depends(ge
     _revoke(db, doc, body.reason)
     audit(db, "certificate_revoke", user["uid"], {"cert_no": cert_no}, before,
           {"status": "revoked", "reason": body.reason.strip()})
+    create_notification(db, doc.get("uid"), "warning", "Certificate revoked",
+                        f"Certificate {cert_no} was revoked by GemEye. Reason: {body.reason.strip()}",
+                        category="certificate", payload=cert_no)
     return {"cert_no": cert_no, "status": "revoked"}
 
 
@@ -578,4 +651,8 @@ def supersede(cert_no: str, body: SupersedeIn, user=Depends(admin_only), db=Depe
     _revoke(db, doc, body.reason, {"superseded_by": new["_id"]})
     audit(db, "certificate_supersede", user["uid"], {"cert_no": cert_no}, before,
           {"status": "revoked", "reason": body.reason.strip(), "superseded_by": new["_id"]})
+    create_notification(db, doc.get("uid"), "info", "Certificate replaced",
+                        f"Certificate {cert_no} was replaced by {new['_id']}. "
+                        f"Reason: {body.reason.strip()}",
+                        category="certificate", payload=cert_no)
     return {"cert_no": cert_no, "status": "revoked", "superseded_by": new["_id"]}

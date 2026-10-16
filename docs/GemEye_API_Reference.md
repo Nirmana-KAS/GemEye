@@ -91,10 +91,36 @@ Endpoints marked 🌐 are public.
 - **Request:** `ProfileUpdate` | **Response:** `UserResponse`
 
 #### 🔒 `DELETE /me`
-- **Permanently deletes the account** and all data: gradings, photos, calibrations, feedback and the Firebase user.
+- **Permanently deletes the account** and all data: gradings, photos, calibrations, feedback, notifications and the Firebase user.
 - Requires a recent sign-in (within 5 minutes).
 - The user's certificates become "withdrawn".
 - **Response:** `204 No Content`
+
+---
+
+### Notifications
+
+Cleared notifications are hidden from the user but never deleted (only account deletion removes them). An admin can restore them (Part 3). Rate limit: 120 requests/min per user (429). Another user's id gives 404.
+
+#### 🔒 `GET /me/notifications`
+- The user's visible notifications, newest first (cleared ones are never returned).
+- Paging: `limit` (1-100, default 30) and `cursor`.
+- **Response:** `NotificationList`
+
+#### 🔒 `POST /me/notifications/sync`
+- Stores notifications created in the app (up to 50 per call).
+- Idempotent on `id`: an existing notification is never changed (a cleared one stays cleared); only `read_at` is set once when `read` is true. Ids owned by another user are not accepted.
+- **Request:** `NotificationSyncIn` | **Response:** `{accepted: [id]}`
+
+#### 🔒 `POST /me/notifications/{id}/read` and `POST /me/notifications/read-all`
+- Marks one / all visible notifications read. `read-all` takes an optional `before` (ISO time) query: only notifications created up to then are changed (used for queued offline actions).
+- **Response:** `{id, read: true}` / `{updated: n}`
+
+#### 🔒 `POST /me/notifications/{id}/clear` and `POST /me/notifications/clear-all`
+- Hides one / all visible notifications for the user (sets `cleared_at`). Idempotent. `clear-all` takes the same optional `before`.
+- **Response:** `{id, cleared: true}` / `{cleared: n}`
+
+Server-created notifications (`source: "server"`): certificate revoked or superseded by an admin (category `certificate`) and role changed.
 
 ---
 
@@ -353,6 +379,29 @@ Endpoints marked 🌐 are public.
 
 ---
 
+### Notification schemas
+
+#### `NotificationIn` (one item of `NotificationSyncIn.items`, 1-50 items)
+| Field | Type | Meaning |
+|---|---|---|
+| `id`* | string | App-generated UUID (8-64 of `A-Z a-z 0-9 -`) |
+| `type`* | string | `success` / `warning` / `error` / `info` |
+| `category`? | string | `calibration` / `referral` / `certificate` |
+| `title`* | string | 1-120 chars |
+| `message`* | string | Max 1000 chars |
+| `action` | string | App action name (letters only, default `none`) |
+| `payload`? | string | Max 200 chars (e.g. stone ID) |
+| `created_at`* | datetime | When the app created it (a future time is set to now) |
+| `read` | boolean | Already read in the app |
+
+#### `NotificationList`
+- `items`* (each: `id, type, category?, title, message, action, payload?, source` (`app`/`server`), `created_at, read`), `next_cursor`?, `unread_count`*.
+
+#### Stored document (`notifications`)
+- `_id, uid, type, category, title, message, action, payload, source, created_at, read_at, cleared_at, restored_at, restored_by` (admin uid). Indexes `(uid, created_at desc)`, `(uid, cleared_at)`.
+
+---
+
 ### Other schemas
 
 #### `FeedbackIn` (request)
@@ -404,7 +453,7 @@ Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` o
 | `GET /admin/users`, `GET /admin/users/{uid}` | 🛡️ | `q`, `sort=created\|last_active`, `role=admin\|reviewer\|none`, `disabled=true\|false`, `limit`, `cursor`; rows and detail include `role` and `disabled` (from Firebase) |
 | `GET /admin/gradings`, `GET /admin/gradings/{id}` | 👁️ | Reviewers get no email or phone; detail includes `review` (`gemologist_grade`, `agrees`, `notes`, `reviewed_at`) |
 | `GET /admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | 🛡️ | Filters and cursor paging; feedback rows have `status`, certificates `superseded_by` |
-| `GET /admin/model/monitoring?days=` | 🛡️ | Per version and day; rejections by gate and `model_version` ("unknown" for old records); `review_agreement` per version and day |
+| `GET /admin/model/monitoring?days=7\|30\|90&model_version=` | 🛡️ | See "Model monitoring (Phase 10e)" below |
 
 ### Users (🛡️)
 
@@ -448,11 +497,25 @@ Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` o
 
 | Route | Who | Notes |
 |---|---|---|
-| `GET /admin/review-queue` | 👁️ | Referred gradings not yet reviewed. Filters `from`, `to`, `grade`, `model_version`; `limit`, `cursor` |
-| `POST /admin/reviews` | 👁️ | `{grading_id, gemologist_grade 1-7, notes <= 500}` -> 201 `{agrees, ...}`; 409 `already_reviewed` |
-| `PUT /admin/reviews/{grading_id}` | 🛡️ | `{gemologist_grade, notes}` corrects a review (audited) |
-| `GET /admin/reviews/stats` | 🛡️ | `reviewed`, `agreed`, `agreement_rate`, `within_one_grade_rate`, `pending`, `per_grade`, `per_model_version`, `confusion_matrix` (rows = model, columns = gemologist) |
-| `GET /admin/reviews/export` | 🛡️ | CSV: `grading_id, image_ref, model_grade, gemologist_grade, confidence, model_version, created_at` (no emails or uids) |
+| `GET /admin/review-queue` | 👁️ | `status=pending` (default: referred, not reviewed) \| `mine` (reviewed by me) \| `reviewed` (all reviewed). Filters `from`, `to`, `grade`, `model_version`; `limit`, `cursor`. Items have no user identity (no `uid`, email or phone) and add presigned `image_url` and `heatmap_url`, `grade`, `confidence`, `uncertainty`, `probabilities`, `second_grade`, `colour`, `delta_e00_to_typical`, `referral_threshold_used`, `referred_reasons` (`low_confidence`, `unusual_image`), and `review` `{gemologist_grade, reviewer_confidence, unusable, notes, agrees, reviewed_at, mine}` (null when pending) |
+| `POST /admin/reviews` | 👁️ | `{grading_id, gemologist_grade 1-7, reviewer_confidence?: "low"\|"medium"\|"high", unusable?: bool, notes <= 500}`. `unusable: true` (not a blue sapphire / unusable photo) has no grade and `agrees: null`; otherwise the grade is required. -> 201 `{agrees, ...}`; 409 `already_reviewed` |
+| `PUT /admin/reviews/{grading_id}` | 👁️ | Same body without `grading_id`. Admins correct any review; a reviewer edits only their own (403 `forbidden` otherwise). Audited |
+| `GET /admin/reviews/stats` | 🛡️ | `reviewed`, `agreed`, `agreement_rate`, `within_one_grade_rate`, `unusable`, `pending`, `per_grade`, `per_model_version`, `confusion_matrix` (rows = model, columns = gemologist). Unusable reviews are left out of agreement |
+| `GET /admin/reviews/export` | 🛡️ | CSV: `grading_id, image_ref, model_grade, gemologist_grade, confidence, model_version, created_at, reviewer_confidence, unusable` (no emails or uids; unusable rows have an empty `gemologist_grade`) |
+
+The owner's app view does not show unusable reviews.
+
+### Model monitoring (🛡️, Phase 10e)
+
+`GET /admin/model/monitoring?days=30&model_version=v5` - `days` 1-90 (the dashboard sends 7, 30 or 90; Asia/Colombo days), optional `model_version` ("unknown" = records without one). Reviewers get 403.
+
+| Field | Content |
+|---|---|
+| `day_keys` | Every day of the range, oldest first |
+| `versions[].summary` | `gradings`, `referred`, `referral_rate`, `avg_confidence`, `avg_uncertainty`, `unusual_image` (OOD warnings), `unusual_image_rate`, `rejections`, `rejections_by_gate` (`blurry`, `no_stone`, `not_blue`, `invalid_image`, `not_recognised` as stored), `rejection_rate` = rejections / (gradings + rejections), `avg_latency_ms`, `p95_latency_ms` (nearest rank, server `timings_ms.total`), `first_seen`, `last_seen`, `reviews` `{reviewed, agreed, within_one, agreement_rate, within_one_rate}` |
+| `versions[].days[]` | Same per day for every day in `day_keys`: `count`, `mean_confidence`, `mean_uncertainty`, `referral_rate`, `unusual_image`, `mean_latency_ms`, `p95_latency_ms`, `rejections`, `rejections_by_gate`, `rejection_rate` |
+| `versions[].review_agreement[]` | Days with reviewed gradings (by grading day): `reviewed`, `agreed`, `within_one`, `agreement_rate`, `within_one_rate`. Unusable reviews are not counted |
+| `rejections_by_gate[]` | `{day, gate, model_version, count}` (rejections store `model_version` from Phase 10b on; older ones are "unknown") |
 
 The owner's `GET /gradings` and `GET /gradings/{id}` add `review: {gemologist_grade, reviewed_at}` when the stone was reviewed (no reviewer identity).
 
@@ -464,3 +527,13 @@ The owner's `GET /gradings` and `GET /gradings/{id}` add `review: {gemologist_gr
 | `GET /admin/certificates/{cert_no}` | - | Detail with presigned `pdf_url` and `image_url` |
 | `POST /admin/certificates/{cert_no}/revoke` | `{reason}` | Same effect as the owner revoke; 409 if not valid |
 | `POST /admin/certificates/{cert_no}/supersede` | `{new_cert_no, reason}` | Revokes and records the replacement (must be a different, valid certificate); the public page shows `superseded_by` ("Replaced by ...") |
+
+Admin revoke and supersede, and a role change, also create a server notification for the user.
+
+### User notifications (🛡️, Phase N1)
+
+| Route | Request | Notes |
+|---|---|---|
+| `GET /admin/users/{uid}/notifications` | `status=all\|visible\|cleared`, `limit` (1-100), `cursor` | Every notification of the user, cleared ones included. Items add `read_at, cleared_at, restored_at, restored_by_email`; the response adds `counts: {visible, cleared}` |
+| `POST /admin/users/{uid}/notifications/{id}/restore` | - | `cleared_at = null`, `restored_at`, `restored_by`; the user sees it again. 404 unknown, 409 not cleared. Audited `notification_restore` |
+| `POST /admin/users/{uid}/notifications/restore-all` | - | Restores every cleared one -> `{restored: n}`. Audited `notification_restore_all` |

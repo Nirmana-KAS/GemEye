@@ -51,6 +51,11 @@ describe("createApiClient", () => {
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer token");
   });
 
+  it("returns text bodies unparsed (CSV export)", async () => {
+    const c = client([new Response("a,b\r\n1,2\r\n", { status: 200, headers: { "Content-Type": "text/csv" } })]);
+    await expect(c.api<string>("/admin/reviews/export", { text: true })).resolves.toBe("a,b\r\n1,2\r\n");
+  });
+
   it("returns undefined for 204", async () => {
     const c = client([new Response(null, { status: 204 })]);
     await expect(c.api("/admin/users/u1", { method: "DELETE" })).resolves.toBeUndefined();

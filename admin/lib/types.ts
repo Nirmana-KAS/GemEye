@@ -49,24 +49,63 @@ export interface Timeseries {
   points: { day: string; value: number | null }[];
 }
 
+export type MonitoringDays = 7 | 30 | 90;
+
 export interface MonitoringDay {
   day: string;
   count: number;
   mean_confidence: number | null;
   mean_uncertainty: number | null;
-  referral_rate: number;
+  referral_rate: number | null;
   unusual_image: number;
   mean_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  rejections: number;
+  rejections_by_gate: Record<string, number>;
+  rejection_rate: number | null;
+}
+
+export interface Agreement {
+  reviewed: number;
+  agreed: number;
+  within_one: number;
+  agreement_rate: number | null;
+  within_one_rate: number | null;
+}
+
+export interface MonitoringSummary {
+  gradings: number;
+  referred: number;
+  referral_rate: number | null;
+  avg_confidence: number | null;
+  avg_uncertainty: number | null;
+  unusual_image: number;
+  unusual_image_rate: number | null;
+  rejections: number;
+  rejections_by_gate: Record<string, number>;
+  rejection_rate: number | null;
+  avg_latency_ms: number | null;
+  p95_latency_ms: number | null;
+  first_seen: string | null;
+  last_seen: string | null;
+  reviews: Agreement;
+}
+
+export interface MonitoringVersion {
+  model_version: string;
+  summary: MonitoringSummary;
+  /** Every day of the range, oldest first (zero / null when there is no data). */
+  days: MonitoringDay[];
+  /** Only days with reviewed gradings. */
+  review_agreement: ({ day: string } & Agreement)[];
 }
 
 export interface ModelMonitoring {
   days: number;
   timezone: string;
-  versions: {
-    model_version: string;
-    days: MonitoringDay[];
-    review_agreement: { day: string; reviewed: number; agreed: number; agreement_rate: number }[];
-  }[];
+  model_version: string | null;
+  day_keys: string[];
+  versions: MonitoringVersion[];
   rejections_by_gate: { day: string; gate: string; model_version: string; count: number }[];
 }
 
@@ -189,7 +228,55 @@ export interface GradingDetail extends GradingRow {
   referral_threshold_used: number | null;
   heatmap_url: string | null;
   certificate: { cert_no: string; status: string; issued_at: string } | null;
-  review?: { gemologist_grade: number; agrees: boolean | null; notes: string | null; reviewed_at: string | null } | null;
+  review?: { gemologist_grade: number | null; agrees: boolean | null; notes: string | null; reviewed_at: string | null } | null;
+}
+
+// ---- Review queue (Phase 10e) ----
+
+export type ReviewQueueStatus = "pending" | "mine" | "reviewed";
+export type ReviewerConfidence = "low" | "medium" | "high";
+
+export interface QueueReview {
+  gemologist_grade: number | null;
+  reviewer_confidence: ReviewerConfidence | null;
+  notes: string | null;
+  agrees: boolean | null;
+  unusable: boolean;
+  reviewed_at: string | null;
+  mine: boolean;
+}
+
+/** A referred grading for the review panel. Never carries user identity. */
+export interface QueueItem extends Omit<GradingRow, "uid" | "user_email"> {
+  trade_name: string | null;
+  probabilities: number[] | null;
+  second_grade: number | null;
+  colour: ColourValues | null;
+  delta_e00_to_typical: number | null;
+  calibration_mode: string | null;
+  referral_threshold_used: number | null;
+  referred_reasons: string[];
+  heatmap_url: string | null;
+  review: QueueReview | null;
+}
+
+export interface ReviewBody {
+  gemologist_grade: number | null;
+  reviewer_confidence: ReviewerConfidence | null;
+  unusable: boolean;
+  notes: string | null;
+}
+
+export interface ReviewStats {
+  reviewed: number;
+  agreed: number;
+  agreement_rate: number | null;
+  within_one_grade_rate: number | null;
+  unusable: number;
+  pending: number;
+  per_grade: { model_grade: number | null; reviewed: number; agreed: number; agreement_rate: number | null }[];
+  per_model_version: { model_version: string; reviewed: number; agreed: number; agreement_rate: number | null }[];
+  confusion_matrix: { rows: string; columns: string; counts: number[][] };
 }
 
 // ---- Errors and writes ----
@@ -204,4 +291,28 @@ export interface ApiErrorBody {
 export interface PasswordResetResult {
   status: "sent" | "link";
   link?: string;
+}
+
+// ---- Notifications (Phase N1) ----
+
+export type NotificationStatusFilter = "all" | "visible" | "cleared";
+
+export interface AdminNotification {
+  id: string;
+  type: "success" | "warning" | "error" | "info";
+  category: "calibration" | "referral" | "certificate" | null;
+  title: string;
+  message: string;
+  action: string | null;
+  payload: string | null;
+  source: "app" | "server";
+  created_at: string;
+  read_at: string | null;
+  cleared_at: string | null;
+  restored_at: string | null;
+  restored_by_email: string | null;
+}
+
+export interface AdminNotificationPage extends Page<AdminNotification> {
+  counts: { visible: number; cleared: number };
 }

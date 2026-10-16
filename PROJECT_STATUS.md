@@ -2757,3 +2757,46 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-140, EDIT-139, EDIT-137
 - **Reason:** Phase 10d of the admin dashboard plan.
+
+### EDIT-142 | 16 October 2026 | IST
+- **Topic:** Phase N1 - server-backed notifications with user clear and admin restore
+- **Summary:** Notifications are now stored on the server (`notifications` collection). Users can clear one or all notifications, but the server never deletes them. Admins can see every notification of a user and restore cleared ones. The model path, gate defaults and parity are unchanged.
+- **What was done:**
+  - Backend: new app/notifications.py. User routes `GET /me/notifications`, `POST /me/notifications/sync` (up to 50 items, idempotent on id, never changes cleared_at/restored_at), `/{id}/read`, `/read-all`, `/{id}/clear`, `/clear-all` (optional `before` for queued offline actions). Rate limit is 120/min per uid, with input limits (title 120, message 1000, payload 200); another user's id returns 404. Admin-only routes: list with status all/visible/cleared plus counts, restore one (409 if not cleared), and restore all. Both restores are audited. `create_notification()` adds server notifications when an admin revokes or supersedes a certificate and when a role changes. Indexes are (uid, created_at desc) and (uid, cleared_at). `delete_account` now also removes the user's notifications.
+  - App: NotificationService keeps add/list/markRead/markAllRead/unreadCount. When signed in it uses the server list with a local cache (max 100). Changes are applied locally first and queued in order; the queue is retried on app start, on resume and when the network comes back, and a 4xx drops the item. Every category is recorded, but switched-off categories are hidden from the list and the badge. `delete` is replaced by `clear`, and `clearAll` calls the server. A new `wipeLocal` is used by AccountService. NotificationCategory moved to the model (settings_service re-exports it). When signed out, the app stays local-only as before.
+  - Notifications screen: an X button on each tile, swipe to clear with a 4 s Undo before the server call, and a "Clear all" overflow item with a confirm dialog. "Mark all as read" is kept. Pull-to-refresh was added, and the list reloads when the screen opens and when the app resumes.
+  - Admin dashboard: the user detail page has a "Notifications" tab (admin only) with an All/Visible/Cleared filter, a status chip, cursor paging, and Restore / Restore all cleared, each with a confirm dialog, a toast and a refetch. Types are in lib/types.ts, calls in lib/api.ts and the chip logic in lib/notifications.ts.
+  - Tests and checks: backend tests/test_notifications.py has 8 tests, and the full suite passed (145). run_parity.py A-D all PASS with no change (clean-98 87.76%, 9/9), and parity_report.md and parity_mismatches.csv were restored from backup. flutter analyze is clean and flutter test passed (121, including 7 new in test/notification_service_test.dart). Admin lint, typecheck, Vitest (29, 4 new) and build all pass.
+  - Docs: the new routes and schemas were added to docs/GemEye_API_Reference.md, and a Notifications section and data-model row to backend/README.md.
+- **Files changed:**
+  - `+` backend/app/notifications.py, backend/tests/test_notifications.py
+  - `~` backend/app/admin_write.py, db.py, main.py, routers.py
+  - `+` app/test/notification_service_test.dart
+  - `~` app/lib/models/app_notification.dart, app/lib/services/notification_service.dart, settings_service.dart, account_service.dart, calibration_service.dart, grade_record_service.dart, app/lib/screens/notifications_screen.dart, certificate_screen.dart, app/lib/widgets/notification_tile.dart
+  - `+` admin/components/user-notifications.tsx, admin/lib/notifications.ts, admin/tests/notifications.test.ts
+  - `~` admin/app/admin/(dash)/users/detail/page.tsx, admin/lib/api.ts, admin/lib/types.ts
+  - `~` docs/GemEye_API_Reference.md, backend/README.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-139, EDIT-141
+- **Reason:** Phase N1, so notifications are kept on the server, a clear from the user is permanent for them, and an admin can restore cleared ones.
+
+### EDIT-143 | 16 October 2026 | IST
+- **Topic:** Phase 10e - dashboard Review queue and Model monitoring
+- **Summary:** The Review queue (admin and reviewer) and Model monitoring (admin) pages are built. The server now gives monitoring per version with p95 latency, within-one agreement and summary blocks, and the review queue has panel fields, status filters, reviewer confidence, an "unusable" option and reviewer edits of their own reviews. The model path, gate defaults and parity are unchanged.
+- **What was done:**
+  - Backend: `GET /admin/model/monitoring` adds `model_version` filter, `day_keys`, dense per-day rows (p95 latency, rejections per gate, rejection rate), a `summary` per version (gradings, confidence, uncertainty, referral, unusual images, rejection rate per gate, avg/p95 latency, review agreement exact / within one / n) and within-one in `review_agreement`. `days` stays 1-90 (dashboard sends 7/30/90)
+  - Review queue: `status=pending|mine|reviewed`; items drop `uid` and add probabilities, colour values, second grade, Grad-CAM URL, `referred_reasons` and `review` (with `mine`, never the reviewer hash). Reviews accept `reviewer_confidence` (low/medium/high) and `unusable` (no grade, `agrees` null, left out of agreement, hidden from the owner's app view). `PUT /admin/reviews/{id}` is now staff: a reviewer edits only their own (403 otherwise). Stats add `unusable`; the export CSV adds `reviewer_confidence, unusable`
+  - Indexes: rejections (model_version, created_at), reviews (reviewer_uid_hash)
+  - Tests: new tests/test_model_monitoring.py (8 tests: p95, empty data, two versions, agreement maths, validation, queue fields and filters, reviewer edit rules, reviewer 403); test_admin_writes.py updated for the reviewer-edit rule and the export header. Full suite 152 passed. run_parity.py A-D PASS, unchanged (clean-98 87.76%, 9/9); parity_report.md and parity_mismatches.csv restored from backup
+  - Dashboard: Review queue page (table, filters, cursor paging, review panel with zoomable photo, Grad-CAM, model result, probabilities, colour values; react-hook-form + zod form with GEMCLOUD grade chips, keys 1-7, Enter to save, Save and next; admin stats card with confusion heatmap and CSV export). Model monitoring page (7/30/90 days, version selector, KPI cards per version, five Recharts charts, v3 vs v5 comparison table, skeletons, empty states, retry). Sidebar no longer marks both as "soon"
+  - Shared: components/grading-parts.tsx (Row, Photo, ZoomPhoto, ProbabilityChart, ColourValuesView, now also used by the grading detail page), components/kpi.tsx (from Overview); lib/api.ts text responses and review calls
+  - Checks: lint, typecheck, Vitest (45, 16 new), build all pass
+- **Files changed:**
+  - `+` backend/tests/test_model_monitoring.py
+  - `~` backend/app/admin.py, admin_write.py, db.py, routers.py, backend/tests/test_admin_writes.py, backend/README.md
+  - `+` admin/components/review-panel.tsx, review-stats.tsx, grading-parts.tsx, kpi.tsx, admin/lib/reviews.ts, admin/lib/monitoring.ts, admin/tests/reviews.test.ts
+  - `~` admin/app/admin/(dash)/review-queue/page.tsx, model-monitoring/page.tsx, page.tsx, gradings/detail/page.tsx, admin/lib/api.ts, types.ts, roles.ts, admin/tests/api.test.ts, admin/README.md
+  - `~` docs/GemEye_API_Reference.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-139, EDIT-140, EDIT-141
+- **Reason:** Phase 10e of the admin dashboard plan.

@@ -29,8 +29,9 @@ import {
 
 import { useApi } from "@/components/auth-provider";
 import { ChartCard, gateColour, tooltipStyle, useChartPalette } from "@/components/chart-card";
+import { Kpi } from "@/components/kpi";
 import { ErrorState, PageHeader } from "@/components/states";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtMs, fmtNum, fmtPct } from "@/lib/format";
 import { GRADES } from "@/lib/grades";
@@ -42,43 +43,6 @@ const RANGES: { days: StatsDays; label: string }[] = [
   { days: 7, label: "7 days" },
   { days: 30, label: "30 days" },
 ];
-
-function Kpi({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  tone,
-}: {
-  label: string;
-  value: React.ReactNode;
-  sub?: React.ReactNode;
-  icon: React.ComponentType<{ className?: string }>;
-  tone?: "ok" | "bad";
-}) {
-  return (
-    <Card size="sm">
-      <CardContent className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p
-            className={cn(
-              "mt-1 truncate text-2xl font-semibold tabular-nums",
-              tone === "ok" && "text-success",
-              tone === "bad" && "text-destructive",
-            )}
-          >
-            {value}
-          </p>
-          {sub && <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>}
-        </div>
-        <div className="rounded-md bg-accent p-2 text-primary dark:text-accent-foreground">
-          <Icon className="size-4" />
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function shortDay(day: string) {
   return day.slice(5);

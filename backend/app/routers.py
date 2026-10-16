@@ -91,7 +91,7 @@ def put_me(body: ProfileUpdate, user=Depends(active_user_strict), db=Depends(get
 
 def delete_account(uid, db, storage):
     """Deletes an account: gradings + images, reviews of them, calibrations, rejections,
-    feedback, certificate PDFs, the profile and the Firebase user. Certificates are kept as
+    feedback, notifications, certificate PDFs, the profile and the Firebase user. Certificates are kept as
     "withdrawn" with only cert_no, issued_at, status and the reason. Used by DELETE /me
     and the admin DELETE /admin/users/{uid}."""
     from app.certificates import PRIVATE_FIELDS, WITHDRAWN_REASON
@@ -119,7 +119,7 @@ def delete_account(uid, db, storage):
         raise HTTPException(503, UNAVAILABLE)
     db.reviews.delete_many({"grading_id": {"$in": [g["_id"] for g in
                                                     db.gradings.find({"uid": uid}, {"_id": 1})]}})
-    for coll in (db.gradings, db.calibrations, db.rejections, db.feedback):
+    for coll in (db.gradings, db.calibrations, db.rejections, db.feedback, db.notifications):
         coll.delete_many({"uid": uid})
     now = utcnow()
     db.certificates.update_many({"uid": uid}, {
@@ -151,10 +151,12 @@ def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Dep
 # ---- Gradings ----
 
 def review_info(db, ids):
-    """{grading_id: {gemologist_grade, reviewed_at}} (no reviewer identity)."""
+    """{grading_id: {gemologist_grade, reviewed_at}} (no reviewer identity). Reviews marked
+    unusable have no grade and are not shown to the owner."""
     return {r["grading_id"]: {"gemologist_grade": r["gemologist_grade"],
                               "reviewed_at": r["created_at"]}
-            for r in db.reviews.find({"grading_id": {"$in": list(ids)}})}
+            for r in db.reviews.find({"grading_id": {"$in": list(ids)},
+                                      "gemologist_grade": {"$ne": None}})}
 
 
 def grading_item(doc, storage, review=None):

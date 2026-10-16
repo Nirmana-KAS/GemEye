@@ -51,6 +51,7 @@ class Database:
         self.disabled_accounts = self.db["disabled_accounts"]
         self.announcements = self.db["announcements"]
         self.reviews = self.db["reviews"]
+        self.notifications = self.db["notifications"]
         self._config, self._config_at = None, 0.0
         self._config_lock = threading.Lock()
 
@@ -79,6 +80,9 @@ class Database:
         self.gradings.create_index([("result.model_version", ASCENDING), ("created_at", DESCENDING)])
         self.gradings.create_index([("device", ASCENDING), ("created_at", DESCENDING)])
         self.rejections.create_index([("status", ASCENDING), ("created_at", DESCENDING)])
+        # Phase 10e: model monitoring by version, "reviewed by me" in the review queue.
+        self.rejections.create_index([("model_version", ASCENDING), ("created_at", DESCENDING)])
+        self.reviews.create_index([("reviewer_uid_hash", ASCENDING)])
         self.calibrations.create_index([("created_at", DESCENDING), ("_id", DESCENDING)])
         self.certificates.create_index([("issued_at", DESCENDING), ("_id", DESCENDING)])
         self.certificates.create_index([("status", ASCENDING), ("issued_at", DESCENDING)])
@@ -91,6 +95,9 @@ class Database:
         self.reviews.create_index([("grading_id", ASCENDING)], unique=True, name="grading_unique")
         self.reviews.create_index([("created_at", DESCENDING)])
         self.announcements.create_index([("active", ASCENDING), ("starts_at", ASCENDING)])
+        # Phase N1: notifications (user list newest first, cleared filter).
+        self.notifications.create_index([("uid", ASCENDING), ("created_at", DESCENDING)])
+        self.notifications.create_index([("uid", ASCENDING), ("cleared_at", ASCENDING)])
         # counters, app_config and certificates (cert_no) are looked up by _id.
 
     def seed_app_config(self):

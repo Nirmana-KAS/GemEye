@@ -1,4 +1,12 @@
-import type { ApiErrorBody, Page } from "./types";
+import type {
+  AdminNotificationPage,
+  ApiErrorBody,
+  NotificationStatusFilter,
+  Page,
+  QueueItem,
+  ReviewBody,
+  ReviewQueueStatus,
+} from "./types";
 
 /** Error from the API (or the network), always with a code and a user-facing message. */
 export class ApiError extends Error {
@@ -68,6 +76,8 @@ export interface RequestOptions {
   silent?: boolean;
   /** Skip the Authorization header (public endpoints such as /health). */
   anonymous?: boolean;
+  /** Return the body as text (CSV downloads) instead of parsing JSON. */
+  text?: boolean;
 }
 
 export interface ApiClientOptions {
@@ -86,7 +96,7 @@ export function createApiClient(o: ApiClientOptions): ApiClient {
   const doFetch = o.fetchImpl ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
 
   async function send(path: string, opts: RequestOptions, forceRefresh: boolean): Promise<Response> {
-    const headers: Record<string, string> = { Accept: "application/json" };
+    const headers: Record<string, string> = { Accept: opts.text ? "text/csv, text/plain, */*" : "application/json" };
     if (!opts.anonymous) {
       const token = await o.getToken(forceRefresh);
       if (token) headers.Authorization = `Bearer ${token}`;
@@ -114,6 +124,7 @@ export function createApiClient(o: ApiClientOptions): ApiClient {
     if (res.ok) {
       if (res.status === 204) return undefined as T;
       const text = await res.text();
+      if (opts.text) return text as T;
       return (text ? JSON.parse(text) : undefined) as T;
     }
     let body: unknown = null;
@@ -144,4 +155,46 @@ export async function fetchAllPages<T>(
     if (items.length >= maxItems) return { items: items.slice(0, maxItems), truncated: true };
     cursor = page.next_cursor;
   }
+}
+
+// ---- User notifications (admin, Phase N1) ----
+
+function notificationsPath(uid: string): string {
+  return `/admin/users/${encodeURIComponent(uid)}/notifications`;
+}
+
+export function listUserNotifications(
+  api: ApiClient,
+  uid: string,
+  query: { status: NotificationStatusFilter; limit: number; cursor?: string },
+): Promise<AdminNotificationPage> {
+  return api<AdminNotificationPage>(notificationsPath(uid), { query });
+}
+
+export function restoreUserNotification(api: ApiClient, uid: string, id: string): Promise<{ id: string; restored_at: string }> {
+  return api(`${notificationsPath(uid)}/${encodeURIComponent(id)}/restore`, { method: "POST" });
+}
+
+export function restoreAllUserNotifications(api: ApiClient, uid: string): Promise<{ restored: number }> {
+  return api(`${notificationsPath(uid)}/restore-all`, { method: "POST" });
+}
+
+// ---- Review queue (Phase 10e) ----
+
+export function listReviewQueue(
+  api: ApiClient,
+  query: { status: ReviewQueueStatus; limit: number; cursor?: string; model_version?: string; from?: string; to?: string },
+): Promise<Page<QueueItem>> {
+  return api<Page<QueueItem>>("/admin/review-queue", { query });
+}
+
+/** New review (POST) or an edit of an existing one (PUT; reviewers only their own). */
+export function saveReview(api: ApiClient, gradingId: string, body: ReviewBody, existing: boolean): Promise<ReviewBody & { agrees: boolean | null }> {
+  return existing
+    ? api(`/admin/reviews/${encodeURIComponent(gradingId)}`, { method: "PUT", body })
+    : api("/admin/reviews", { method: "POST", body: { grading_id: gradingId, ...body } });
+}
+
+export function exportReviewsCsv(api: ApiClient): Promise<string> {
+  return api<string>("/admin/reviews/export", { text: true });
 }

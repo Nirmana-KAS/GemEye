@@ -19,7 +19,7 @@ class AccountService {
   static Future<void> clearLocalData() async {
     await StorageService.clearHistory(deletePhotos: true);
     await CalibrationService.clearAll();
-    await NotificationService.clearAll();
+    await NotificationService.wipeLocal();
     await ProfileService.clear();
     try {
       final prefs = await SharedPreferences.getInstance();

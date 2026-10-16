@@ -1,15 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ImageOff } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { useAuth } from "@/components/auth-provider";
-import { tooltipStyle, useChartPalette } from "@/components/chart-card";
 import { GradeChip, YesNo } from "@/components/grade-chip";
+import { ColourValuesView, Photo, ProbabilityChart, Row } from "@/components/grading-parts";
 import { EmptyState, ErrorState, PageHeader } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,61 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fmtDateTime, fmtMs, fmtNum, fmtPct } from "@/lib/format";
 import { GRADES, gradeInfo } from "@/lib/grades";
 import type { GradeResult, GradingDetail } from "@/lib/types";
-
-function Row({ label, children, mono }: { label: string; children: React.ReactNode; mono?: boolean }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 border-b py-1.5 text-sm last:border-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={mono ? "font-mono text-xs" : "text-right"}>{children ?? "-"}</span>
-    </div>
-  );
-}
-
-function Photo({ url, alt, empty }: { url: string | null | undefined; alt: string; empty: string }) {
-  if (!url) {
-    return (
-      <div className="flex aspect-square items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground">
-        <span className="flex flex-col items-center gap-2">
-          <ImageOff className="size-6" />
-          {empty}
-        </span>
-      </div>
-    );
-  }
-  // Presigned S3 links are short-lived; a plain img avoids caching them.
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt={alt} className="aspect-square w-full rounded-lg bg-muted object-contain" />;
-}
-
-function ProbabilityChart({ probs, height = 220 }: { probs: number[]; height?: number }) {
-  const palette = useChartPalette();
-  const data = GRADES.map((g, i) => ({ grade: `G${g.grade}`, name: g.name, hex: g.hex, p: probs[i] ?? 0 }));
-  return (
-    <div style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-          <CartesianGrid stroke={palette.grid} vertical={false} />
-          <XAxis dataKey="grade" stroke={palette.axis} fontSize={12} />
-          <YAxis domain={[0, 1]} tickFormatter={(v: number) => `${Math.round(v * 100)}%`} stroke={palette.axis} fontSize={12} />
-          <Tooltip
-            {...tooltipStyle(palette)}
-            cursor={{ fill: palette.grid, opacity: 0.4 }}
-            formatter={(v) => fmtPct(Number(v))}
-            labelFormatter={(_, p) => {
-              const d = p?.[0]?.payload as { grade: string; name: string } | undefined;
-              return d ? `${d.grade} - ${d.name}` : "";
-            }}
-          />
-          <Bar dataKey="p" name="Probability" radius={[4, 4, 0, 0]}>
-            {data.map((d) => (
-              <Cell key={d.grade} fill={d.hex} stroke={palette.axis} strokeOpacity={0.25} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 const DIAGNOSTIC_GROUPS: { title: string; keys: string[] }[] = [
   { title: "Image size", keys: ["short_side_px", "min_short_side_px"] },
@@ -227,7 +171,9 @@ function GradingDetailView({ id }: { id: string }) {
             <GradeChip grade={r.grade} showName />
             {r.referred && <YesNo value />}
             {d.review ? (
-              <Badge variant={d.review.agrees ? "secondary" : "destructive"}>Reviewed: grade {d.review.gemologist_grade}</Badge>
+              <Badge variant={d.review.agrees ? "secondary" : "destructive"}>
+                {d.review.gemologist_grade == null ? "Reviewed: unusable" : `Reviewed: grade ${d.review.gemologist_grade}`}
+              </Badge>
             ) : r.referred ? (
               <Badge variant="outline">Awaiting review</Badge>
             ) : null}
@@ -305,34 +251,7 @@ function GradingDetailView({ id }: { id: string }) {
           </CardHeader>
           <CardContent>
             {colour ? (
-              <>
-                <div className="mb-3 flex items-center gap-3">
-                  <span className="size-12 rounded-lg border" style={{ backgroundColor: colour.hex }} />
-                  <span className="font-mono text-sm">{colour.hex}</span>
-                </div>
-                <div className="grid gap-x-8 sm:grid-cols-2">
-                  <div>
-                    <Row label="L*" mono>{fmtNum(colour.L)}</Row>
-                    <Row label="a*" mono>{fmtNum(colour.a)}</Row>
-                    <Row label="b*" mono>{fmtNum(colour.b)}</Row>
-                    <Row label="Chroma C*" mono>{fmtNum(colour.C)}</Row>
-                    <Row label="ΔE00 to typical" mono>{fmtNum(r.delta_e00_to_typical)}</Row>
-                  </div>
-                  <div>
-                    <Row label="Hue" mono>{`${fmtNum(colour.H, 1)}°`}</Row>
-                    <Row label="Saturation" mono>{fmtNum(colour.S)}</Row>
-                    <Row label="Brightness" mono>{fmtNum(colour.B)}</Row>
-                    {colour.ciecam02 && (
-                      <>
-                        <Row label="CAM02 J / M" mono>{`${fmtNum(colour.ciecam02.J, 1)} / ${fmtNum(colour.ciecam02.M, 1)}`}</Row>
-                        <Row label="CAM02 h / s / C" mono>
-                          {`${fmtNum(colour.ciecam02.h, 1)} / ${fmtNum(colour.ciecam02.s, 1)} / ${fmtNum(colour.ciecam02.C, 1)}`}
-                        </Row>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </>
+              <ColourValuesView colour={colour} deltaE={r.delta_e00_to_typical} />
             ) : (
               <EmptyState title="No colour values stored" />
             )}
@@ -371,7 +290,7 @@ function GradingDetailView({ id }: { id: string }) {
             {d.review ? (
               <>
                 <Row label="Gemologist grade">
-                  <GradeChip grade={d.review.gemologist_grade} showName />
+                  {d.review.gemologist_grade == null ? "Unusable photo" : <GradeChip grade={d.review.gemologist_grade} showName />}
                 </Row>
                 <Row label="Agrees with model">{d.review.agrees == null ? "-" : d.review.agrees ? "Yes" : "No"}</Row>
                 <Row label="Reviewed">{fmtDateTime(d.review.reviewed_at)}</Row>

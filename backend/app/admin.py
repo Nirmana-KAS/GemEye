@@ -5,6 +5,7 @@ Responses are scrubbed of tokens, storage keys and secrets. Reads are not audite
 admin writes (from Phase 10b) call audit()."""
 import base64
 import json
+import math
 import re
 import threading
 import time
@@ -523,51 +524,133 @@ def list_audit_log(
 
 # ---- Model monitoring ----
 
+def _p95(values):
+    """Nearest-rank 95th percentile (None when empty)."""
+    v = sorted(x for x in values if isinstance(x, (int, float)))
+    return round(float(v[max(0, math.ceil(0.95 * len(v)) - 1)]), 4) if v else None
+
+
+def _ratio(k, n):
+    return round(k / n, 4) if n else None
+
+
+def _version_match(field, version):
+    """Filter on one model version; "unknown" matches records without one."""
+    return {field: None} if version == "unknown" else {field: version}
+
+
+def _agreement(cells):
+    """[n, exact, within_one] -> rates."""
+    n, k, w = cells
+    return {"reviewed": n, "agreed": k, "within_one": w,
+            "agreement_rate": _ratio(k, n), "within_one_rate": _ratio(w, n)}
+
+
 @router.get("/model/monitoring")
-def model_monitoring(days: int = Query(30, ge=1, le=90), user=Depends(admin_only),
-                     db=Depends(get_db)):
-    since = _day_starts(days)[0].astimezone(timezone.utc)
+def model_monitoring(days: int = Query(30, ge=1, le=90),
+                     model_version_: Optional[str] = Query(None, alias="model_version", max_length=50),
+                     user=Depends(admin_only), db=Depends(get_db)):
+    """Per model version and day (Asia/Colombo): gradings, confidence, uncertainty, referral,
+    unusual images, latency (avg, p95), rejections per gate and review agreement, plus a
+    summary block per version for side-by-side comparison. The dashboard sends 7, 30 or 90."""
+    starts = _day_starts(days)
+    day_keys = [d.strftime("%Y-%m-%d") for d in starts]
+    since = starts[0].astimezone(timezone.utc)
+    g_match = {"created_at": {"$gte": since}}
+    r_match = {"created_at": {"$gte": since}}
+    if model_version_:
+        g_match.update(_version_match("result.model_version", model_version_))
+        r_match.update(_version_match("model_version", model_version_))
     unusual = {"$in": ["unusual_image", {"$ifNull": ["$result.warnings", []]}]}
-    rows = db.gradings.aggregate([
-        {"$match": {"created_at": {"$gte": since}}},
-        {"$group": {"_id": {"v": "$result.model_version", "day": _day_expr("$created_at")},
-                    "n": {"$sum": 1}, "referred": REFERRED,
-                    "conf": {"$avg": "$result.confidence"}, "unc": {"$avg": "$result.uncertainty"},
-                    "unusual": {"$sum": {"$cond": [unusual, 1, 0]}},
-                    "lat": {"$avg": "$result.timings_ms.total"}}}])
-    versions = defaultdict(list)
-    for r in rows:
-        versions[r["_id"]["v"] or "unknown"].append({
-            "day": r["_id"]["day"], "count": r["n"], "mean_confidence": _mean(r["conf"]),
-            "mean_uncertainty": _mean(r["unc"]), "referral_rate": round(r["referred"] / r["n"], 4),
-            "unusual_image": r["unusual"], "mean_latency_ms": _mean(r["lat"])})
+    lat = "$result.timings_ms.total"
+    acc = {"n": {"$sum": 1}, "referred": REFERRED,
+           "conf": {"$avg": "$result.confidence"}, "unc": {"$avg": "$result.uncertainty"},
+           "unusual": {"$sum": {"$cond": [unusual, 1, 0]}}, "lat": {"$avg": lat}}
+    per_day = defaultdict(dict)
+    lat_all = defaultdict(list)
+    for r in db.gradings.aggregate([
+            {"$match": g_match},
+            {"$group": {"_id": {"v": "$result.model_version", "day": _day_expr("$created_at")},
+                        **acc, "lats": {"$push": lat}}}]):
+        v = r["_id"]["v"] or "unknown"
+        lat_all[v].extend(r["lats"])
+        per_day[v][r["_id"]["day"]] = r
+    totals = {(r["_id"] or "unknown"): r for r in db.gradings.aggregate([
+        {"$match": g_match},
+        {"$group": {"_id": "$result.model_version", **acc,
+                    "first": {"$min": "$created_at"}, "last": {"$max": "$created_at"}}}])}
     # Rejections store model_version from Phase 10b on; older records are "unknown".
-    gates = [{"day": r["_id"]["day"], "gate": r["_id"]["s"],
-              "model_version": r["_id"].get("v") or "unknown", "count": r["n"]} for r in
-             db.rejections.aggregate([
-                 {"$match": {"created_at": {"$gte": since}}},
-                 {"$group": {"_id": {"day": _day_expr("$created_at"), "s": "$status",
-                                     "v": "$model_version"}, "n": {"$sum": 1}}}])]
+    gates = []
+    rej_day = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+    for r in db.rejections.aggregate([
+            {"$match": r_match},
+            {"$group": {"_id": {"day": _day_expr("$created_at"), "s": "$status",
+                                "v": "$model_version"}, "n": {"$sum": 1}}}]):
+        v = r["_id"].get("v") or "unknown"
+        gates.append({"day": r["_id"]["day"], "gate": r["_id"]["s"], "model_version": v, "count": r["n"]})
+        rej_day[v][r["_id"]["day"]][r["_id"]["s"]] += r["n"]
     # Review agreement per version and grading day (reviews joined to their gradings).
-    agree = defaultdict(lambda: defaultdict(lambda: [0, 0]))
-    for g_created, version, _model, _gem, same in review_rows(db, since):
-        cell = agree[version or "unknown"][g_created.astimezone(COLOMBO).strftime("%Y-%m-%d")]
+    agree = defaultdict(lambda: defaultdict(lambda: [0, 0, 0]))
+    for g_created, version, mg, gg, same in review_rows(db, since):
+        v = version or "unknown"
+        if model_version_ and v != model_version_:
+            continue
+        cell = agree[v][g_created.astimezone(COLOMBO).strftime("%Y-%m-%d")]
         cell[0] += 1
         cell[1] += 1 if same else 0
+        cell[2] += 1 if mg is not None and abs(mg - gg) <= 1 else 0
+
     out = []
-    for v, d in sorted(versions.items()):
-        out.append({"model_version": v, "days": sorted(d, key=lambda x: x["day"]),
-                    "review_agreement": [
-                        {"day": day, "reviewed": n, "agreed": k, "agreement_rate": round(k / n, 4)}
-                        for day, (n, k) in sorted(agree.get(v, {}).items())]})
-    return {"days": days, "timezone": "Asia/Colombo", "versions": out,
+    for v in sorted(set(per_day) | set(rej_day)):
+        day_rows = []
+        for day in day_keys:
+            r = per_day[v].get(day)
+            n = r["n"] if r else 0
+            gate_counts = dict(rej_day[v].get(day, {}))
+            rejected = sum(gate_counts.values())
+            day_rows.append({
+                "day": day, "count": n,
+                "mean_confidence": _mean(r["conf"]) if r else None,
+                "mean_uncertainty": _mean(r["unc"]) if r else None,
+                "referral_rate": _ratio(r["referred"], n) if r else None,
+                "unusual_image": r["unusual"] if r else 0,
+                "mean_latency_ms": _mean(r["lat"]) if r else None,
+                "p95_latency_ms": _p95(r["lats"]) if r else None,
+                "rejections": rejected, "rejections_by_gate": gate_counts,
+                "rejection_rate": _ratio(rejected, n + rejected)})
+        t = totals.get(v) or {"n": 0, "referred": 0, "conf": None, "unc": None, "unusual": 0,
+                              "lat": None, "first": None, "last": None}
+        by_gate = defaultdict(int)
+        for counts in rej_day[v].values():
+            for gate, k in counts.items():
+                by_gate[gate] += k
+        rejected = sum(by_gate.values())
+        reviews = [0, 0, 0]
+        for cell in agree[v].values():
+            reviews = [a + b for a, b in zip(reviews, cell)]
+        out.append({
+            "model_version": v,
+            "summary": {
+                "gradings": t["n"], "referred": t["referred"], "referral_rate": _ratio(t["referred"], t["n"]),
+                "avg_confidence": _mean(t["conf"]), "avg_uncertainty": _mean(t["unc"]),
+                "unusual_image": t["unusual"], "unusual_image_rate": _ratio(t["unusual"], t["n"]),
+                "rejections": rejected, "rejections_by_gate": dict(sorted(by_gate.items())),
+                "rejection_rate": _ratio(rejected, t["n"] + rejected),
+                "avg_latency_ms": _mean(t["lat"]), "p95_latency_ms": _p95(lat_all[v]),
+                "first_seen": t["first"], "last_seen": t["last"],
+                "reviews": _agreement(reviews)},
+            "days": day_rows,
+            "review_agreement": [{"day": day, **_agreement(c)} for day, c in sorted(agree[v].items())]})
+    return {"days": days, "timezone": "Asia/Colombo", "model_version": model_version_,
+            "day_keys": day_keys, "versions": out,
             "rejections_by_gate": sorted(gates, key=lambda x: (x["day"], x["gate"], x["model_version"]))}
 
 
 def review_rows(db, since=None):
     """(grading created_at, model_version, model_grade, gemologist_grade, agrees) for every
-    review whose grading still exists, optionally only gradings created since `since`."""
-    reviews = {r["grading_id"]: r for r in db.reviews.find().limit(50000)}
+    graded review whose grading still exists, optionally only gradings created since `since`.
+    Reviews marked unusable (no gemologist grade) are left out of agreement."""
+    reviews = {r["grading_id"]: r for r in db.reviews.find({"gemologist_grade": {"$ne": None}}).limit(50000)}
     q = {"_id": {"$in": list(reviews)}}
     if since is not None:
         q["created_at"] = {"$gte": since}

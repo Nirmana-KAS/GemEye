@@ -197,7 +197,7 @@ unavailable or maintenance, 500 generic. Error bodies are `{status: "error", det
 ## Account deletion (DELETE /me)
 
 Deletes the user's gradings and their S3 images, calibrations, rejections,
-feedback, certificate PDFs and photo copies, the `users` document and the
+feedback, notifications, certificate PDFs and photo copies, the `users` document and the
 Firebase user (admin SDK). Certificates become `status: "withdrawn"`,
 `revoked_reason: "Owner account deleted"`; the snapshot, owner, uid, grading id
 and token are removed. Only `cert_no, issued_at, status`, the reason,
@@ -243,6 +243,7 @@ Edit the document in MongoDB to change it; each process picks it up within 60 s.
 | `app_config` | `_id: "global"`, remote config (above) | `_id` |
 | `audit_log` | `_id, action, uid_hash, at` | - |
 | `deleted_accounts` | `_id` (sha256(uid)), `deleted_at` | TTL on `deleted_at`, 2 hours |
+| `notifications` | `_id` (app or server uuid), `uid, type, category, title, message, action, payload, source` (app/server), `created_at, read_at, cleared_at, restored_at, restored_by` | `(uid, created_at desc)`, `(uid, cleared_at)` |
 
 S3 (private bucket, SSE-S3): `<prefix>gradings/{uid}/{grading_id}.jpg` (`.png`
 for PNG uploads). Only the original upload of a graded stone is stored.
@@ -336,7 +337,7 @@ decoded exactly as `/grade` decodes uploads. It produced the reference values in
 ## Admin roles and admin read API (Phase 10a)
 
 Two Firebase custom claims: `admin` (every `/admin/*` route) and `reviewer` (only
-`GET /admin/gradings`, `/admin/gradings/{id}`, the review queue and `POST /admin/reviews`,
+`GET /admin/gradings`, `/admin/gradings/{id}`, the review queue, `POST /admin/reviews` and `PUT` of their own review,
 without user email or phone). Tokens
 are checked with `check_revoked=True` and the deleted-account tombstone; a missing claim
 is 403 `{code: "forbidden"}`. Rate limit 120 requests/min per uid (429). CORS is open only
@@ -358,7 +359,7 @@ docker compose exec api python scripts/set_role.py --email gemeyeapp@gmail.com -
 | GET | `/admin/users`, `/admin/users/{uid}` | `q` (email/name), `sort=created\|last_active`, `role=admin\|reviewer\|none`, `disabled=true\|false`, `limit`, `cursor`; rows have Firebase `role` and `disabled`; detail adds counts, last 10 gradings, calibrations, devices, `role`, `disabled` |
 | GET | `/admin/gradings`, `/admin/gradings/{id}` | `from, to, grade, referred, model_version, uid, device, status`, cursor paging, fresh image URL; detail adds the full result, heatmap URL if cached, certificate and `review` (admin and reviewer) |
 | GET | `/admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | filters, cursor paging; certificates search by number prefix (`q`) and `status` |
-| GET | `/admin/model/monitoring?days=30` | per model version and day: count, mean confidence / uncertainty, referral rate, `unusual_image` warnings, mean latency; rejections per day, gate and model version |
+| GET | `/admin/model/monitoring?days=30&model_version=` | per model version: `summary` (gradings, avg confidence / uncertainty, referral rate, unusual images, rejections and rate per gate, avg and p95 latency, review agreement exact / within one / n) and every day of the range with the same values; rejections per day, gate and model version. `days` 1-90 (dashboard: 7, 30, 90) |
 
 Admin writes (Phase 10b, below) call `audit(db, action, admin_uid, target, before, after)`,
 which stores only the admin's `uid_hash` in `audit_log`; reads are not logged.
@@ -380,11 +381,11 @@ fields are rejected (400). An admin cannot disable, delete or demote their own a
 | POST | `/admin/config/reset-gates` | restores the default gates |
 | GET, POST | `/admin/announcements` | `{title<=80, message<=500, level info\|warning, starts_at?, ends_at, active}` |
 | PUT, DELETE | `/admin/announcements/{id}` | PUT replaces the editable fields |
-| GET | `/admin/review-queue` (staff) | referred, not deleted, not yet reviewed; `from, to, grade, model_version`, cursor paging |
-| POST | `/admin/reviews` (staff) | `{grading_id, gemologist_grade 1-7, notes<=500}`; 409 `already_reviewed` |
-| PUT | `/admin/reviews/{grading_id}` | admin corrects a review |
+| GET | `/admin/review-queue` (staff) | `status=pending` (referred, not yet reviewed) \| `mine` \| `reviewed`; `from, to, grade, model_version`, cursor paging; no user identity; photo and Grad-CAM URLs, probabilities, colour values, `referred_reasons`, `review` |
+| POST | `/admin/reviews` (staff) | `{grading_id, gemologist_grade 1-7, reviewer_confidence?, unusable?, notes<=500}` (unusable = no grade, left out of agreement); 409 `already_reviewed` |
+| PUT | `/admin/reviews/{grading_id}` (staff) | admin corrects any review, a reviewer only their own |
 | GET | `/admin/reviews/stats` | agreement overall, per model grade, per model version, 7x7 confusion matrix (rows model, columns gemologist), pending |
-| GET | `/admin/reviews/export` | CSV (grading_id, image_ref, model_grade, gemologist_grade, confidence, model_version, created_at); no emails or uids |
+| GET | `/admin/reviews/export` | CSV (grading_id, image_ref, model_grade, gemologist_grade, confidence, model_version, created_at, reviewer_confidence, unusable); no emails or uids |
 | POST | `/admin/feedback/{id}/status` | `{status: open\|resolved, note<=300}` |
 | GET | `/admin/certificates/{cert_no}` | detail with presigned PDF and photo URLs |
 | POST | `/admin/certificates/{cert_no}/revoke` | `{reason}`; 409 if not valid |
@@ -402,3 +403,20 @@ its fields and adds `gates` (effective values, read-only) and `announcements`. T
 reviewed (no reviewer identity). Rejection records now store `model_version`;
 `/admin/model/monitoring` groups rejections by version ("unknown" for old records) and adds
 `review_agreement` per version and day.
+
+## Notifications (Phase N1)
+
+`app/notifications.py`. The app records every notification locally and syncs it with
+`POST /me/notifications/sync` (idempotent on the app's uuid); `GET /me/notifications`
+returns the visible ones (newest first, `unread_count`). Clearing (`/{id}/clear`,
+`/clear-all`) only sets `cleared_at`: nothing is deleted except by `delete_account`.
+`read-all` and `clear-all` take an optional `before` so a queued offline action does not
+touch newer items. 120 requests/min per user; title <= 120, message <= 1000,
+payload <= 200; another user's id is a 404.
+
+Admins (not reviewers) list a user's notifications with
+`GET /admin/users/{uid}/notifications?status=all|visible|cleared` and restore one
+(`/{id}/restore`) or all (`/restore-all`); both are audited and the restored items show
+again on the phone at its next refresh. `create_notification(db, uid, ...)` adds
+`source: "server"` notifications for events the phone cannot know: admin certificate
+revoke / supersede and role changes. Tests: `tests/test_notifications.py`.
