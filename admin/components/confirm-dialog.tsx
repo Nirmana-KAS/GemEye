@@ -24,6 +24,7 @@ export function ConfirmDialog({
   confirmLabel,
   destructive,
   confirmText,
+  confirmDisabled,
   onConfirm,
   children,
 }: {
@@ -34,12 +35,15 @@ export function ConfirmDialog({
   confirmLabel: string;
   destructive?: boolean;
   confirmText?: string;
+  /** Extra condition that blocks the confirm button (e.g. an incomplete form in children). */
+  confirmDisabled?: boolean;
   onConfirm: () => Promise<unknown>;
   children?: React.ReactNode;
 }) {
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
-  const blocked = !!confirmText && typed.trim().toLowerCase() !== confirmText.trim().toLowerCase();
+  const blocked =
+    !!confirmDisabled || (!!confirmText && typed.trim().toLowerCase() !== confirmText.trim().toLowerCase());
 
   function change(o: boolean) {
     if (busy) return;

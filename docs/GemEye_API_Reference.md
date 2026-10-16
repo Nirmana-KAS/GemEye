@@ -21,7 +21,7 @@ Endpoints marked 🌐 are public.
 - Includes the default referral threshold, how long a calibration stays valid (hours), maintenance mode, feature flags, the blur threshold, the effective quality-gate values (`gates`, read-only) and the active `announcements`.
 
 #### 🌐 `GET /announcements`
-- Active announcements inside their start and end time (`id`, `title`, `message`, `level`, `starts_at`, `ends_at`).
+- Active announcements inside their start and end time (`id`, `title`, `message`, `level`, `starts_at`, `ends_at`, `action` = app screen opened from the banner, `none` if no link).
 - Lets you change app behaviour without releasing a new app version.
 - **Response:** `AppConfig`
 
@@ -120,7 +120,7 @@ Cleared notifications are hidden from the user but never deleted (only account d
 - Hides one / all visible notifications for the user (sets `cleared_at`). Idempotent. `clear-all` takes the same optional `before`.
 - **Response:** `{id, cleared: true}` / `{cleared: n}`
 
-Server-created notifications (`source: "server"`): certificate revoked or superseded by an admin (category `certificate`) and role changed.
+Server-created notifications (`source: "server"`): certificate revoked or superseded by an admin (category `certificate`) and role changed. Notifications an admin sends from the dashboard have `source: "admin"` (Part 3).
 
 ---
 
@@ -395,10 +395,10 @@ Server-created notifications (`source: "server"`): certificate revoked or supers
 | `read` | boolean | Already read in the app |
 
 #### `NotificationList`
-- `items`* (each: `id, type, category?, title, message, action, payload?, source` (`app`/`server`), `created_at, read`), `next_cursor`?, `unread_count`*.
+- `items`* (each: `id, type, category?, title, message, action, payload?, source` (`app`/`server`/`admin`), `created_at, read`), `next_cursor`?, `unread_count`*.
 
 #### Stored document (`notifications`)
-- `_id, uid, type, category, title, message, action, payload, source, created_at, read_at, cleared_at, restored_at, restored_by` (admin uid). Indexes `(uid, created_at desc)`, `(uid, cleared_at)`.
+- `_id, uid, type, category, title, message, action, payload, source, created_at, read_at, cleared_at, restored_at, restored_by` (admin uid); admin sends add `sent_by` (admin uid) and `broadcast_id`. Indexes `(uid, created_at desc)`, `(uid, cleared_at)`, `(created_at desc, _id desc)`, `(source, created_at desc)`.
 
 ---
 
@@ -419,6 +419,7 @@ Server-created notifications (`source: "server"`): certificate revoked or supers
 | `referral_threshold_default`* | Default 0.60 |
 | `calibration_validity_hours`* | Default 8 |
 | `min_app_version`* | Oldest app allowed |
+| `update_message` | Text shown with the update prompt (empty = the app's default text) |
 | `maintenance`* | `Maintenance` |
 | `features`* | `Features` |
 | `blur_min_variance`* | Blur threshold shared with the app |
@@ -443,6 +444,7 @@ Needs a Firebase ID token with the `admin` claim (🛡️ admin) or the `reviewe
 Token revocation is checked on every call; a missing claim is `403 {code: "forbidden"}`; 120 requests/min per user (429).
 CORS only for `http://localhost:3000` and `https://gemeye-app-2026.web.app` (on `/admin/*`, `/health` and `/announcements`, including preflight). Responses are `Cache-Control: no-store` and never contain tokens, storage keys or secrets.
 Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` only). Unknown request fields return 400.
+Validation errors (400) on `/admin/*` also carry `fields: [{field, message}]` (dotted field path such as `gates.hue_min`, never the submitted value), so the dashboard shows them on the form field.
 
 ### Read (Phase 10a)
 
@@ -452,7 +454,10 @@ Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` o
 | `GET /admin/stats/timeseries?metric=&days=&bucket=day` | 🛡️ | `gradings`, `rejections`, `referral_rate`, `avg_confidence` |
 | `GET /admin/users`, `GET /admin/users/{uid}` | 🛡️ | `q`, `sort=created\|last_active`, `role=admin\|reviewer\|none`, `disabled=true\|false`, `limit`, `cursor`; rows and detail include `role` and `disabled` (from Firebase) |
 | `GET /admin/gradings`, `GET /admin/gradings/{id}` | 👁️ | Reviewers get no email or phone; detail includes `review` (`gemologist_grade`, `agrees`, `notes`, `reviewed_at`) |
-| `GET /admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | 🛡️ | Filters and cursor paging; feedback rows have `status`, certificates `superseded_by` |
+| `GET /admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | 🛡️ | Filters and cursor paging (details below) |
+| `GET /admin/feedback` | 🛡️ | `from, to, rating, category, uid, status=open\|resolved` (no stored status = open); rows: `feedback_id, uid, user_email, created_at, rating, category, comment, app_version, status, status_note, status_at` |
+| `GET /admin/certificates` | 🛡️ | `q` (number prefix), `email` (owner email contains), `status=valid\|revoked\|superseded\|withdrawn` (superseded = revoked with `superseded_by`; revoked excludes those); rows add `user_email`, `superseded_by` |
+| `GET /admin/audit-log` | 🛡️ | `from, to, action, admin` (email contains, or a 64-hex uid_hash), `target` (an id any target field equals: uid, cert_no, announcement, feedback, grading_id, notification, broadcast); rows: `audit_id, action, uid_hash, role, target, before, after, at, admin_email` (from `admin_directory`, null if unknown) |
 | `GET /admin/model/monitoring?days=7\|30\|90&model_version=` | 🛡️ | See "Model monitoring (Phase 10e)" below |
 
 ### Users (🛡️)
@@ -467,7 +472,7 @@ Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` o
 
 ### Remote config (🛡️)
 
-- `GET /admin/config` - current values plus `gate_defaults` and `gate_bounds`.
+- `GET /admin/config` - current values plus `gate_defaults`, `gate_bounds` and `bounds` (`referral_threshold_default {min, max}`, `calibration_validity_hours {min, max}`, `message_max`): the same limits `PUT` enforces, used by the dashboard form.
 - `PUT /admin/config` - partial update; returns the new config. Fields and bounds:
 
 | Field | Rule |
@@ -475,10 +480,11 @@ Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` o
 | `referral_threshold_default` | 0.40 - 0.90 |
 | `calibration_validity_hours` | integer 1 - 72 |
 | `min_app_version` | `MAJOR.MINOR.PATCH` |
+| `update_message` | string <= 200, shown with the update prompt |
 | `maintenance` | `{enabled: bool, message: string <= 200}` (`/grade` returns 503 `maintenance` when enabled) |
 | `features` | `{repeatability_mode, gradcam, public_verification, session_mapping}` (booleans) |
 | `verify_base_url` | https only, default `https://gemeye-app-2026.web.app`; used for new certificates only |
-| `gates` | `blur_min_variance` 5-200, `no_stone_min_area` 0.002-0.05, `no_stone_min_contrast_de00` 1-15, `hue_min` 100-200, `hue_max` 230-320, `min_chroma` 0-5, `ood_warn` 5-60, `ood_reject` 10-80; `hue_min < hue_max`, `ood_warn < ood_reject`. Defaults = the original thresholds |
+| `gates` | (400 `invalid_gates` when the order rule fails) `blur_min_variance` 5-200, `no_stone_min_area` 0.002-0.05, `no_stone_min_contrast_de00` 1-15, `hue_min` 100-200, `hue_max` 230-320, `min_chroma` 0-5, `ood_warn` 5-60, `ood_reject` 10-80; `hue_min < hue_max`, `ood_warn < ood_reject`. Defaults = the original thresholds |
 
 - `POST /admin/config/reset-gates` - restores the default gates.
 - Public `GET /config` keeps its fields and adds `gates` (read-only effective values) and `announcements`.
@@ -487,8 +493,8 @@ Every write is recorded in the audit log (`before` / `after`, admin `uid_hash` o
 
 | Route | Who | Notes |
 |---|---|---|
-| `GET /admin/announcements` | 🛡️ | All, newest first, with `state`: `live`, `scheduled`, `expired`, `disabled` |
-| `POST /admin/announcements` | 🛡️ | `{title <= 80, message <= 500, level: "info"\|"warning", starts_at?, ends_at, active}` -> 201 |
+| `GET /admin/announcements` | 🛡️ | All, newest first, with `state`: `live`, `scheduled`, `expired`, `disabled` (the dashboard shows active / scheduled / expired / draft) and `created_by_email` |
+| `POST /admin/announcements` | 🛡️ | `{title <= 80, message <= 500, level: "info"\|"warning", starts_at?, ends_at, active, action?}` -> 201. `action` = app screen (`none`, `openResult`, `openCalibration`, `openCapture`, `openHistory`, `openPrivacy`) |
 | `PUT /admin/announcements/{id}` | 🛡️ | Same body, replaces the editable fields |
 | `DELETE /admin/announcements/{id}` | 🛡️ | 204 |
 | `GET /announcements` | 🌐 public | Only active announcements inside their time window |
@@ -524,7 +530,7 @@ The owner's `GET /gradings` and `GET /gradings/{id}` add `review: {gemologist_gr
 | Route | Request | Notes |
 |---|---|---|
 | `POST /admin/feedback/{id}/status` | `{status: "open"\|"resolved", note <= 300}` | |
-| `GET /admin/certificates/{cert_no}` | - | Detail with presigned `pdf_url` and `image_url` |
+| `GET /admin/certificates/{cert_no}` | - | Detail with presigned `pdf_url` and `image_url`, `user_email`, `verify_url_masked` (`.../v/GE-YYYYMM-NNNNN-...`; the secret token is never returned) |
 | `POST /admin/certificates/{cert_no}/revoke` | `{reason}` | Same effect as the owner revoke; 409 if not valid |
 | `POST /admin/certificates/{cert_no}/supersede` | `{new_cert_no, reason}` | Revokes and records the replacement (must be a different, valid certificate); the public page shows `superseded_by` ("Replaced by ...") |
 
@@ -537,3 +543,14 @@ Admin revoke and supersede, and a role change, also create a server notification
 | `GET /admin/users/{uid}/notifications` | `status=all\|visible\|cleared`, `limit` (1-100), `cursor` | Every notification of the user, cleared ones included. Items add `read_at, cleared_at, restored_at, restored_by_email`; the response adds `counts: {visible, cleared}` |
 | `POST /admin/users/{uid}/notifications/{id}/restore` | - | `cleared_at = null`, `restored_at`, `restored_by`; the user sees it again. 404 unknown, 409 not cleared. Audited `notification_restore` |
 | `POST /admin/users/{uid}/notifications/restore-all` | - | Restores every cleared one -> `{restored: n}`. Audited `notification_restore_all` |
+
+### Send notifications (🛡️, Phase 10f)
+
+| Route | Request | Notes |
+|---|---|---|
+| `POST /admin/notifications/send` | `{target: "user"\|"all", uid?, type: success\|warning\|error\|info, category?: calibration\|referral\|certificate, title 1-120, message 1-1000, action?: none\|openResult\|openCalibration\|openCapture\|openHistory\|openPrivacy, payload? <= 200}` | 201 `{id, target, count, at}`. `uid` required for `user`, not allowed for `all`. Each recipient gets one notification with `source: "admin"` and `sent_by` (admin uid). `all` = every user with a profile and no deletion tombstone (inserted in batches). Unknown or deleted user: 404. At most 5 sends to all per hour (all admins together): 429 `rate_limited`. Stored in `admin_broadcasts`; audited `notification_send` (target `{broadcast, uid?}`, after `{target, count, title, type}`) |
+| `GET /admin/notifications/audience` | - | `{users}`: recipients of a send to all |
+| `GET /admin/notifications` | `uid, status=all\|visible\|cleared\|read\|unread, source=app\|server\|admin, from, to, limit (1-100), cursor` | Every user's notifications, newest first; items as in the per-user list plus `uid`, `user_email`, `sent_by_email` |
+| `GET /admin/broadcasts` | `target=user\|all, limit, cursor` | Sent history: `id, target, uid, count, title, type, category, action, at, user_email, sent_by_email` |
+
+Stored `admin_broadcasts` document: `_id, target, uid, count, title, type, category, action, sent_by` (admin uid), `at`. Reviewers get 403 on all of these.

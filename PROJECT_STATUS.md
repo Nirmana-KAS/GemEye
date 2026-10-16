@@ -2800,3 +2800,24 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-139, EDIT-140, EDIT-141
 - **Reason:** Phase 10e of the admin dashboard plan.
+
+### EDIT-144 | 16 October 2026 | IST
+- **Topic:** Phase 10f - dashboard App control, Announcements, Notifications (send), Feedback, Certificates, Audit log
+- **Summary:** The last placeholder dashboard sections are built and a new Notifications page sends in-app notifications to one user or all users. The server got the send/broadcast endpoints and the small read additions the pages need. The model path, gate default values and parity are unchanged.
+- **What was done:**
+  - Backend: `POST /admin/notifications/send` (target user/all, source=admin, sent_by=admin uid, batches of 500, skips users with a deletion tombstone, 404 for unknown/deleted uid, max 5 sends to all per hour -> 429 `rate_limited`, stored in new `admin_broadcasts`, audited `notification_send`), `GET /admin/notifications/audience`, `GET /admin/notifications` (all users; uid/status all|visible|cleared|read|unread/source/from/to/cursor, with user and sender emails), `GET /admin/broadcasts`. `create_notification` takes `source` and `sent_by`
+  - Backend reads: feedback `status` filter + `user_email`; certificates `email` search, `superseded` status, `user_email`; certificate detail `user_email` + `verify_url_masked` (token never returned); audit log `admin` and `target` filters + `admin_email` from a new `admin_directory` (uid_hash -> email, written on a staff member's first /admin call; audit entries still store only uid_hash); announcements `action` (app screen, also in public `/announcements`) and `created_by_email`
+  - Config: new `update_message` (<= 200, also in public `/config`), GET `/admin/config` returns `bounds`; inconsistent gates return 400 `invalid_gates`; /admin/* validation errors add `fields: [{field, message}]` (no submitted values)
+  - Indexes: notifications (created_at, _id), (source, created_at); admin_broadcasts (at, _id), (target, at)
+  - Dashboard: App control (all sections, zod form from server bounds, server errors on fields, old -> new diff dialog, typed MAINTENANCE confirm, reset gates confirm), Announcements (table with active/scheduled/expired/draft, create/edit dialog with action link, draft, "also send to all", app Home banner preview, delete confirm), Notifications (Send form with email search / all users and recipient-count confirm, Sent history, All notifications with filters; row opens the user's Notifications tab), User detail "Send notification" button and `?tab=notifications`, Feedback (filters, weekly count + average rating chart, resolve/reopen with note, CSV), Certificates (search by number or email, status filter, detail with snapshot, photo, PDF + SHA-256, masked verify URL, revoke with reason + typed number, supersede), Audit log (filters, expandable before/after diff, CSV). Sidebar adds Notifications; no section is "soon" any more; reviewers keep Gradings + Review queue only
+  - Tests and checks: new backend tests/test_admin_notifications.py (send to user, send to all skipping deleted users, validation incl. field errors, rate limit, reviewer/user 403, audit entry, page filters); full suite 158 passed. run_parity.py A-D PASS, unchanged (clean-98 87.76%, 9/9); parity_report.md and parity_mismatches.csv restored from backup. Admin lint, typecheck, Vitest (60, 15 new in tests/app-control.test.ts) and build pass
+  - Docs: docs/GemEye_API_Reference.md, admin/README.md, backend/README.md
+- **Files changed:**
+  - `+` backend/tests/test_admin_notifications.py
+  - `~` backend/app/admin.py, admin_write.py, notifications.py, db.py, main.py, routers.py, schemas.py
+  - `+` admin/app/admin/(dash)/notifications/page.tsx, admin/app/admin/(dash)/certificates/detail/page.tsx, admin/components/send-notification-form.tsx, admin/components/cert-status.tsx, admin/lib/config.ts, admin/lib/announcements.ts, admin/lib/send-notification.ts, admin/lib/feedback.ts, admin/lib/audit.ts, admin/tests/app-control.test.ts
+  - `~` admin/app/admin/(dash)/app-control/page.tsx, announcements/page.tsx, feedback/page.tsx, certificates/page.tsx, audit-log/page.tsx, users/detail/page.tsx, admin/components/app-shell.tsx, confirm-dialog.tsx, admin/lib/api.ts, types.ts, roles.ts, admin/tests/roles.test.ts
+  - `~` docs/GemEye_API_Reference.md, admin/README.md, backend/README.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-139, EDIT-140, EDIT-141, EDIT-142, EDIT-143
+- **Reason:** Phase 10f of the admin dashboard plan.

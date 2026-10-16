@@ -4,23 +4,26 @@ Users never delete: clear sets cleared_at and hides the item from GET /me/notifi
 Admins see every notification of a user (cleared ones included) and can restore them
 (cleared_at=None, restored_at, restored_by). The only deletion is delete_account.
 Notifications the phone cannot know about (certificate revoked/superseded by an admin,
-role changed) are created here with source="server" via create_notification()."""
+role changed) are created here with source="server" via create_notification().
+Phase 10f: admins send notifications to one user or all users (source="admin",
+sent_by = admin uid); each send is recorded in admin_broadcasts and audited."""
 import logging
 import threading
 import time
 import uuid
 from collections import defaultdict, deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from firebase_admin import auth as firebase_auth
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr, model_validator
 from pymongo.errors import DuplicateKeyError
 
-from app.admin import _emails, _page, admin_only, audit
-from app.auth import active_user, current_user
+from app.admin import _emails, _page, _range, admin_only, audit
+from app.auth import active_user, current_user, uid_hash
 from app.db import utcnow
+from app.errors import ApiError
 from app.routers import NOT_FOUND, _utc, get_db
 
 logger = logging.getLogger("gemeye.notifications")
@@ -32,6 +35,11 @@ RATE_LIMIT, RATE_WINDOW_S = 120, 60
 SYNC_MAX = 50
 ID_PATTERN = r"^[A-Za-z0-9-]{8,64}$"
 ACTION_PATTERN = r"^[A-Za-z]{1,40}$"
+# App screens an admin notification or announcement can open (AppNotificationAction).
+ADMIN_ACTIONS = ("none", "openResult", "openCalibration", "openCapture", "openHistory", "openPrivacy")
+SOURCES = ("app", "server", "admin")
+BROADCAST_ALL_PER_HOUR = 5
+INSERT_BATCH = 500
 
 
 # ---- Rate limit (per uid, /me/notifications only) ----
@@ -75,15 +83,22 @@ def _doc(uid, nid, type_, title, message, category, action, payload, source, cre
             "restored_by": None}
 
 
+def _server_doc(uid, type_, title, message, category, action, payload, source, sent_by, now, extra=None):
+    doc = _doc(uid, str(uuid.uuid4()), type_, title[:120], message[:1000], category, action,
+               payload[:200] if payload else None, source, now)
+    if sent_by:
+        doc["sent_by"] = sent_by
+    return {**doc, **(extra or {})}
+
+
 def create_notification(db, uid, type_, title, message, category=None, action="none",
-                        payload=None):
-    """Server-side notification (source=server). Never raises: a failure is logged and
-    the action that triggered it still succeeds."""
+                        payload=None, source="server", sent_by=None):
+    """Server-side notification (source "server", or "admin" with sent_by = admin uid).
+    Never raises: a failure is logged and the action that triggered it still succeeds."""
     if not uid:
         return None
     try:
-        doc = _doc(uid, str(uuid.uuid4()), type_, title[:120], message[:1000], category, action,
-                   payload[:200] if payload else None, "server", utcnow())
+        doc = _server_doc(uid, type_, title, message, category, action, payload, source, sent_by, utcnow())
         db.notifications.insert_one(doc)
         return doc["_id"]
     except Exception:
@@ -257,3 +272,119 @@ def admin_restore(uid: str, nid: str, user=Depends(admin_only), db=Depends(get_d
     audit(db, "notification_restore", user["uid"], {"uid": uid, "notification": nid},
           {"cleared_at": old["cleared_at"]}, {"cleared_at": None})
     return {"id": nid, "restored_at": now}
+
+
+# ---- Admin send (Phase 10f) ----
+
+class SendIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    target: Literal["user", "all"]
+    uid: Optional[Annotated[StrictStr, Field(min_length=1, max_length=128)]] = None
+    type: Literal[TYPES] = "info"
+    category: Optional[Literal[CATEGORIES]] = None
+    title: Annotated[StrictStr, Field(min_length=1, max_length=120)]
+    message: Annotated[StrictStr, Field(min_length=1, max_length=1000)]
+    action: Literal[ADMIN_ACTIONS] = "none"
+    payload: Optional[Annotated[StrictStr, Field(max_length=200)]] = None
+
+    @model_validator(mode="after")
+    def _target(self):
+        if self.target == "user" and not self.uid:
+            raise ValueError("uid is required when target is user.")
+        if self.target == "all" and self.uid:
+            raise ValueError("uid must not be sent when target is all.")
+        if not self.title.strip() or not self.message.strip():
+            raise ValueError("title and message must not be blank.")
+        return self
+
+
+def recipients(db):
+    """uids of every user that has a profile and is not deleted (tombstone)."""
+    gone = {d["_id"] for d in db.deleted_accounts.find({}, {"_id": 1})}
+    return [u["_id"] for u in db.users.find({}, {"_id": 1}) if uid_hash(u["_id"]) not in gone]
+
+
+def _known_recipient(db, uid):
+    if db.users.find_one({"_id": uid}, {"_id": 1}) is None or \
+            db.deleted_accounts.find_one({"_id": uid_hash(uid)}, {"_id": 1}) is not None:
+        raise HTTPException(404, NOT_FOUND)
+
+
+@router.get("/admin/notifications/audience")
+def admin_audience(user=Depends(admin_only), db=Depends(get_db)):
+    """How many users a send to all would reach (for the confirm dialog)."""
+    return {"users": len(recipients(db))}
+
+
+@router.post("/admin/notifications/send", status_code=201)
+def admin_send(body: SendIn, user=Depends(admin_only), db=Depends(get_db)):
+    """One document per recipient (source=admin, sent_by=admin uid); "all" inserts in
+    batches. At most BROADCAST_ALL_PER_HOUR sends to all per hour (all admins together)."""
+    now = utcnow()
+    if body.target == "all":
+        recent = db.admin_broadcasts.count_documents({"target": "all", "at": {"$gte": now - timedelta(hours=1)}})
+        if recent >= BROADCAST_ALL_PER_HOUR:
+            raise ApiError(429, "rate_limited",
+                           f"At most {BROADCAST_ALL_PER_HOUR} notifications to all users per hour.")
+        uids = recipients(db)
+    else:
+        _known_recipient(db, body.uid)
+        uids = [body.uid]
+    bid = uuid.uuid4().hex
+    title, message = body.title.strip(), body.message.strip()
+    payload = body.payload.strip() if body.payload and body.payload.strip() else None
+    count = 0
+    for i in range(0, len(uids), INSERT_BATCH):
+        docs = [_server_doc(u, body.type, title, message, body.category, body.action, payload,
+                            "admin", user["uid"], now, {"broadcast_id": bid})
+                for u in uids[i:i + INSERT_BATCH]]
+        db.notifications.insert_many(docs, ordered=False)
+        count += len(docs)
+    record = {"_id": bid, "target": body.target, "uid": body.uid, "count": count, "title": title,
+              "type": body.type, "category": body.category, "action": body.action,
+              "sent_by": user["uid"], "at": now}
+    db.admin_broadcasts.insert_one(record)
+    audit(db, "notification_send", user["uid"], {"broadcast": bid, **({"uid": body.uid} if body.uid else {})},
+          None, {"target": body.target, "count": count, "title": title, "type": body.type})
+    return {"id": bid, "target": body.target, "count": count, "at": now}
+
+
+@router.get("/admin/broadcasts")
+def admin_broadcasts(limit: int = Query(25, ge=1, le=100), cursor: Optional[str] = None,
+                     target: Optional[Literal["user", "all"]] = None,
+                     user=Depends(admin_only), db=Depends(get_db)):
+    q = {"target": target} if target else {}
+    docs, nxt = _page(db.admin_broadcasts, q, "at", limit, cursor)
+    emails = _admin_emails(db, {d["sent_by"] for d in docs if d.get("sent_by")} |
+                           {d["uid"] for d in docs if d.get("uid")})
+    return {"items": [{"id": d["_id"], **{k: d.get(k) for k in ("target", "uid", "count", "title", "type",
+                                                               "category", "action", "at")},
+                       "user_email": emails.get(d.get("uid")) if d.get("uid") else None,
+                       "sent_by_email": emails.get(d.get("sent_by"))} for d in docs],
+            "next_cursor": nxt}
+
+
+ALL_STATUS_QUERY = {**STATUS_QUERY, "read": {"read_at": {"$ne": None}}, "unread": {"read_at": None}}
+
+
+@router.get("/admin/notifications")
+def admin_list_all(uid: Optional[str] = Query(None, max_length=128),
+                   status: Literal["all", "visible", "cleared", "read", "unread"] = "all",
+                   source: Optional[Literal[SOURCES]] = None,
+                   from_: Optional[datetime] = Query(None, alias="from"), to: Optional[datetime] = None,
+                   limit: int = Query(25, ge=1, le=100), cursor: Optional[str] = None,
+                   user=Depends(admin_only), db=Depends(get_db)):
+    """Every user's notifications, newest first, with the user's email."""
+    q = dict(ALL_STATUS_QUERY[status])
+    if uid:
+        q["uid"] = uid
+    if source:
+        q["source"] = source
+    _range(q, "created_at", from_, to)
+    docs, nxt = _page(db.notifications, q, "created_at", limit, cursor)
+    users = _emails(db, [d["uid"] for d in docs])
+    staff_ = _admin_emails(db, {d[k] for d in docs for k in ("restored_by", "sent_by") if d.get(k)})
+    return {"items": [{**admin_item(d, staff_), "uid": d["uid"], "user_email": users.get(d["uid"]),
+                       "sent_by_email": staff_.get(d.get("sent_by")) if d.get("sent_by") else None}
+                      for d in docs],
+            "next_cursor": nxt}

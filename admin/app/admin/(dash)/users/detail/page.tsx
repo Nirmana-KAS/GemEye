@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ban, CheckCircle2, KeyRound, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Ban, Bell, CheckCircle2, KeyRound, ShieldCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -12,9 +12,11 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { columnHelper, DataTable } from "@/components/data-table";
 import { NativeSelect } from "@/components/filters";
 import { GradeChip, YesNo } from "@/components/grade-chip";
+import { SendNotificationForm } from "@/components/send-notification-form";
 import { EmptyState, ErrorState, PageHeader } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -63,9 +65,9 @@ function SelfGuard({ self, children }: { self: boolean; children: React.ReactEle
   );
 }
 
-type Dialogs = "disable" | "enable" | "role" | "reset" | "delete" | null;
+type Dialogs = "disable" | "enable" | "role" | "reset" | "delete" | "notify" | null;
 
-function UserDetailView({ uid }: { uid: string }) {
+function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
   const { api, user: me, role: myRole } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
@@ -188,6 +190,9 @@ function UserDetailView({ uid }: { uid: string }) {
               <ShieldCheck /> Set role
             </Button>
           </SelfGuard>
+          <Button variant="outline" onClick={() => setDialog("notify")}>
+            <Bell /> Send notification
+          </Button>
           <Button variant="outline" onClick={() => setDialog("reset")} disabled={!p.email}>
             <KeyRound /> Send password reset
           </Button>
@@ -263,7 +268,7 @@ function UserDetailView({ uid }: { uid: string }) {
         </Card>
       </div>
 
-      <Tabs defaultValue="activity" className="mt-6">
+      <Tabs defaultValue={tab === "notifications" && myRole === "admin" ? "notifications" : "activity"} className="mt-6">
         <TabsList>
           <TabsTrigger value="activity">Gradings and calibrations</TabsTrigger>
           {myRole === "admin" && <TabsTrigger value="notifications">Notifications</TabsTrigger>}
@@ -299,6 +304,15 @@ function UserDetailView({ uid }: { uid: string }) {
         )}
       </Tabs>
 
+      <Dialog open={dialog === "notify"} onOpenChange={(o) => setDialog(o ? "notify" : null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Send notification</DialogTitle>
+            <DialogDescription>To {p.email ?? uid}. It appears in the app&apos;s notification list.</DialogDescription>
+          </DialogHeader>
+          <SendNotificationForm user={{ uid, email: p.email }} onSent={() => setDialog(null)} />
+        </DialogContent>
+      </Dialog>
       <ConfirmDialog
         open={dialog === "disable"}
         onOpenChange={(o) => setDialog(o ? "disable" : null)}
@@ -372,9 +386,10 @@ function UserDetailView({ uid }: { uid: string }) {
 }
 
 function UserDetailPage() {
-  const uid = useSearchParams().get("uid");
+  const params = useSearchParams();
+  const uid = params.get("uid");
   if (!uid) return <EmptyState title="No user selected" />;
-  return <UserDetailView key={uid} uid={uid} />;
+  return <UserDetailView key={uid} uid={uid} tab={params.get("tab")} />;
 }
 
 export default function Page() {

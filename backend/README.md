@@ -214,7 +214,7 @@ missing from the stored document fall back to the defaults:
 
 ```
 referral_threshold_default: 0.60, calibration_validity_hours: 24, min_app_version: "1.0.0",
-maintenance: {enabled: false, message: ""},
+update_message: "", maintenance: {enabled: false, message: ""},
 features: {repeatability_mode: true, gradcam: true, public_verification: true,
            session_mapping: false}
 ```
@@ -243,7 +243,9 @@ Edit the document in MongoDB to change it; each process picks it up within 60 s.
 | `app_config` | `_id: "global"`, remote config (above) | `_id` |
 | `audit_log` | `_id, action, uid_hash, at` | - |
 | `deleted_accounts` | `_id` (sha256(uid)), `deleted_at` | TTL on `deleted_at`, 2 hours |
-| `notifications` | `_id` (app or server uuid), `uid, type, category, title, message, action, payload, source` (app/server), `created_at, read_at, cleared_at, restored_at, restored_by` | `(uid, created_at desc)`, `(uid, cleared_at)` |
+| `notifications` | `_id` (app or server uuid), `uid, type, category, title, message, action, payload, source` (app/server/admin), `created_at, read_at, cleared_at, restored_at, restored_by`; admin sends add `sent_by` (admin uid) and `broadcast_id` | `(uid, created_at desc)`, `(uid, cleared_at)`, `(created_at desc, _id desc)`, `(source, created_at desc)` |
+| `admin_broadcasts` | `_id, target` (user/all), `uid` (target user), `count, title, type, category, action, sent_by` (admin uid), `at` | `(at desc, _id desc)`, `(target, at desc)` |
+| `admin_directory` | `_id` (sha256 of a dashboard user's uid), `email, role, seen_at`; written on their first `/admin/*` call per process so the audit log can show who acted | `_id` |
 
 S3 (private bucket, SSE-S3): `<prefix>gradings/{uid}/{grading_id}.jpg` (`.png`
 for PNG uploads). Only the original upload of a graded stone is stored.
@@ -358,7 +360,7 @@ docker compose exec api python scripts/set_role.py --email gemeyeapp@gmail.com -
 | GET | `/admin/stats/timeseries?metric=gradings\|rejections\|referral_rate\|avg_confidence&days=30&bucket=day` | Asia/Colombo days, gaps filled |
 | GET | `/admin/users`, `/admin/users/{uid}` | `q` (email/name), `sort=created\|last_active`, `role=admin\|reviewer\|none`, `disabled=true\|false`, `limit`, `cursor`; rows have Firebase `role` and `disabled`; detail adds counts, last 10 gradings, calibrations, devices, `role`, `disabled` |
 | GET | `/admin/gradings`, `/admin/gradings/{id}` | `from, to, grade, referred, model_version, uid, device, status`, cursor paging, fresh image URL; detail adds the full result, heatmap URL if cached, certificate and `review` (admin and reviewer) |
-| GET | `/admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | filters, cursor paging; certificates search by number prefix (`q`) and `status` |
+| GET | `/admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | filters, cursor paging. Feedback: `status=open\|resolved`, rows with `user_email`. Certificates: number prefix (`q`), owner email contains (`email`), `status=valid\|revoked\|superseded\|withdrawn` (superseded = revoked with `superseded_by`), rows with `user_email`. Audit log: `action`, `admin` (email contains, or a uid_hash), `target` (any target id), rows with `admin_email` from `admin_directory` |
 | GET | `/admin/model/monitoring?days=30&model_version=` | per model version: `summary` (gradings, avg confidence / uncertainty, referral rate, unusual images, rejections and rate per gate, avg and p95 latency, review agreement exact / within one / n) and every day of the range with the same values; rejections per day, gate and model version. `days` 1-90 (dashboard: 7, 30, 90) |
 
 Admin writes (Phase 10b, below) call `audit(db, action, admin_uid, target, before, after)`,
@@ -377,9 +379,9 @@ fields are rejected (400). An admin cannot disable, delete or demote their own a
 | POST | `/admin/users/{uid}/role` | `{role: admin\|reviewer\|none}`; tokens revoked when a role is removed or changed |
 | POST | `/admin/users/{uid}/password-reset` | Firebase email template -> `{status: "sent"}`; if sending fails `{status: "link", link}` (admin only, never logged or audited) |
 | DELETE | `/admin/users/{uid}` | same logic as `DELETE /me` (data, S3, certificates withdrawn, tombstone, Firebase user) |
-| GET, PUT | `/admin/config` | partial update, strict bounds: `referral_threshold_default` 0.40-0.90, `calibration_validity_hours` 1-72, `min_app_version` semver, `maintenance {enabled, message<=200}`, `features {repeatability_mode, gradcam, public_verification, session_mapping}`, `verify_base_url` (https, new certificates only), `gates` (below). GET also returns `gate_defaults` and `gate_bounds` |
+| GET, PUT | `/admin/config` | partial update, strict bounds: `referral_threshold_default` 0.40-0.90, `calibration_validity_hours` 1-72, `min_app_version` semver, `maintenance {enabled, message<=200}`, `features {repeatability_mode, gradcam, public_verification, session_mapping}`, `verify_base_url` (https, new certificates only), `update_message<=200` (shown with the update prompt), `gates` (below). GET also returns `gate_defaults`, `gate_bounds` and `bounds` (the other limits, for the dashboard form). Inconsistent gates: 400 `invalid_gates` |
 | POST | `/admin/config/reset-gates` | restores the default gates |
-| GET, POST | `/admin/announcements` | `{title<=80, message<=500, level info\|warning, starts_at?, ends_at, active}` |
+| GET, POST | `/admin/announcements` | `{title<=80, message<=500, level info\|warning, starts_at?, ends_at, active, action?}` (`action` = app screen opened from the banner, default `none`); GET rows add `created_by_email` |
 | PUT, DELETE | `/admin/announcements/{id}` | PUT replaces the editable fields |
 | GET | `/admin/review-queue` (staff) | `status=pending` (referred, not yet reviewed) \| `mine` \| `reviewed`; `from, to, grade, model_version`, cursor paging; no user identity; photo and Grad-CAM URLs, probabilities, colour values, `referred_reasons`, `review` |
 | POST | `/admin/reviews` (staff) | `{grading_id, gemologist_grade 1-7, reviewer_confidence?, unusable?, notes<=500}` (unusable = no grade, left out of agreement); 409 `already_reviewed` |
@@ -387,7 +389,7 @@ fields are rejected (400). An admin cannot disable, delete or demote their own a
 | GET | `/admin/reviews/stats` | agreement overall, per model grade, per model version, 7x7 confusion matrix (rows model, columns gemologist), pending |
 | GET | `/admin/reviews/export` | CSV (grading_id, image_ref, model_grade, gemologist_grade, confidence, model_version, created_at, reviewer_confidence, unusable); no emails or uids |
 | POST | `/admin/feedback/{id}/status` | `{status: open\|resolved, note<=300}` |
-| GET | `/admin/certificates/{cert_no}` | detail with presigned PDF and photo URLs |
+| GET | `/admin/certificates/{cert_no}` | detail with presigned PDF and photo URLs, `user_email` and `verify_url_masked` (the token is never returned) |
 | POST | `/admin/certificates/{cert_no}/revoke` | `{reason}`; 409 if not valid |
 | POST | `/admin/certificates/{cert_no}/supersede` | `{new_cert_no, reason}`; revokes and records the replacement, the public page shows "Replaced by <new_cert_no>" |
 
@@ -420,3 +422,16 @@ Admins (not reviewers) list a user's notifications with
 again on the phone at its next refresh. `create_notification(db, uid, ...)` adds
 `source: "server"` notifications for events the phone cannot know: admin certificate
 revoke / supersede and role changes. Tests: `tests/test_notifications.py`.
+
+### Admin send (Phase 10f)
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/admin/notifications/send` | `{target: user\|all, uid?, type, category?, title<=120, message<=1000, action?, payload<=200}` -> 201 `{id, target, count, at}`. `source: "admin"`, `sent_by` = admin uid. `all` = one document per user with a profile and no deletion tombstone, inserted in batches of 500. At most 5 sends to all per hour (all admins together, 429 `rate_limited`). Unknown or deleted uid: 404. Recorded in `admin_broadcasts`, audited `notification_send` |
+| GET | `/admin/notifications/audience` | `{users}`: how many users a send to all reaches |
+| GET | `/admin/notifications` | every user's notifications: `uid, status=all\|visible\|cleared\|read\|unread, source=app\|server\|admin, from, to, limit, cursor`; rows add `uid, user_email, sent_by_email` |
+| GET | `/admin/broadcasts` | sent history (`target=user\|all`, cursor paging) with `user_email` and `sent_by_email` |
+
+Validation errors (400) on `/admin/*` also return `fields: [{field, message}]` (the field path,
+never the submitted value) so the dashboard can show them on the form field. Tests:
+`tests/test_admin_notifications.py`.

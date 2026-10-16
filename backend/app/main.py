@@ -119,7 +119,13 @@ async def rate_limited(request: Request, exc: RateLimitExceeded):
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
-    return _error(request, 400, "Invalid request.")
+    # The dashboard shows server errors on the form field: /admin/* adds the field path and
+    # message of each error (never the submitted value).
+    extra = None
+    if request.url.path.startswith("/admin"):
+        extra = {"fields": [{"field": ".".join(str(p) for p in e.get("loc", ())[1:]),
+                             "message": str(e.get("msg", ""))[:200]} for e in exc.errors()[:20]]}
+    return _error(request, 400, "Invalid request.", extra)
 
 
 @app.exception_handler(Exception)

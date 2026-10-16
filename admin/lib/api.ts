@@ -1,6 +1,7 @@
 import type {
   AdminNotificationPage,
   ApiErrorBody,
+  FieldError,
   NotificationStatusFilter,
   Page,
   QueueItem,
@@ -14,6 +15,8 @@ export class ApiError extends Error {
     readonly status: number,
     readonly code: string,
     message: string,
+    /** Field-level validation errors from the server (400 on /admin/*). */
+    readonly fields: FieldError[] = [],
   ) {
     super(message);
     this.name = "ApiError";
@@ -52,7 +55,10 @@ export function errorFromResponse(status: number, body: unknown): ApiError {
     (typeof b.detail === "string" && b.detail) ||
     STATUS_MESSAGES[status] ||
     (status >= 500 ? "Server error. Please try again." : "Request failed.");
-  return new ApiError(status, code, message);
+  const fields = Array.isArray(b.fields)
+    ? b.fields.filter((f): f is FieldError => !!f && typeof f.field === "string" && typeof f.message === "string")
+    : [];
+  return new ApiError(status, code, message, fields);
 }
 
 export type QueryValue = string | number | boolean | null | undefined;

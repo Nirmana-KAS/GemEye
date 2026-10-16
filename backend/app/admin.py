@@ -52,14 +52,45 @@ def _rate_limited(user):
         q.append(now)
 
 
-def admin_only(user=Depends(admin_user)):
+# Admin directory (uid_hash -> email) so the audit log can show who acted while audit
+# entries keep only the uid_hash. Written once per admin per process.
+_known_staff, _known_lock = set(), threading.Lock()
+
+
+def _remember(request, user):
+    db = getattr(request.app.state, "db", None)
+    key = (user["uid"], user.get("email"), user["role"])
+    with _known_lock:
+        if db is None or key in _known_staff:
+            return
+    try:
+        db.admin_directory.update_one(
+            {"_id": uid_hash(user["uid"])},
+            {"$set": {"email": user.get("email"), "role": user["role"], "seen_at": utcnow()}}, upsert=True)
+        with _known_lock:
+            _known_staff.add(key)
+    except Exception:
+        pass
+
+
+def admin_only(request: Request, user=Depends(admin_user)):
     _rate_limited(user)
+    _remember(request, user)
     return user
 
 
-def staff(user=Depends(reviewer_or_admin)):
+def staff(request: Request, user=Depends(reviewer_or_admin)):
     _rate_limited(user)
+    _remember(request, user)
     return user
+
+
+def staff_emails(db, hashes):
+    """{uid_hash: email} of dashboard staff from the admin directory."""
+    hashes = [h for h in set(hashes) if h]
+    if not hashes:
+        return {}
+    return {d["_id"]: d.get("email") for d in db.admin_directory.find({"_id": {"$in": hashes}}, {"email": 1})}
 
 
 def clean(v):
@@ -468,6 +499,7 @@ def list_feedback(
     rating: Optional[int] = Query(None, ge=1, le=5),
     category: Optional[str] = Query(None, max_length=30),
     uid: Optional[str] = Query(None, max_length=128),
+    status: Optional[str] = Query(None, max_length=20),
     user=Depends(admin_only), db=Depends(get_db),
 ):
     q = {}
@@ -475,8 +507,14 @@ def list_feedback(
     for field, val in (("rating", rating), ("category", category), ("uid", uid)):
         if val is not None:
             q[field] = val
+    if status is not None:
+        if status not in ("open", "resolved"):
+            _bad("status must be open or resolved.")
+        # Feedback without a status field is open.
+        q["status"] = {"$in": [None, "open"]} if status == "open" else "resolved"
     docs, nxt = _page(db.feedback, q, "created_at", limit, cursor)
-    items = [{"feedback_id": f["_id"], "uid": f["uid"],
+    emails = _emails(db, [f["uid"] for f in docs])
+    items = [{"feedback_id": f["_id"], "uid": f["uid"], "user_email": emails.get(f["uid"]),
               **{k: f.get(k) for k in ("created_at", "rating", "category", "comment", "app_version",
                                        "status_note", "status_at")},
               "status": f.get("status") or "open"}
@@ -484,24 +522,45 @@ def list_feedback(
     return clean({"items": items, "next_cursor": nxt})
 
 
+CERT_STATUSES = ("valid", "revoked", "superseded", "withdrawn")
+
+
 @router.get("/certificates")
 def list_certificates(
     limit: int = Query(25, ge=1, le=100), cursor: Optional[str] = None,
     q: Optional[str] = Query(None, max_length=40),
+    email: Optional[str] = Query(None, max_length=100),
     status: Optional[str] = Query(None, max_length=20),
     user=Depends(admin_only), db=Depends(get_db),
 ):
+    """q = certificate number prefix, email = owner email contains. status superseded is a
+    revoked certificate with superseded_by; status revoked excludes those."""
     query = {}
     if q and q.strip():
         query["_id"] = {"$regex": "^" + re.escape(q.strip().upper())}
+    if email and email.strip():
+        query["uid"] = {"$in": [u["_id"] for u in db.users.find({"email": _contains(email)}, {"_id": 1}).limit(500)]}
     if status:
-        query["status"] = status
+        if status not in CERT_STATUSES:
+            _bad("Unknown certificate status.")
+        if status == "superseded":
+            query.update(status="revoked", superseded_by={"$nin": [None, ""]})
+        elif status == "revoked":
+            query.update(status="revoked", superseded_by={"$in": [None, ""]})
+        else:
+            query["status"] = status
     docs, nxt = _page(db.certificates, query, "issued_at", limit, cursor)
+    emails = _emails(db, [c["uid"] for c in docs if c.get("uid")])
     items = [{"cert_no": c["_id"], "uid": c.get("uid"), "grading_id": c.get("grading_id"),
+              "user_email": emails.get(c.get("uid")),
               **{k: c.get(k) for k in ("status", "issued_at", "snapshot", "owner", "pdf_sha256",
                                        "pdf_uploaded_at", "revoked_reason", "revoked_at",
                                        "withdrawn_at", "superseded_by")}} for c in docs]
     return clean({"items": items, "next_cursor": nxt})
+
+
+AUDIT_TARGET_KEYS = ("uid", "uid_hash", "cert_no", "announcement", "feedback", "grading_id",
+                     "notification", "broadcast", "config")
 
 
 @router.get("/audit-log")
@@ -509,15 +568,28 @@ def list_audit_log(
     limit: int = Query(25, ge=1, le=100), cursor: Optional[str] = None,
     from_: Optional[datetime] = Query(None, alias="from"), to: Optional[datetime] = None,
     action: Optional[str] = Query(None, max_length=60),
+    admin: Optional[str] = Query(None, max_length=100),
+    target: Optional[str] = Query(None, max_length=128),
     user=Depends(admin_only), db=Depends(get_db),
 ):
+    """admin = email contains (admin directory) or a 64-hex uid_hash; target = an id that
+    any target field equals (uid, cert_no, announcement, feedback, grading_id, ...)."""
     q = {}
     _range(q, "at", from_, to)
     if action:
         q["action"] = action
+    if admin and admin.strip():
+        a = admin.strip()
+        hashes = [a.lower()] if re.fullmatch(r"[0-9a-fA-F]{64}", a) else [
+            d["_id"] for d in db.admin_directory.find({"email": _contains(a)}, {"_id": 1})]
+        q["uid_hash"] = {"$in": hashes}
+    if target and target.strip():
+        q["$or"] = [{f"target.{k}": target.strip()} for k in AUDIT_TARGET_KEYS]
     docs, nxt = _page(db.audit_log, q, "at", limit, cursor)
+    emails = staff_emails(db, [a.get("uid_hash") for a in docs])
     items = [{"audit_id": a["_id"],
-              **{k: a.get(k) for k in ("action", "uid_hash", "admin", "target", "before", "after", "at")}}
+              **{k: a.get(k) for k in ("action", "uid_hash", "admin", "role", "target", "before", "after", "at")},
+              "admin_email": emails.get(a.get("uid_hash"))}
              for a in docs]
     return clean({"items": items, "next_cursor": nxt})
 

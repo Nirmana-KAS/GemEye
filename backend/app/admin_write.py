@@ -18,12 +18,13 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, Strict
 from pymongo.errors import DuplicateKeyError
 
 from app import gates
-from app.admin import _bad, _page, _presign, _range, _grading_row, admin_only, audit, clean, review_rows, staff
+from app.admin import (_bad, _emails, _page, _presign, _range, _grading_row, admin_only, audit, clean,
+                       review_rows, staff, staff_emails)
 from app.auth import uid_hash
 from app.config import get_settings
 from app.db import utcnow
 from app.errors import ApiError
-from app.notifications import create_notification
+from app.notifications import ADMIN_ACTIONS, create_notification
 from app.routers import NOT_FOUND, UNAVAILABLE, _utc, delete_account, get_db, get_storage
 from app.schemas import RevokeIn
 
@@ -188,6 +189,7 @@ def delete_user(uid: str, user=Depends(admin_only), db=Depends(get_db), storage=
 # ---- Remote config ----
 
 Bool = StrictBool
+REFERRAL_BOUNDS, VALIDITY_BOUNDS, MESSAGE_MAX = (0.40, 0.90), (1, 72), 200
 
 
 def _g(name):
@@ -198,7 +200,7 @@ def _g(name):
 class MaintenanceIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     enabled: Optional[Bool] = None
-    message: Optional[Annotated[StrictStr, Field(max_length=200)]] = None
+    message: Optional[Annotated[StrictStr, Field(max_length=MESSAGE_MAX)]] = None
 
 
 class FeaturesIn(BaseModel):
@@ -224,9 +226,10 @@ class GatesIn(BaseModel):
 class ConfigIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     referral_threshold_default: Optional[float] = Field(None, strict=True, allow_inf_nan=False,
-                                                        ge=0.40, le=0.90)
-    calibration_validity_hours: Optional[StrictInt] = Field(None, ge=1, le=72)
+                                                        ge=REFERRAL_BOUNDS[0], le=REFERRAL_BOUNDS[1])
+    calibration_validity_hours: Optional[StrictInt] = Field(None, ge=VALIDITY_BOUNDS[0], le=VALIDITY_BOUNDS[1])
     min_app_version: Optional[StrictStr] = None
+    update_message: Optional[Annotated[StrictStr, Field(max_length=MESSAGE_MAX)]] = None
     maintenance: Optional[MaintenanceIn] = None
     features: Optional[FeaturesIn] = None
     verify_base_url: Optional[StrictStr] = None
@@ -252,9 +255,14 @@ class ConfigIn(BaseModel):
 def _config_view(db):
     cfg = db.get_app_config()
     return {**{k: cfg[k] for k in ("referral_threshold_default", "calibration_validity_hours",
-                                   "min_app_version", "maintenance", "features", "verify_base_url")},
+                                   "min_app_version", "update_message", "maintenance", "features",
+                                   "verify_base_url")},
             "gates": gates.effective(cfg), "gate_defaults": gates.DEFAULTS,
-            "gate_bounds": {k: {"min": lo, "max": hi} for k, (lo, hi) in gates.BOUNDS.items()}}
+            "gate_bounds": {k: {"min": lo, "max": hi} for k, (lo, hi) in gates.BOUNDS.items()},
+            # The same limits ConfigIn enforces, for the dashboard form.
+            "bounds": {"referral_threshold_default": {"min": REFERRAL_BOUNDS[0], "max": REFERRAL_BOUNDS[1]},
+                       "calibration_validity_hours": {"min": VALIDITY_BOUNDS[0], "max": VALIDITY_BOUNDS[1]},
+                       "message_max": MESSAGE_MAX}}
 
 
 @router.get("/config")
@@ -276,7 +284,8 @@ def put_config(body: ConfigIn, user=Depends(admin_only), db=Depends(get_db)):
                 continue
             v = {**current[k], **v}
             if k == "gates" and not gates.valid(v):
-                _bad("Gate values are inconsistent (hue_min < hue_max and ood_warn < ood_reject).")
+                raise ApiError(400, "invalid_gates",
+                               "Gate values are inconsistent (hue_min < hue_max and ood_warn < ood_reject).")
         elif v is None:
             continue
         update[k] = v
@@ -309,15 +318,18 @@ class AnnouncementIn(BaseModel):
     starts_at: Optional[datetime] = None
     ends_at: datetime
     active: Bool = True
+    # In-app screen opened from the Home banner ("none" = no link).
+    action: Literal[ADMIN_ACTIONS] = "none"
 
 
-def _announcement_row(a, now=None):
+def _announcement_row(a, now=None, emails=None):
     now = now or utcnow()
     s, e = _utc(a["starts_at"]), _utc(a["ends_at"])
     state = "disabled" if not a.get("active") else "scheduled" if s > now else "expired" if e < now else "live"
-    return {"id": a["_id"], "state": state,
+    return {"id": a["_id"], "state": state, "action": a.get("action") or "none",
             **{k: a.get(k) for k in ("title", "message", "level", "starts_at", "ends_at", "active",
-                                     "created_by_hash", "created_at")}}
+                                     "created_by_hash", "created_at")},
+            "created_by_email": (emails or {}).get(a.get("created_by_hash"))}
 
 
 def _announcement_doc(body):
@@ -326,19 +338,19 @@ def _announcement_doc(body):
     if end <= start:
         _bad("ends_at must be after starts_at.")
     return {"title": body.title.strip(), "message": body.message.strip(), "level": body.level,
-            "starts_at": start, "ends_at": end, "active": body.active}
+            "starts_at": start, "ends_at": end, "active": body.active, "action": body.action}
 
 
 def _audit_view(a):
-    return {k: a.get(k) for k in ("title", "message", "level", "starts_at", "ends_at", "active")}
+    return {k: a.get(k) for k in ("title", "message", "level", "starts_at", "ends_at", "active", "action")}
 
 
 @router.get("/announcements")
 def list_announcements(limit: int = Query(25, ge=1, le=100), cursor: Optional[str] = None,
                        user=Depends(admin_only), db=Depends(get_db)):
     docs, nxt = _page(db.announcements, {}, "created_at", limit, cursor)
-    now = utcnow()
-    return {"items": [_announcement_row(a, now) for a in docs], "next_cursor": nxt}
+    now, emails = utcnow(), staff_emails(db, [a.get("created_by_hash") for a in docs])
+    return {"items": [_announcement_row(a, now, emails) for a in docs], "next_cursor": nxt}
 
 
 @router.post("/announcements", status_code=201)
@@ -607,11 +619,20 @@ def _cert_state(doc):
             "superseded_by": doc.get("superseded_by")}
 
 
+def _masked_verify(doc):
+    """The certificate's verify link with the secret token replaced by "..."."""
+    from app.certificates import LEGACY_VERIFY_BASE
+    return f"{doc.get('verify_base') or LEGACY_VERIFY_BASE}/v/{doc['_id']}-..."
+
+
 @router.get("/certificates/{cert_no}")
 def certificate_detail(cert_no: str, user=Depends(admin_only), db=Depends(get_db),
                        storage=Depends(get_storage)):
     c = _cert(db, cert_no)
     out = {"cert_no": c["_id"], "uid": c.get("uid"), "grading_id": c.get("grading_id"),
+           "user_email": _emails(db, [c["uid"]]).get(c["uid"]) if c.get("uid") else None,
+           # The real verify link carries the secret token, which admin responses never contain.
+           "verify_url_masked": _masked_verify(c),
            **{k: c.get(k) for k in ("status", "issued_at", "snapshot", "owner", "pdf_sha256",
                                     "pdf_uploaded_at", "revoked_reason", "revoked_at", "withdrawn_at",
                                     "superseded_by")},

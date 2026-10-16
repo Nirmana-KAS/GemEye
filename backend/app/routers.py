@@ -387,7 +387,7 @@ def post_feedback(body: FeedbackIn, user=Depends(active_user), db=Depends(get_db
 
 def announcement_public(a):
     return {"id": a["_id"], **{k: a.get(k) for k in ("title", "message", "level", "starts_at",
-                                                      "ends_at")}}
+                                                      "ends_at")}, "action": a.get("action") or "none"}
 
 
 def _active_announcements(db):
@@ -404,7 +404,7 @@ def get_config(db=Depends(get_db)):
     cfg = db.get_app_config()
     g = gates.effective(cfg)
     return {**{k: cfg[k] for k in ("referral_threshold_default", "calibration_validity_hours",
-                                   "min_app_version", "maintenance", "features")},
+                                   "min_app_version", "update_message", "maintenance", "features")},
             "blur_min_variance": g["blur_min_variance"], "gates": g,
             "announcements": _active_announcements(db)}
 

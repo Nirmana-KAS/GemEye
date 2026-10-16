@@ -22,11 +22,12 @@ export const NAV: NavItem[] = [
   { href: "/admin/review-queue/", label: "Review queue", roles: ["admin", "reviewer"], built: true },
   { href: "/admin/model-monitoring/", label: "Model monitoring", roles: ["admin"], built: true },
   { href: "/admin/calibrations/", label: "Calibrations", roles: ["admin"], built: true },
-  { href: "/admin/app-control/", label: "App control", roles: ["admin"], built: false },
-  { href: "/admin/announcements/", label: "Announcements", roles: ["admin"], built: false },
-  { href: "/admin/feedback/", label: "Feedback", roles: ["admin"], built: false },
-  { href: "/admin/certificates/", label: "Certificates", roles: ["admin"], built: false },
-  { href: "/admin/audit-log/", label: "Audit log", roles: ["admin"], built: false },
+  { href: "/admin/app-control/", label: "App control", roles: ["admin"], built: true },
+  { href: "/admin/announcements/", label: "Announcements", roles: ["admin"], built: true },
+  { href: "/admin/notifications/", label: "Notifications", roles: ["admin"], built: true },
+  { href: "/admin/feedback/", label: "Feedback", roles: ["admin"], built: true },
+  { href: "/admin/certificates/", label: "Certificates", roles: ["admin"], built: true },
+  { href: "/admin/audit-log/", label: "Audit log", roles: ["admin"], built: true },
 ];
 
 export const LOGIN_PATH = "/admin/login/";

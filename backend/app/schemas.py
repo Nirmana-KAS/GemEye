@@ -353,6 +353,7 @@ class AppConfig(BaseModel):
     referral_threshold_default: float
     calibration_validity_hours: int
     min_app_version: str
+    update_message: str = ""
     maintenance: Maintenance
     features: Features
     blur_min_variance: float

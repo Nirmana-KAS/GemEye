@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
+  Bell,
   ClipboardCheck,
   FileBadge,
   Gem,
@@ -47,6 +48,7 @@ const ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   "/admin/calibrations/": Pipette,
   "/admin/app-control/": SlidersHorizontal,
   "/admin/announcements/": Megaphone,
+  "/admin/notifications/": Bell,
   "/admin/feedback/": MessageSquare,
   "/admin/certificates/": FileBadge,
   "/admin/audit-log/": ScrollText,

@@ -281,11 +281,19 @@ export interface ReviewStats {
 
 // ---- Errors and writes ----
 
+export interface FieldError {
+  /** Dotted field path, e.g. "gates.hue_min". */
+  field: string;
+  message: string;
+}
+
 export interface ApiErrorBody {
   status?: string;
   code?: string;
   message?: string;
   detail?: unknown;
+  /** /admin/* validation errors (400). */
+  fields?: FieldError[];
 }
 
 export interface PasswordResetResult {
@@ -315,4 +323,192 @@ export interface AdminNotification {
 
 export interface AdminNotificationPage extends Page<AdminNotification> {
   counts: { visible: number; cleared: number };
+}
+
+// ---- App control (Phase 10f) ----
+
+export type GateKey =
+  | "blur_min_variance"
+  | "no_stone_min_area"
+  | "no_stone_min_contrast_de00"
+  | "hue_min"
+  | "hue_max"
+  | "min_chroma"
+  | "ood_warn"
+  | "ood_reject";
+
+export type FeatureKey = "repeatability_mode" | "gradcam" | "public_verification" | "session_mapping";
+
+export interface Bound {
+  min: number;
+  max: number;
+}
+
+export interface AdminConfig {
+  referral_threshold_default: number;
+  calibration_validity_hours: number;
+  min_app_version: string;
+  update_message: string;
+  maintenance: { enabled: boolean; message: string };
+  features: Record<FeatureKey, boolean>;
+  verify_base_url: string;
+  gates: Record<GateKey, number>;
+  gate_defaults: Record<GateKey, number>;
+  gate_bounds: Record<GateKey, Bound>;
+  bounds: {
+    referral_threshold_default: Bound;
+    calibration_validity_hours: Bound;
+    message_max: number;
+  };
+}
+
+// ---- Announcements ----
+
+export type AppAction = "none" | "openResult" | "openCalibration" | "openCapture" | "openHistory" | "openPrivacy";
+
+export interface Announcement {
+  id: string;
+  state: "live" | "scheduled" | "expired" | "disabled";
+  title: string;
+  message: string;
+  level: "info" | "warning";
+  starts_at: string;
+  ends_at: string;
+  active: boolean;
+  action: AppAction;
+  created_by_hash: string | null;
+  created_by_email: string | null;
+  created_at: string;
+}
+
+export interface AnnouncementBody {
+  title: string;
+  message: string;
+  level: "info" | "warning";
+  starts_at: string | null;
+  ends_at: string;
+  active: boolean;
+  action: AppAction;
+}
+
+// ---- Send notifications ----
+
+export type NotificationType = AdminNotification["type"];
+export type NotificationCategory = NonNullable<AdminNotification["category"]>;
+
+export interface SendNotificationBody {
+  target: "user" | "all";
+  uid?: string;
+  type: NotificationType;
+  category?: NotificationCategory;
+  title: string;
+  message: string;
+  action: AppAction;
+  payload?: string;
+}
+
+export interface SendResult {
+  id: string;
+  target: "user" | "all";
+  count: number;
+  at: string;
+}
+
+export interface Broadcast {
+  id: string;
+  target: "user" | "all";
+  uid: string | null;
+  count: number;
+  title: string;
+  type: NotificationType;
+  category: NotificationCategory | null;
+  action: AppAction | null;
+  at: string;
+  user_email: string | null;
+  sent_by_email: string | null;
+}
+
+export type AllNotificationStatus = "all" | "visible" | "cleared" | "read" | "unread";
+
+export interface AllNotificationRow extends Omit<AdminNotification, "source"> {
+  source: "app" | "server" | "admin";
+  uid: string;
+  user_email: string | null;
+  sent_by_email: string | null;
+}
+
+// ---- Feedback ----
+
+export type FeedbackStatus = "open" | "resolved";
+
+export interface FeedbackRow {
+  feedback_id: string;
+  uid: string;
+  user_email: string | null;
+  created_at: string;
+  rating: number | null;
+  category: string | null;
+  comment: string | null;
+  app_version: string | null;
+  status: FeedbackStatus;
+  status_note: string | null;
+  status_at: string | null;
+}
+
+// ---- Certificates ----
+
+export type CertificateStatus = "valid" | "revoked" | "superseded" | "withdrawn";
+
+export interface CertificateSnapshot {
+  stone_id: string;
+  grade: number;
+  grade_name: string;
+  trade_name: string;
+  confidence: number;
+  uncertainty: number;
+  referred: boolean;
+  colour: ColourValues | null;
+  delta_e00_to_typical?: number | null;
+  model_version: string;
+  captured_at: string;
+  issued_at: string;
+  calibration?: { session_id: string; residual: number | null } | null;
+}
+
+export interface CertificateRow {
+  cert_no: string;
+  uid: string | null;
+  grading_id: string | null;
+  user_email: string | null;
+  status: "valid" | "revoked" | "withdrawn";
+  issued_at: string;
+  snapshot: CertificateSnapshot | null;
+  owner: { display_name?: string | null; company?: string | null } | null;
+  pdf_sha256: string | null;
+  pdf_uploaded_at: string | null;
+  revoked_reason: string | null;
+  revoked_at: string | null;
+  withdrawn_at: string | null;
+  superseded_by: string | null;
+}
+
+export interface CertificateDetail extends CertificateRow {
+  pdf_url: string | null;
+  image_url: string | null;
+  verify_url_masked: string | null;
+}
+
+// ---- Audit log ----
+
+export interface AuditRow {
+  audit_id: string;
+  action: string;
+  uid_hash: string | null;
+  admin: boolean | null;
+  role: string | null;
+  target: Record<string, unknown> | null;
+  before: unknown;
+  after: unknown;
+  at: string;
+  admin_email: string | null;
 }

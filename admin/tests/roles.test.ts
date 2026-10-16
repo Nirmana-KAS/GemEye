@@ -21,7 +21,7 @@ describe("roleFromClaims", () => {
 describe("navigation by role", () => {
   it("reviewers see only the review queue and gradings", () => {
     expect(navFor("reviewer").map((n) => n.label)).toEqual(["Gradings", "Review queue"]);
-    expect(navFor("admin")).toHaveLength(11);
+    expect(navFor("admin")).toHaveLength(12);
   });
 
   it("detail pages belong to their section", () => {

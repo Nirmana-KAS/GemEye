@@ -17,6 +17,8 @@ DEFAULT_APP_CONFIG = {
     "referral_threshold_default": 0.60,
     "calibration_validity_hours": 24,
     "min_app_version": "1.0.0",
+    # Shown by the app when its version is below min_app_version (empty = app default text).
+    "update_message": "",
     "maintenance": {"enabled": False, "message": ""},
     "features": {"repeatability_mode": True, "gradcam": True, "public_verification": True,
                  "session_mapping": False},
@@ -52,6 +54,8 @@ class Database:
         self.announcements = self.db["announcements"]
         self.reviews = self.db["reviews"]
         self.notifications = self.db["notifications"]
+        self.admin_broadcasts = self.db["admin_broadcasts"]
+        self.admin_directory = self.db["admin_directory"]
         self._config, self._config_at = None, 0.0
         self._config_lock = threading.Lock()
 
@@ -98,6 +102,11 @@ class Database:
         # Phase N1: notifications (user list newest first, cleared filter).
         self.notifications.create_index([("uid", ASCENDING), ("created_at", DESCENDING)])
         self.notifications.create_index([("uid", ASCENDING), ("cleared_at", ASCENDING)])
+        # Phase 10f: all users' notifications (admin), sent history.
+        self.notifications.create_index([("created_at", DESCENDING), ("_id", DESCENDING)])
+        self.notifications.create_index([("source", ASCENDING), ("created_at", DESCENDING)])
+        self.admin_broadcasts.create_index([("at", DESCENDING), ("_id", DESCENDING)])
+        self.admin_broadcasts.create_index([("target", ASCENDING), ("at", DESCENDING)])
         # counters, app_config and certificates (cert_no) are looked up by _id.
 
     def seed_app_config(self):
