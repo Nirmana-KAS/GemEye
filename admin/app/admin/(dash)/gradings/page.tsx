@@ -1,23 +1,28 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Download, Loader2 } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ClipboardCheck, Download, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/components/auth-provider";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { columnHelper, DataTable, Pager, useCursorPaging, type Columns } from "@/components/data-table";
 import { FilterBar, FilterField, NativeSelect, useDebounced } from "@/components/filters";
 import { GradeChip, YesNo } from "@/components/grade-chip";
+import { ReasonField } from "@/components/reason-field";
 import { PageHeader } from "@/components/states";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { fetchAllPages } from "@/lib/api";
+import { BULK_MAX, bulkConfirm, bulkSummary, canConfirm, pageState, toggleRow, togglePage } from "@/lib/admin-powers";
+import { bulkGradings, exportGradingsCsv, fetchAllPages } from "@/lib/api";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { dayBoundIso, fmtDateTime, fmtPct } from "@/lib/format";
 import { GRADES } from "@/lib/grades";
-import type { GradingRow, Page, UserRow } from "@/lib/types";
+import type { BulkAction, GradingRow, Page, UserRow } from "@/lib/types";
 
 const PAGE_SIZE = 25;
 const NO_ROWS: GradingRow[] = [];
@@ -32,7 +37,15 @@ const userCol = col.accessor("user_email", {
   cell: (i) => <span className="block max-w-56 truncate">{i.getValue() ?? "-"}</span>,
 });
 const restCols = [
-  col.accessor("grade", { header: "Grade", cell: (i) => <GradeChip grade={i.getValue()} showName /> }),
+  col.accessor("grade", {
+    header: "Grade",
+    cell: (i) => (
+      <span className="flex items-center gap-1.5">
+        <GradeChip grade={i.getValue()} showName />
+        {i.row.original.hidden && <Badge variant="outline">Hidden</Badge>}
+      </span>
+    ),
+  }),
   col.accessor("confidence", { header: "Confidence", cell: (i) => <span className="tabular-nums">{fmtPct(i.getValue())}</span> }),
   col.accessor("referred", { header: "Referred", cell: (i) => <YesNo value={i.getValue()} /> }),
   col.accessor("model_version", { header: "Model", cell: (i) => i.getValue() ?? "-" }),
@@ -40,6 +53,42 @@ const restCols = [
 ];
 const ADMIN_COLUMNS: Columns<GradingRow> = [timeCol, userCol, ...restCols];
 const REVIEWER_COLUMNS: Columns<GradingRow> = [timeCol, ...restCols];
+
+type BulkDialog = Exclude<BulkAction, "export"> | null;
+
+/** Checkbox column (admins): the header toggles this page, a row toggles itself, max 200 in all. */
+function selectColumn(selected: ReadonlySet<string>, pageIds: string[], onChange: (next: Set<string>, limited: boolean) => void) {
+  const state = pageState(selected, pageIds);
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  return col.display({
+    id: "select",
+    header: () => (
+      <span onClick={stop} className="inline-flex">
+        <Checkbox
+          aria-label="Select this page"
+          checked={state === "all"}
+          indeterminate={state === "some"}
+          onCheckedChange={() => {
+            const r = togglePage(selected, pageIds);
+            onChange(r.next, r.limited);
+          }}
+        />
+      </span>
+    ),
+    cell: (i) => (
+      <span onClick={stop} className="inline-flex">
+        <Checkbox
+          aria-label="Select row"
+          checked={selected.has(i.row.original.grading_id)}
+          onCheckedChange={() => {
+            const r = toggleRow(selected, i.row.original.grading_id);
+            onChange(r.next, r.limited);
+          }}
+        />
+      </span>
+    ),
+  });
+}
 
 export default function GradingsPage() {
   const { api, role } = useAuth();
@@ -53,7 +102,13 @@ export default function GradingsPage() {
   const [modelInput, setModelInput] = useState("");
   const [deviceInput, setDeviceInput] = useState("");
   const [emailInput, setEmailInput] = useState("");
+  const [hidden, setHidden] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulk, setBulk] = useState<BulkDialog>(null);
+  const [bulkReason, setBulkReason] = useState("");
+  const [bulkExporting, setBulkExporting] = useState(false);
+  const qc = useQueryClient();
   const model = useDebounced(modelInput.trim());
   const device = useDebounced(deviceInput.trim());
   const email = useDebounced(emailInput.trim().toLowerCase(), 500);
@@ -79,14 +134,16 @@ export default function GradingsPage() {
       referred: referred || undefined,
       model_version: model || undefined,
       device: device || undefined,
+      hidden: hidden || undefined,
       uid,
     }),
-    [from, to, grade, referred, model, device, uid],
+    [from, to, grade, referred, model, device, hidden, uid],
   );
   const [lastFilters, setLastFilters] = useState(filters);
   if (lastFilters !== filters) {
     setLastFilters(filters);
     paging.reset();
+    setSelected(new Set());
   }
 
   const waitingForUser = isAdmin && !!email && (userLookup.isPending || noSuchUser);
@@ -128,6 +185,39 @@ export default function GradingsPage() {
   }
 
   const rows = noSuchUser ? NO_ROWS : (gradings.data?.items ?? NO_ROWS);
+  const pageIds = rows.map((r) => r.grading_id);
+  const onSelect = (next: Set<string>, limited: boolean) => {
+    setSelected(next);
+    if (limited) toast.warning(`At most ${BULK_MAX} gradings can be selected.`);
+  };
+  const columns = isAdmin ? [selectColumn(selected, pageIds, onSelect), ...ADMIN_COLUMNS] : REVIEWER_COLUMNS;
+  const spec = bulk ? bulkConfirm(bulk, selected.size) : null;
+
+  const openBulk = (a: Exclude<BulkAction, "export">) => {
+    setBulkReason("");
+    setBulk(a);
+  };
+
+  async function runBulk() {
+    if (!bulk) return;
+    const r = await bulkGradings(api, bulk, [...selected], bulkReason.trim() || undefined);
+    toast.success(bulkSummary(r));
+    setSelected(new Set());
+    void qc.invalidateQueries({ queryKey: ["admin-gradings"] });
+  }
+
+  async function exportSelected() {
+    setBulkExporting(true);
+    try {
+      const csv = await exportGradingsCsv(api, [...selected]);
+      downloadCsv(`gemeye-gradings-selected-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+      toast.success(`Exported ${selected.size} gradings.`);
+    } catch {
+      // The API client already showed the error.
+    } finally {
+      setBulkExporting(false);
+    }
+  }
 
   return (
     <>
@@ -172,13 +262,47 @@ export default function GradingsPage() {
           <Input value={deviceInput} onChange={(e) => setDeviceInput(e.target.value)} placeholder="Contains" className="w-40" />
         </FilterField>
         {isAdmin && (
+          <NativeSelect
+            label="Visibility"
+            value={hidden}
+            onChange={setHidden}
+            options={[
+              { value: "", label: "All" },
+              { value: "false", label: "Visible in app" },
+              { value: "true", label: "Hidden" },
+            ]}
+          />
+        )}
+        {isAdmin && (
           <FilterField label="User email">
             <Input value={emailInput} onChange={(e) => setEmailInput(e.target.value)} placeholder="name@example.com" className="w-56" />
           </FilterField>
         )}
       </FilterBar>
+      {isAdmin && selected.size > 0 && (
+        <div className="sticky top-14 z-20 mb-3 flex flex-wrap items-center gap-2 rounded-xl border bg-card p-2 shadow-sm">
+          <span className="px-2 text-sm font-medium">
+            {selected.size} selected <span className="text-muted-foreground">(max {BULK_MAX})</span>
+          </span>
+          <Button size="sm" variant="outline" onClick={() => openBulk("hide")}>
+            <EyeOff /> Hide
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => openBulk("restore")}>
+            <Eye /> Restore
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => openBulk("send_to_review")}>
+            <ClipboardCheck /> Send to review
+          </Button>
+          <Button size="sm" variant="outline" onClick={exportSelected} disabled={bulkExporting}>
+            {bulkExporting ? <Loader2 className="animate-spin" /> : <Download />} Export CSV
+          </Button>
+          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
+            <X /> Clear
+          </Button>
+        </div>
+      )}
       <DataTable
-        columns={isAdmin ? ADMIN_COLUMNS : REVIEWER_COLUMNS}
+        columns={columns}
         data={rows}
         loading={!noSuchUser && (gradings.isPending || (waitingForUser && userLookup.isPending))}
         error={gradings.isError ? gradings.error : undefined}
@@ -194,6 +318,21 @@ export default function GradingsPage() {
         onNext={() => paging.next(gradings.data?.next_cursor)}
         busy={gradings.isFetching}
       />
+      {spec && (
+        <ConfirmDialog
+          open={bulk !== null}
+          onOpenChange={(o) => !o && setBulk(null)}
+          title={spec.title}
+          description={spec.description}
+          confirmLabel={spec.confirmLabel}
+          destructive={spec.destructive}
+          confirmText={spec.confirmText}
+          confirmDisabled={!canConfirm({ reasonRequired: spec.reasonRequired }, bulkReason, "")}
+          onConfirm={runBulk}
+        >
+          <ReasonField value={bulkReason} onChange={setBulkReason} label={spec.reasonLabel} id="bulk-reason" />
+        </ConfirmDialog>
+      )}
     </>
   );
 }

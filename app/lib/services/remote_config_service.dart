@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../config/constants.dart';
+import 'announcement_service.dart';
 import 'api_client.dart';
 
 /// Server blur gate (`app/gates.py`), used until `/config` has been read.
@@ -53,6 +54,7 @@ class RemoteConfigService {
         : kDefaultCalibrationValidityHours;
     maintenance = m['enabled'] as bool? ?? false;
     maintenanceMessage = m['message'] as String? ?? '';
+    AnnouncementService.setActive(json['announcements']);
     changes.value++;
   }
 

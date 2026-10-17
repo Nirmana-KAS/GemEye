@@ -134,6 +134,9 @@ export interface CalibrationRow {
   /** Not stored by the server yet; shown when present. */
   relative_residual?: number | null;
   quality: string | number | null;
+  /** Set when support reset the session (Phase 10p). */
+  invalidated_at?: string | null;
+  invalidated_reason?: string | null;
 }
 
 export interface GradingRow {
@@ -154,6 +157,10 @@ export interface GradingRow {
   image_url?: string | null;
   /** Admins only. */
   user_email?: string | null;
+  /** Hidden by an admin: kept in the database, never shown in the app (Phase 10p). */
+  hidden?: boolean;
+  /** Sent to the review queue by an admin. */
+  review_requested?: boolean;
 }
 
 export interface UserDetail {
@@ -174,9 +181,32 @@ export interface UserDetail {
   last_gradings: GradingRow[];
   calibrations: CalibrationRow[];
   devices: string[];
+  device_states?: DeviceState[];
   disabled: boolean | null;
   last_sign_in: string | null;
   role?: RoleSetting | null;
+  daily_limit?: DailyLimit;
+}
+
+/** One app install (X-Device-Id), or for old app builds one phone model. */
+export interface DeviceState {
+  device_id: string;
+  /** First 8 characters of device_id, shown next to the model name. */
+  short_id?: string;
+  /** Phone model the app reports. */
+  name: string | null;
+  blocked: boolean;
+  blocked_at?: string | null;
+  blocked_reason?: string | null;
+  blocked_by_email?: string | null;
+}
+
+/** user = the user's own limit (null = none), effective = what POST /grade enforces. */
+export interface DailyLimit {
+  user: number | null;
+  default: number | null;
+  effective: number | null;
+  today: number;
 }
 
 // ---- Grading detail ----
@@ -227,8 +257,72 @@ export interface GradingDetail extends GradingRow {
   calibration_session_id: string | null;
   referral_threshold_used: number | null;
   heatmap_url: string | null;
-  certificate: { cert_no: string; status: string; issued_at: string } | null;
+  certificate: { cert_no: string; status: string; issued_at: string; superseded_by?: string | null } | null;
   review?: { gemologist_grade: number | null; agrees: boolean | null; notes: string | null; reviewed_at: string | null } | null;
+  hidden_info?: { reason: string | null; at: string | null; by_email: string | null } | null;
+  review_request?: { reason: string; note: string | null; at: string | null } | null;
+  regrades?: Regrade[];
+}
+
+/** One run of the current model on the stored photo; the original result never changes. */
+export interface Regrade {
+  id: string;
+  model_version: string | null;
+  status: string;
+  message?: string | null;
+  grade: number | null;
+  grade_name: string | null;
+  probabilities: number[] | null;
+  confidence: number | null;
+  uncertainty: number | null;
+  referred: boolean | null;
+  warnings: string[] | null;
+  at: string;
+  by_email: string | null;
+}
+
+// ---- Admin powers (Phase 10p) ----
+
+export type BulkAction = "hide" | "restore" | "send_to_review" | "export";
+
+export interface BulkResult {
+  action: Exclude<BulkAction, "export">;
+  requested: number;
+  done: string[];
+  skipped: { id: string; reason: string }[];
+}
+
+export interface AdminNote {
+  id: string;
+  text: string;
+  at: string;
+  author_email: string | null;
+}
+
+export type ActivityType =
+  | "grading"
+  | "calibration"
+  | "feedback"
+  | "certificate"
+  | "admin_action"
+  | "account_created"
+  | "signed_in"
+  | "last_active";
+
+export interface ActivityEvent {
+  id: string;
+  type: ActivityType;
+  at: string;
+  ref: string;
+  summary: string;
+  action?: string;
+  admin_email?: string | null;
+}
+
+export interface ProfileEdit {
+  display_name?: string;
+  phone?: string;
+  company?: string;
 }
 
 // ---- Review queue (Phase 10e) ----
@@ -355,9 +449,12 @@ export interface AdminConfig {
   gates: Record<GateKey, number>;
   gate_defaults: Record<GateKey, number>;
   gate_bounds: Record<GateKey, Bound>;
+  /** Gradings per user per Asia/Colombo day when the user has no own limit (null = no limit). */
+  daily_grading_limit_default?: number | null;
   bounds: {
     referral_threshold_default: Bound;
     calibration_validity_hours: Bound;
+    daily_grading_limit_default?: Bound;
     message_max: number;
   };
 }

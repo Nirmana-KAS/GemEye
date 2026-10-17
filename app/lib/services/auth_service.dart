@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../config/routes.dart';
+import '../screens/account_disabled_screen.dart';
 import '../screens/login_screen.dart';
 import '../widgets/app_dialog.dart';
 import 'account_service.dart';
@@ -147,11 +149,42 @@ class AuthService {
       e is FirebaseAuthException && _sessionErrorCodes.contains(e.code);
 
   /// Shows the blocking "Session expired" dialog and logs out when [e] is a
-  /// session error. Returns true when it handled [e].
+  /// session error (a disabled account gets the Account disabled screen).
+  /// Returns true when it handled [e].
   static bool handleSessionError(Object e) {
     if (!isSessionError(e)) return false;
-    showSessionExpired();
+    if (isDisabledError(e)) {
+      showAccountDisabled();
+    } else {
+      showSessionExpired();
+    }
     return true;
+  }
+
+  /// Firebase "user-disabled": an admin disabled the account.
+  static bool isDisabledError(Object e) =>
+      e is FirebaseAuthException && e.code == 'user-disabled';
+
+  static bool _disabledShown = false;
+
+  /// Replaces the whole stack with the full-screen "Account disabled" (once;
+  /// further failed requests do nothing). Its Sign out ends the session.
+  static Future<void> showAccountDisabled() async {
+    final nav = AppRoutes.navigatorKey.currentState;
+    if (nav == null || _disabledShown) return;
+    _disabledShown = true;
+    nav.popUntil((route) => route is! PopupRoute);
+    // Not awaited: the future only completes when the screen is removed.
+    unawaited(nav.pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => AccountDisabledScreen(onSignOut: () async {
+          if (await endSession(beforeSignOut: AccountService.clearLocalData)) {
+            _disabledShown = false;
+          }
+        }),
+      ),
+      (_) => false,
+    ));
   }
 
   /// Blocking "Session expired" dialog, then the single logout path.
@@ -185,17 +218,28 @@ class AuthService {
     if (_deadSessionHandling || FirebaseAuth.instance.currentUser == null) {
       return;
     }
+    if (e.code == ApiErrorCode.accountDisabled) {
+      await showAccountDisabled();
+      return;
+    }
     _deadSessionHandling = true;
     try {
       final context = AppRoutes.navigatorKey.currentContext;
       if (context != null) {
         final deleted = e.code == ApiErrorCode.accountDeleted;
+        final revoked = e.code == ApiErrorCode.tokenRevoked;
         await AppDialog.alert(
           context,
-          title: deleted ? 'Account deleted' : 'Session expired',
+          title: deleted
+              ? 'Account deleted'
+              : revoked
+                  ? 'Signed out'
+                  : 'Session expired',
           message: deleted
               ? 'This account has been deleted. You will be signed out.'
-              : 'Please log in again.',
+              : revoked
+                  ? ApiClient.signedOutMessage
+                  : 'Please log in again.',
           actionLabel: 'Log in',
           type: deleted ? AppDialogType.danger : AppDialogType.warning,
           icon: deleted ? Icons.person_off_rounded : Icons.lock_clock_rounded,

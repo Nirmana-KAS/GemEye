@@ -5,7 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../config/theme.dart';
 import '../config/routes.dart';
+import '../models/announcement_model.dart';
+import '../models/app_notification.dart';
 import '../models/grade_result.dart';
+import '../services/announcement_service.dart';
 import '../services/auth_service.dart';
 import '../services/calibration_service.dart';
 import '../services/connectivity_service.dart';
@@ -13,8 +16,10 @@ import '../services/notification_service.dart';
 import '../services/history_service.dart';
 import '../services/me_service.dart';
 import '../services/remote_config_service.dart';
+import '../widgets/announcement_banner.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_buttons.dart';
+import '../widgets/calibration_reset_prompt.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/notification_bell.dart';
 import '../widgets/quick_grade_card.dart';
@@ -24,6 +29,7 @@ import '../widgets/skeleton.dart';
 import '../widgets/stat_card.dart';
 import '../widgets/status_banner.dart';
 import 'calibration_screen.dart';
+import 'privacy_screen.dart';
 import 'result_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -101,9 +107,14 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
       if (!_loaded) {
         _apply(await HistoryService.cachedSummary(recentCount: _recentCount));
       }
-      unawaited(RemoteConfigService.refresh().then((_) => _checkUpdate()));
+      unawaited(RemoteConfigService.refresh().then((_) {
+        final uid = _authService.currentUser?.uid;
+        if (uid != null) unawaited(AnnouncementService.notifyNew(uid));
+        return _checkUpdate();
+      }));
       unawaited(MeService.sync());
       unawaited(CalibrationService.syncPending());
+      unawaited(CalibrationResetPrompt.check());
       final summary = await HistoryService.homeSummary(recentCount: _recentCount);
       await CalibrationService.remindIfExpired();
       await NotificationService.list();
@@ -154,27 +165,40 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
     return letters.toUpperCase();
   }
 
-  Widget _buildMaintenanceBanner() {
-    return ValueListenableBuilder<int>(
-      valueListenable: RemoteConfigService.changes,
-      builder: (context, _, __) {
-        if (!RemoteConfigService.maintenance) return const SizedBox.shrink();
-        final message = RemoteConfigService.maintenanceMessage.trim();
-        return Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.xl),
-          child: StatusBanner(
-            type: StatusBannerType.warning,
-            icon: Icons.build_rounded,
-            message: message.isEmpty
-                ? 'GemEye is under maintenance. Grading may be unavailable.'
-                : message,
-          ),
-        );
-      },
+  void _openCapture() => CalibrationScreen.openGrading(context);
+
+  /// The banner link; null when Home cannot open the action (no stone id).
+  VoidCallback? _announcementAction(Announcement a) => switch (a.action) {
+        AppNotificationAction.openCalibration => () =>
+            AppRoutes.push(context, const CalibrationScreen()),
+        AppNotificationAction.openCapture => _openCapture,
+        AppNotificationAction.openHistory => widget.onOpenHistory,
+        AppNotificationAction.openPrivacy => () =>
+            AppRoutes.push(context, const PrivacyScreen()),
+        AppNotificationAction.openResult || AppNotificationAction.none => null,
+      };
+
+  /// Active admin announcements the user has not dismissed.
+  Widget _buildAnnouncements() {
+    return ValueListenableBuilder<List<Announcement>>(
+      valueListenable: AnnouncementService.visible,
+      builder: (context, items, _) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final a in items)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xl),
+              child: AnnouncementBanner(
+                key: ValueKey('announcement-${a.id}'),
+                announcement: a,
+                onAction: _announcementAction(a),
+                onDismiss: () => AnnouncementService.dismiss(a.id),
+              ),
+            ),
+        ],
+      ),
     );
   }
-
-  void _openCapture() => CalibrationScreen.openGrading(context);
 
   Widget _buildCalibrationBanner() {
     return ValueListenableBuilder<CalibrationSession?>(
@@ -243,7 +267,7 @@ class HomeScreenState extends State<HomeScreen> with RouteAware {
                       _buildHeader(context),
                       const OfflineBanner(
                           padding: EdgeInsets.only(top: AppSpacing.xl)),
-                      _buildMaintenanceBanner(),
+                      _buildAnnouncements(),
                       const SizedBox(height: AppSpacing.xl),
                       _buildCalibrationBanner(),
                       const SizedBox(height: AppSpacing.xl),

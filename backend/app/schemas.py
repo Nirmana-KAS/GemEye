@@ -327,6 +327,8 @@ class PublicCertificate(BaseModel):
     revoked_reason: Text = None
     revoked_at: Optional[datetime] = None
     superseded_by: Text = None          # cert_no of the replacement ("Replaced by ...")
+    superseded_by_url: Text = None      # its verify link, only if it is the same owner's valid certificate
+    review: Optional[Dict[str, Any]] = None   # {gemologist_grade, reviewed_at} when a gemologist reviewed it
     image_url: Text = None
     pdf_url: Text = None
     pdf_sha256: Text = None

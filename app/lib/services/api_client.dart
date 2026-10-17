@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 import '../config/app_config.dart';
+import 'device_id_service.dart';
 
 /// Why an API call failed.
 enum ApiErrorCode {
@@ -22,6 +23,19 @@ enum ApiErrorCode {
   notFound,
   badRequest,
   conflict,
+
+  /// An admin signed this account out (401 token_revoked): treated as sign-out.
+  tokenRevoked,
+
+  /// 429 DAILY_LIMIT_REACHED from POST /grade.
+  dailyLimitReached,
+
+  /// 403 DEVICE_BLOCKED from POST /grade and calibration uploads.
+  deviceBlocked,
+
+  /// An admin disabled the account (account_disabled / ACCOUNT_DISABLED from
+  /// the server, or Firebase user-disabled): the full-screen "Account disabled".
+  accountDisabled,
 }
 
 /// A failed API call. [message] is always safe to show to the user.
@@ -39,6 +53,9 @@ class ApiException implements Exception {
 /// Returns a Firebase ID token, or null when nobody is signed in.
 typedef TokenProvider = Future<String?> Function(bool forceRefresh);
 
+/// The per-install device id sent as X-Device-Id, or null when not loaded.
+typedef DeviceIdProvider = String? Function();
+
 /// A request built fresh for every attempt (a request body can be sent once).
 typedef RequestBuilder = Future<http.BaseRequest> Function(Uri url);
 
@@ -48,23 +65,28 @@ typedef RequestBuilder = Future<http.BaseRequest> Function(Uri url);
 class ApiClient {
   static const Duration connectTimeout = Duration(seconds: 10);
   static const Duration receiveTimeout = Duration(seconds: 60);
+  static const String deviceIdHeader = 'X-Device-Id';
 
   static ApiClient? _instance;
   static ApiClient get instance => _instance ??= ApiClient();
 
   /// Called once per failed request when the session is dead: the account
-  /// was deleted (account_deleted) or the token cannot be refreshed
-  /// (unauthorized after the refresh). Set in main.dart to show the
+  /// was deleted (account_deleted) or disabled (account_disabled), an admin
+  /// signed it out (token_revoked)
+  /// or the token cannot be refreshed (unauthorized after the refresh). Set in main.dart to show the
   /// session-expired dialog, clear local data and go to Login.
   static Future<void> Function(ApiException e)? sessionLostHandler;
 
   static bool _isSessionLost(ApiException e) =>
       e.code == ApiErrorCode.accountDeleted ||
       e.code == ApiErrorCode.unauthorized ||
-      e.code == ApiErrorCode.reauthRequired;
+      e.code == ApiErrorCode.reauthRequired ||
+      e.code == ApiErrorCode.tokenRevoked ||
+      e.code == ApiErrorCode.accountDisabled;
 
   final http.Client _client;
   final TokenProvider _token;
+  final DeviceIdProvider _deviceId;
   final String? _baseUrl;
 
   /// Read on every request, so a server address changed in Settings applies at once.
@@ -76,7 +98,9 @@ class ApiClient {
     TokenProvider? tokenProvider,
     String? baseUrl,
     Duration? receiveTimeout,
-  })  : _client = client ??
+    DeviceIdProvider? deviceId,
+  })  : _deviceId = deviceId ?? (() => DeviceIdService.current),
+        _client = client ??
             IOClient(HttpClient()..connectionTimeout = connectTimeout),
         _token = tokenProvider ?? _firebaseToken,
         _baseUrl = baseUrl,
@@ -140,8 +164,8 @@ class ApiClient {
     return decodeObject(r);
   }
 
-  /// Sends the request built by [build]. On 401 (other than account_deleted
-  /// and reauth_required) the token is refreshed once and the request sent
+  /// Sends the request built by [build]. On 401 (other than account_deleted,
+  /// token_revoked and reauth_required) the token is refreshed once and the request sent
   /// once more. [retryable] (GET only) also retries once on timeout or 5xx.
   Future<http.Response> send(RequestBuilder build, Uri url,
       {bool auth = true,
@@ -196,12 +220,19 @@ class ApiClient {
       {required bool auth, required bool forceRefresh}) async {
     final req = await build(url);
     req.headers['Accept'] = 'application/json';
+    final device = _deviceId();
+    if (device != null) req.headers[deviceIdHeader] = device;
     if (auth) {
       String? token;
       try {
         token = await _token(forceRefresh);
       } catch (e) {
         if (kDebugMode) debugPrint('ID token failed: $e');
+        if (e is FirebaseAuthException && e.code == 'user-disabled') {
+          throw const ApiException(
+              ApiErrorCode.accountDisabled, accountDisabledMessage,
+              statusCode: 401);
+        }
         if (_isNetworkError(e)) {
           throw const ApiException(ApiErrorCode.offline, _offlineMessage);
         }
@@ -240,6 +271,14 @@ class ApiClient {
       'Something went wrong on our side. Please try again later.';
   static const String _unauthorizedMessage =
       'Your session has expired. Please sign in again.';
+  static const String signedOutMessage =
+      'You were signed out. Please sign in again.';
+  static const String dailyLimitMessage =
+      'Daily grading limit reached. Try again tomorrow or contact support.';
+  static const String deviceBlockedMessage =
+      'This device is blocked. Contact support.';
+  static const String accountDisabledMessage =
+      'Account disabled. Contact support.';
 
   /// Maps an error response to an [ApiException] with a user-friendly message.
   static ApiException errorFor(http.Response r) {
@@ -256,6 +295,22 @@ class ApiClient {
     if (code == 'account_deleted') {
       return ApiException(ApiErrorCode.accountDeleted,
           'This account has been deleted.', statusCode: s);
+    }
+    if (code == 'token_revoked') {
+      return ApiException(ApiErrorCode.tokenRevoked, signedOutMessage,
+          statusCode: s);
+    }
+    if (code == 'DAILY_LIMIT_REACHED') {
+      return ApiException(ApiErrorCode.dailyLimitReached, dailyLimitMessage,
+          statusCode: s);
+    }
+    if (code == 'account_disabled' || code == 'ACCOUNT_DISABLED') {
+      return ApiException(ApiErrorCode.accountDisabled, accountDisabledMessage,
+          statusCode: s);
+    }
+    if (code == 'DEVICE_BLOCKED') {
+      return ApiException(ApiErrorCode.deviceBlocked, deviceBlockedMessage,
+          statusCode: s);
     }
     if (code == 'reauth_required') {
       return ApiException(ApiErrorCode.reauthRequired,

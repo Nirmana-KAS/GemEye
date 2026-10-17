@@ -4,7 +4,11 @@ current_user: local signature check only (Google certs are cached), for reads.
 current_user_strict: also checks revocation with Firebase.
 active_user / active_user_strict: the same, for writes and user-creating requests, and
 they also refuse uids of accounts deleted in the last 2 hours (401 account_deleted) and
-accounts disabled by an admin (401 account_disabled)."""
+accounts disabled by an admin (401 account_disabled).
+
+Force sign-out (Phase 10p): a token issued before an admin revoked the user's sessions gets
+401 token_revoked, from Firebase on revocation-checked routes and from the revoked_sessions
+marker on all others (so the app signs out at once, not when the token expires)."""
 import hashlib
 import logging
 
@@ -19,6 +23,7 @@ logger = logging.getLogger("gemeye.auth")
 
 _bearer = HTTPBearer(auto_error=False)
 UNAUTHORISED = "Authentication required."
+REVOKED = "You were signed out. Please sign in again."
 CLOCK_SKEW_S = 5    # tolerated difference between this server's clock and Google's
 
 
@@ -37,6 +42,8 @@ def _verify(creds, check_revoked):
     try:
         decoded = auth.verify_id_token(creds.credentials, check_revoked=check_revoked,
                                        clock_skew_seconds=CLOCK_SKEW_S)
+    except auth.RevokedIdTokenError:
+        raise ApiError(401, "token_revoked", REVOKED)
     except Exception as e:
         logger.info("Token rejected: %s", type(e).__name__)
         raise HTTPException(401, UNAUTHORISED)
@@ -48,16 +55,30 @@ def _verify(creds, check_revoked):
     }
 
 
-def current_user(creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> dict:
-    return _verify(creds, check_revoked=False)
+def uid_hash(uid):
+    return hashlib.sha256(uid.encode()).hexdigest()
+
+
+def _refuse_revoked(request, user):
+    """Tokens signed in before the last admin force sign-out (auth_time in seconds, the same
+    rule Firebase applies to tokensValidAfterTime)."""
+    db = getattr(request.app.state, "db", None)
+    if db is None:
+        return
+    m = db.revoked_sessions.find_one({"_id": uid_hash(user["uid"])}, {"valid_after_s": 1})
+    auth_time = user.get("auth_time")
+    if m is not None and isinstance(auth_time, (int, float)) and auth_time < m["valid_after_s"]:
+        raise ApiError(401, "token_revoked", REVOKED)
+
+
+def current_user(request: Request, creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> dict:
+    user = _verify(creds, check_revoked=False)
+    _refuse_revoked(request, user)
+    return user
 
 
 def current_user_strict(creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> dict:
     return _verify(creds, check_revoked=True)
-
-
-def uid_hash(uid):
-    return hashlib.sha256(uid.encode()).hexdigest()
 
 
 def _refuse_deleted(request, user):
@@ -77,6 +98,7 @@ def active_user(request: Request, creds: HTTPAuthorizationCredentials = Depends(
     user = _verify(creds, check_revoked=False)
     _refuse_deleted(request, user)
     _refuse_disabled(request, user)
+    _refuse_revoked(request, user)
     return user
 
 
@@ -99,6 +121,8 @@ def _role_user(request, creds, allowed):
     try:
         decoded = auth.verify_id_token(creds.credentials, check_revoked=True,
                                        clock_skew_seconds=CLOCK_SKEW_S)
+    except auth.RevokedIdTokenError:
+        raise ApiError(401, "token_revoked", REVOKED)
     except Exception as e:
         logger.info("Token rejected: %s", type(e).__name__)
         raise HTTPException(401, UNAUTHORISED)

@@ -90,6 +90,12 @@ describe("config form bounds", () => {
     expect(issuesAt({ ...base, min_app_version: "1.0" })).toEqual(["min_app_version"]);
     expect(issuesAt({ ...base, min_app_version: "01.0.0" })).toEqual(["min_app_version"]);
     expect(issuesAt({ ...base, update_message: "x".repeat(201) })).toEqual(["update_message"]);
+    for (const ok of ["https://gemeye-app-2026.web.app", "http://192.168.1.20:3000", "http://localhost:3000/", "http://10.0.0.5:3000"]) {
+      expect(issuesAt({ ...base, verify_base_url: ok })).toEqual([]);
+    }
+    for (const bad of ["http://example.org", "http://8.8.8.8:3000", "javascript:alert(1)", "https://", "http://192.168.1.20:3000/v"]) {
+      expect(issuesAt({ ...base, verify_base_url: bad })).toEqual(["verify_base_url"]);
+    }
     expect(issuesAt({ ...base, gates: { ...base.gates, ood_warn: 30, ood_reject: 30 } })).toEqual(["gates.ood_reject"]);
     expect(issuesAt({ ...base, maintenance: { enabled: true, message: " " } })).toEqual(["maintenance.message"]);
   });

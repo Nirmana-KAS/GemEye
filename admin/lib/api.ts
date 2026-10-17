@@ -1,10 +1,17 @@
 import type {
+  ActivityEvent,
+  AdminNote,
   AdminNotificationPage,
   ApiErrorBody,
+  BulkAction,
+  BulkResult,
+  DailyLimit,
   FieldError,
   NotificationStatusFilter,
   Page,
+  ProfileEdit,
   QueueItem,
+  Regrade,
   ReviewBody,
   ReviewQueueStatus,
 } from "./types";
@@ -75,7 +82,7 @@ export function buildQuery(params?: Record<string, QueryValue>): string {
 }
 
 export interface RequestOptions {
-  method?: "GET" | "POST" | "PUT" | "DELETE";
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   query?: Record<string, QueryValue>;
   body?: unknown;
   /** Do not call onError (the caller shows its own message). */
@@ -203,4 +210,69 @@ export function saveReview(api: ApiClient, gradingId: string, body: ReviewBody, 
 
 export function exportReviewsCsv(api: ApiClient): Promise<string> {
   return api<string>("/admin/reviews/export", { text: true });
+}
+
+// ---- Admin powers (Phase 10p) ----
+
+const enc = encodeURIComponent;
+
+export function revokeSessions(api: ApiClient, uid: string): Promise<{ uid: string; revoked_at: string; self: boolean }> {
+  return api(`/admin/users/${enc(uid)}/revoke-sessions`, { method: "POST" });
+}
+
+export function editProfile(api: ApiClient, uid: string, body: ProfileEdit): Promise<{ uid: string } & ProfileEdit> {
+  return api(`/admin/users/${enc(uid)}/profile`, { method: "PATCH", body, silent: true });
+}
+
+export function setDailyLimit(api: ApiClient, uid: string, limit: number | null): Promise<DailyLimit & { daily_grading_limit: number | null }> {
+  return api(`/admin/users/${enc(uid)}/daily-limit`, { method: "PUT", body: { daily_grading_limit: limit } });
+}
+
+export function listNotes(api: ApiClient, uid: string, cursor?: string): Promise<Page<AdminNote>> {
+  return api(`/admin/users/${enc(uid)}/notes`, { query: { limit: 50, cursor } });
+}
+
+export function addNote(api: ApiClient, uid: string, text: string): Promise<AdminNote> {
+  return api(`/admin/users/${enc(uid)}/notes`, { method: "POST", body: { text } });
+}
+
+export function deleteNote(api: ApiClient, uid: string, id: string): Promise<void> {
+  return api(`/admin/users/${enc(uid)}/notes/${enc(id)}`, { method: "DELETE" });
+}
+
+export function listActivity(api: ApiClient, uid: string, cursor?: string): Promise<Page<ActivityEvent>> {
+  return api(`/admin/users/${enc(uid)}/activity`, { query: { limit: 30, cursor } });
+}
+
+export function gradingAction(
+  api: ApiClient,
+  id: string,
+  action: "hide" | "restore" | "send-to-review",
+  reason?: string,
+): Promise<unknown> {
+  return api(`/admin/gradings/${enc(id)}/${action}`, { method: "POST", body: reason ? { reason } : undefined });
+}
+
+export function regradeGrading(api: ApiClient, id: string): Promise<Regrade> {
+  return api(`/admin/gradings/${enc(id)}/regrade`, { method: "POST" });
+}
+
+export function deleteGradingPermanently(api: ApiClient, id: string, confirmId: string, reason: string): Promise<{ withdrawn: string[] }> {
+  return api(`/admin/gradings/${enc(id)}`, { method: "DELETE", body: { confirm_id: confirmId, reason } });
+}
+
+export function bulkGradings(api: ApiClient, action: Exclude<BulkAction, "export">, ids: string[], reason?: string): Promise<BulkResult> {
+  return api("/admin/gradings/bulk", { method: "POST", body: { action, ids, ...(reason ? { reason } : {}) } });
+}
+
+export function exportGradingsCsv(api: ApiClient, ids: string[]): Promise<string> {
+  return api<string>("/admin/gradings/bulk", { method: "POST", body: { action: "export", ids }, text: true });
+}
+
+export function invalidateCalibration(api: ApiClient, id: string, reason: string): Promise<{ invalidated_at: string }> {
+  return api(`/admin/calibrations/${enc(id)}/invalidate`, { method: "POST", body: { reason } });
+}
+
+export function setDeviceBlocked(api: ApiClient, deviceId: string, blocked: boolean, reason: string): Promise<{ blocked: boolean }> {
+  return api(`/admin/devices/${enc(deviceId)}/${blocked ? "block" : "unblock"}`, { method: "POST", body: { reason } });
 }

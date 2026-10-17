@@ -181,9 +181,24 @@ class _ProcessingScreenState extends State<ProcessingScreen> {
         );
         await _notifyFailed(e.message);
         if (mounted) Navigator.of(context).pop();
+      case ApiErrorCode.dailyLimitReached:
+      case ApiErrorCode.deviceBlocked:
+        final limit = e.code == ApiErrorCode.dailyLimitReached;
+        await AppDialog.alert(
+          context,
+          title: limit ? 'Daily limit reached' : 'Device blocked',
+          message: e.message,
+          type: limit ? AppDialogType.warning : AppDialogType.danger,
+          icon: limit ? Icons.event_busy_rounded : Icons.phonelink_lock_rounded,
+          barrierDismissible: false,
+        );
+        await _notifyFailed(e.message);
+        if (mounted) Navigator.of(context).pop();
       case ApiErrorCode.accountDeleted:
       case ApiErrorCode.unauthorized:
       case ApiErrorCode.reauthRequired:
+      case ApiErrorCode.tokenRevoked:
+      case ApiErrorCode.accountDisabled:
         // The shared handler (ApiClient.sessionLostHandler) shows the dialog,
         // clears local data and opens Login.
         break;

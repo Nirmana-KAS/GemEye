@@ -16,6 +16,8 @@ from slowapi.errors import RateLimitExceeded
 
 from app.admin import admin_cors
 from app.admin import router as admin_router
+from app.admin_powers import me_router as admin_powers_me_router
+from app.admin_powers import router as admin_powers_router
 from app.admin_write import router as admin_write_router
 from app.assets import MODEL_LOCK, load_assets, warm_up
 from app.auth import active_user, init_firebase
@@ -25,6 +27,7 @@ from app.notifications import router as notifications_router
 from app.config import get_settings
 from app.db import Database, utcnow
 from app.errors import ApiError
+from app.limits import DEVICE_HEADER, check_daily_limit, check_device, request_device_id
 from app.pipeline.colour import decode_image
 from app import gates
 from app.pipeline.inference import grade, model_version, rejection
@@ -89,13 +92,15 @@ app.include_router(certificates_router)
 app.include_router(notifications_router)
 app.include_router(admin_router)
 app.include_router(admin_write_router)
+app.include_router(admin_powers_router)
+app.include_router(admin_powers_me_router)
 app.middleware("http")(admin_cors)
 
 
 def _error(request, code, detail, extra=None, headers=None):
     h = dict(headers or {})
     if request.url.path.startswith("/public/"):
-        h.update(public_headers(request))
+        h.update(public_headers(request, getattr(request.app.state, "db", None)))
     return JSONResponse(status_code=code, headers=h,
                         content={"status": "error", **(extra or {}), "detail": detail})
 
@@ -241,6 +246,11 @@ def grade_stone(
         prev = db.gradings.find_one({"request_id": rid})
         if prev is not None:
             return _replay(prev, user["uid"], storage)
+    # Phase 10p: blocked devices (403 DEVICE_BLOCKED) and the daily limit (429 DAILY_LIMIT_REACHED).
+    did = request_device_id(request.headers.get(DEVICE_HEADER), _short(device, 200))
+    check_device(db, did)
+    profile = db.ensure_user(user["uid"], user["email"])
+    check_daily_limit(db, user["uid"], profile, config)
     # Session patches drive the model path only when features.session_mapping is on;
     # otherwise the training session is used and the patches are only stored.
     session_mapping = bool((config.get("features") or {}).get("session_mapping"))
@@ -260,12 +270,11 @@ def grade_stone(
     except ValueError:
         raw_rgb = None
 
-    profile = db.ensure_user(user["uid"], user["email"])
     if referral_threshold is None:
         referral_threshold = (profile.get("settings") or {}).get("referral_threshold",
                                                                  settings.referral_threshold)
     threshold = float(referral_threshold)
-    meta = {"app_version": _short(app_version, 50), "device": _short(device, 200)}
+    meta = {"app_version": _short(app_version, 50), "device": _short(device, 200), "device_id": did}
 
     if raw_rgb is None:
         # JPEG/PNG signature, but the image cannot be decoded.

@@ -20,6 +20,7 @@ from firebase_admin import auth as firebase_auth
 
 from app.auth import admin_user, reviewer_or_admin, uid_hash
 from app.db import utcnow
+from app.limits import effective_limit, gradings_today, record_device_id
 from app.pipeline.inference import model_version
 from app.routers import NOT_FOUND, _utc, get_db, get_storage
 
@@ -384,14 +385,32 @@ def get_user(uid: str, user=Depends(admin_only), db=Depends(get_db)):
     cals = db.calibrations.find({"uid": uid}).sort("created_at", -1).limit(10)
     devices = sorted({d for c in (db.gradings, db.calibrations)
                       for d in c.distinct("device", {"uid": uid}) if d})
+    # One row per device_id (per install; older records by model name), newest model name.
+    models = {}
+    for coll in (db.gradings, db.calibrations):
+        for r in coll.find({"uid": uid}, {"device": 1, "device_id": 1, "created_at": 1}).sort("created_at", 1):
+            did = record_device_id(r)
+            if did:
+                models[did] = r.get("device") or models.get(did)
+    blocked = {b["_id"]: b for b in db.blocked_devices.find({"_id": {"$in": list(models)}})}
+    staff_ = staff_emails(db, [b.get("blocked_by_hash") for b in blocked.values()])
+    device_states = [{"device_id": did, "short_id": did[:8], "name": name, "blocked": did in blocked,
+                      **({"blocked_at": b.get("blocked_at"), "blocked_reason": b.get("reason"),
+                          "blocked_by_email": staff_.get(b.get("blocked_by_hash"))}
+                         if (b := blocked.get(did)) else {})}
+                     for did, name in sorted(models.items(), key=lambda x: (x[1] or "", x[0]))]
     profile = {k: doc.get(k) for k in ("email", "display_name", "account_type", "role", "country",
                                        "phone", "company", "created_at", "updated_at")}
     profile["uid"] = uid
     return clean({"profile": profile, "settings": doc.get("settings") or {}, "counts": counts,
                   "last_gradings": [_grading_row(g, None, None) for g in grad],
                   "calibrations": [_calibration_row(c) for c in cals],
-                  "devices": devices, "disabled": disabled, "last_sign_in": last_sign_in,
-                  "role": role})
+                  "devices": devices, "device_states": device_states,
+                  "disabled": disabled, "last_sign_in": last_sign_in, "role": role,
+                  "daily_limit": {"user": doc.get("daily_grading_limit"),
+                                  "default": db.get_app_config().get("daily_grading_limit_default"),
+                                  "effective": effective_limit(doc, db.get_app_config()),
+                                  "today": gradings_today(db, uid)}})
 
 
 # ---- Gradings (reviewers allowed; no email for them) ----
@@ -404,7 +423,8 @@ def _grading_row(d, storage, emails):
            "confidence": r.get("confidence"), "uncertainty": r.get("uncertainty"),
            "referred": r.get("referred"), "model_version": r.get("model_version"),
            "warnings": r.get("warnings") or [], "device": d.get("device"),
-           "app_version": d.get("app_version")}
+           "app_version": d.get("app_version"), "hidden": bool(d.get("hidden")),
+           "review_requested": bool(d.get("review_requested"))}
     if storage is not None:
         row["image_url"] = _presign(storage, d.get("image_key"))
     if emails is not None:
@@ -421,9 +441,12 @@ def list_gradings(
     uid: Optional[str] = Query(None, max_length=128),
     device: Optional[str] = Query(None, max_length=200),
     status: Optional[str] = Query(None, max_length=30),
+    hidden: Optional[bool] = None,
     user=Depends(staff), db=Depends(get_db), storage=Depends(get_storage),
 ):
     q = {"deleted": False}
+    if hidden is not None:
+        q["hidden"] = True if hidden else {"$ne": True}
     _range(q, "created_at", from_, to)
     for field, val in (("result.grade", grade), ("result.referred", referred),
                        ("result.model_version", model_version), ("uid", uid), ("status", status)):
@@ -459,7 +482,22 @@ def get_grading(grading_id: str, user=Depends(staff), db=Depends(get_db),
         "gemologist_grade": rv.get("gemologist_grade"), "agrees": rv.get("agrees"),
         "notes": rv.get("notes"), "reviewed_at": rv.get("updated_at") or rv.get("created_at")}
     out["certificate"] = None if cert is None else {
-        "cert_no": cert["_id"], "status": cert.get("status"), "issued_at": cert.get("issued_at")}
+        "cert_no": cert["_id"], "status": cert.get("status"), "issued_at": cert.get("issued_at"),
+        "superseded_by": cert.get("superseded_by")}
+    # Phase 10p: hidden state, admin review request and re-grades (original result unchanged).
+    regrades = d.get("regrades") or []
+    who = staff_emails(db, [d.get("hidden_by_hash")] + [x.get("by_hash") for x in regrades])
+    out["hidden_info"] = None if not d.get("hidden") else {
+        "reason": d.get("hidden_reason"), "at": d.get("hidden_at"),
+        "by_email": who.get(d.get("hidden_by_hash")) if user["role"] == "admin" else None}
+    rq = d.get("review_requested")
+    out["review_request"] = None if not rq else {"reason": rq.get("reason"), "note": rq.get("note"),
+                                                 "at": rq.get("at")}
+    out["regrades"] = [{**{k: x.get(k) for k in ("id", "model_version", "status", "message", "grade",
+                                                  "grade_name", "probabilities", "confidence",
+                                                  "uncertainty", "referred", "warnings", "at")},
+                        "by_email": who.get(x.get("by_hash")) if user["role"] == "admin" else None}
+                       for x in regrades]
     return clean(out)
 
 
@@ -468,7 +506,8 @@ def get_grading(grading_id: str, user=Depends(staff), db=Depends(get_db),
 def _calibration_row(c):
     return {"calibration_id": c["_id"], "uid": c["uid"], "session_id": c.get("session_id"),
             "created_at": c.get("created_at"), "valid_until": c.get("valid_until"),
-            "device": c.get("device"), "residual": c.get("residual"), "quality": c.get("quality")}
+            "device": c.get("device"), "residual": c.get("residual"), "quality": c.get("quality"),
+            "invalidated_at": c.get("invalidated_at"), "invalidated_reason": c.get("invalidated_reason")}
 
 
 @router.get("/calibrations")
@@ -560,7 +599,7 @@ def list_certificates(
 
 
 AUDIT_TARGET_KEYS = ("uid", "uid_hash", "cert_no", "announcement", "feedback", "grading_id",
-                     "notification", "broadcast", "config")
+                     "notification", "broadcast", "config", "calibration_id", "device_id", "note")
 
 
 @router.get("/audit-log")

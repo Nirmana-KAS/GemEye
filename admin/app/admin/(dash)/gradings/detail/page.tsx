@@ -8,7 +8,9 @@ import { Suspense } from "react";
 
 import { useAuth } from "@/components/auth-provider";
 import { GradeChip, YesNo } from "@/components/grade-chip";
+import { GradingActions } from "@/components/grading-actions";
 import { ColourValuesView, Photo, ProbabilityChart, Row } from "@/components/grading-parts";
+import { RegradeCompare } from "@/components/regrade-compare";
 import { EmptyState, ErrorState, PageHeader } from "@/components/states";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,17 +171,33 @@ function GradingDetailView({ id }: { id: string }) {
         actions={
           <>
             <GradeChip grade={r.grade} showName />
+            {d.hidden && <Badge variant="outline">Hidden</Badge>}
             {r.referred && <YesNo value />}
             {d.review ? (
               <Badge variant={d.review.agrees ? "secondary" : "destructive"}>
                 {d.review.gemologist_grade == null ? "Reviewed: unusable" : `Reviewed: grade ${d.review.gemologist_grade}`}
               </Badge>
-            ) : r.referred ? (
+            ) : r.referred || d.review_request ? (
               <Badge variant="outline">Awaiting review</Badge>
             ) : null}
           </>
         }
       />
+
+      {isAdmin && <GradingActions d={d} />}
+      {d.hidden_info && (
+        <Card className="mb-4 border-warning/40">
+          <CardContent className="space-y-1 text-sm">
+            <p>
+              <span className="font-medium">Hidden from the user</span>
+              {d.hidden_info.at && ` on ${fmtDateTime(d.hidden_info.at)}`}
+              {d.hidden_info.by_email && ` by ${d.hidden_info.by_email}`}
+            </p>
+            {d.hidden_info.reason && <p className="text-muted-foreground">Reason: {d.hidden_info.reason}</p>}
+          </CardContent>
+        </Card>
+      )}
+      {!!d.regrades?.length && <RegradeCompare original={r} regrades={d.regrades} />}
 
       <div className="mb-4 grid gap-4 lg:grid-cols-3">
         <Card>
@@ -276,6 +294,11 @@ function GradingDetailView({ id }: { id: string }) {
                   <span className="capitalize">{d.certificate.status}</span>
                 </Row>
                 <Row label="Issued">{fmtDateTime(d.certificate.issued_at)}</Row>
+                {d.certificate.superseded_by && (
+                  <Row label="Replaced by" mono>
+                    {d.certificate.superseded_by}
+                  </Row>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">No certificate issued for this stone.</p>
@@ -298,7 +321,11 @@ function GradingDetailView({ id }: { id: string }) {
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {r.referred ? "Referred, waiting in the review queue." : "Not reviewed (not referred)."}
+                {d.review_request
+                  ? `Sent to the review queue by an admin${d.review_request.note ? `: ${d.review_request.note}` : "."}`
+                  : r.referred
+                    ? "Referred, waiting in the review queue."
+                    : "Not reviewed (not referred)."}
               </p>
             )}
           </CardContent>

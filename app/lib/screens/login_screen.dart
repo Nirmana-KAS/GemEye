@@ -63,6 +63,10 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (kDebugMode) debugPrint('Google sign-in failed: $e');
+      if (AuthService.isDisabledError(e)) {
+        await AuthService.showAccountDisabled();
+        return;
+      }
       if (mounted) {
         AppSnackBar.show(context,
             message: 'Google sign-in failed. Please try again.',
@@ -97,7 +101,9 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       if (kDebugMode) debugPrint('Email sign-in failed: ${e.code}');
       if (!mounted) return;
-      if (_credentialErrorCodes.contains(e.code)) {
+      if (AuthService.isDisabledError(e)) {
+        await AuthService.showAccountDisabled();
+      } else if (_credentialErrorCodes.contains(e.code)) {
         setState(() => _credentialError = true);
       } else if (e.code == 'too-many-requests') {
         AppSnackBar.show(context,

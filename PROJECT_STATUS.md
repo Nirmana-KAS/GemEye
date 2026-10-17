@@ -2821,3 +2821,65 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-139, EDIT-140, EDIT-141, EDIT-142, EDIT-143
 - **Reason:** Phase 10f of the admin dashboard plan.
+
+### EDIT-145 | 17 October 2026 | IST
+- **Topic:** Phase 10p - admin powers for users, gradings, calibrations and devices
+- **Summary:** Admins can force sign-out, edit profiles, keep notes, set daily grading limits and see an activity timeline for a user; hide, restore, permanently delete, send to review, re-grade and bulk-act on gradings; invalidate calibrations and block devices. The app handles the new errors and calibration resets. The model path, gate defaults and parity are unchanged.
+- **What was done:**
+  - Backend: new app/admin_powers.py (all new admin routes, admin only, validated, rate-limited, audited with before/after) and app/limits.py (daily limit by Asia/Colombo day, device_id = sha256 of the device name). Force sign-out revokes Firebase tokens and writes a `revoked_sessions` marker so every route returns 401 `token_revoked`. `POST /grade` returns 429 `DAILY_LIMIT_REACHED` and 403 `DEVICE_BLOCKED`, and `POST /calibrations` returns 403 `DEVICE_BLOCKED`. Hidden gradings are left out of the owner's /gradings, detail, heatmap and certificate issue. Permanent delete removes the S3 photo, Grad-CAM and certificate files, reviews and the stone's notifications, withdraws the certificate, scrubs grade values from earlier review/regrade audits and keeps a minimal audit. Re-grades go into `regrades` and the original result never changes. Bulk hide/restore/send_to_review/export (max 200). New `GET /me/calibration-status`. The review queue includes admin-sent stones (reason `admin`), and model reasons are shown only for referred stones. Config `daily_grading_limit_default` (null, 1-500). New collections `admin_notes`, `blocked_devices`, `revoked_sessions` with indexes. Admin notes are deleted with the account
+  - App: ApiErrorCode tokenRevoked (sign-out dialog "You were signed out. Please sign in again."), dailyLimitReached and deviceBlocked (Processing dialogs with the required messages). CalibrationService.checkServerReset marks a reset session expired without a duplicate local notification. CalibrationResetPrompt checks on Home start, on resume and before capture, and offers Recalibrate. Hidden gradings drop out of History on refresh because the server list replaces the cache
+  - Dashboard: User detail has an "Admin actions" menu (Force sign-out, Edit profile, Daily limit), Activity and Notes tabs, and devices with a Blocked chip and Block/Unblock. Gradings have row checkboxes, a bulk bar, a Visibility filter and a Hidden chip. Grading detail has Hide/Restore, Send to review, Re-grade with an original vs re-grade table, a Certificate menu reusing the 10f dialogs (now components/certificate-actions.tsx) and Delete permanently. Calibrations have an Invalidate action, and App control has a daily limit default field. Typed confirms: delete (grading id), bulk hide (HIDE n), block (BLOCK), invalidate (session id), self sign-out (SIGN OUT)
+  - Tests and checks: new backend tests/test_admin_powers.py (14 tests: every route, reviewer/user 403, validation, audit, Colombo midnight edge, hidden excluded from /me, regrade keeps original, permanent delete with mocked S3 and a withdrawn certificate, blocked device 403). test_phase4b public config keys updated. Full suite 172 passed. run_parity.py A-D PASS, unchanged (clean-98 87.76%, 9/9); parity_report.md and parity_mismatches.csv were restored from backup. flutter analyze is clean and flutter test passed (128, 7 new in test/admin_powers_test.dart). Admin lint, typecheck, Vitest (74, 14 new in tests/admin-powers.test.ts) and build pass
+  - Docs: docs/GemEye_API_Reference.md ("Admin powers" section, errors, config field), backend/README.md, admin/README.md
+- **Files changed:**
+  - `+` backend/app/admin_powers.py, backend/app/limits.py, backend/tests/test_admin_powers.py
+  - `~` backend/app/admin.py, admin_write.py, auth.py, certificates.py, db.py, main.py, routers.py, backend/tests/test_phase4b.py
+  - `+` app/lib/widgets/calibration_reset_prompt.dart, app/test/admin_powers_test.dart
+  - `~` app/lib/main.dart, app/lib/screens/capture_screen.dart, home_screen.dart, processing_screen.dart, app/lib/services/api_client.dart, auth_service.dart, calibration_service.dart
+  - `+` admin/components/certificate-actions.tsx, edit-profile-dialog.tsx, grading-actions.tsx, reason-field.tsx, regrade-compare.tsx, user-activity.tsx, user-devices.tsx, user-notes.tsx, admin/lib/admin-powers.ts, admin/tests/admin-powers.test.ts
+  - `~` admin/app/admin/(dash)/app-control/page.tsx, calibrations/page.tsx, certificates/detail/page.tsx, gradings/page.tsx, gradings/detail/page.tsx, users/detail/page.tsx, admin/components/confirm-dialog.tsx, admin/lib/api.ts, config.ts, types.ts
+  - `~` docs/GemEye_API_Reference.md, backend/README.md, admin/README.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-139, EDIT-141, EDIT-142, EDIT-143, EDIT-144
+- **Reason:** Phase 10p, so admins can manage users, gradings, calibrations and devices from the dashboard with every change audited.
+
+### EDIT-146 | 17 October 2026 | IST
+- **Topic:** Phase 10p-fix - per-install device id
+- **Summary:** Device blocking now targets one app install instead of every phone of the same model. The app sends a random per-install UUID as X-Device-Id, and the server hashes it into device_id. The model path, gates and parity code are unchanged.
+- **What was done:**
+  - App: new DeviceIdService creates a UUID v4 on first launch and keeps it in flutter_secure_storage (loaded in main.dart). ApiClient sends `X-Device-Id` on every call, public ones included. The phone model is still sent as `device`
+  - Backend: limits.request_device_id = hash of a valid X-Device-Id, with a fallback to the old model-name hash when the header is missing or not a UUID (old app builds). /grade and /calibrations check and store `device_id` next to `device`. blocked_devices stores `device_model`. User detail `device_states` has one row per device_id (older records by model hash) with `short_id`; the block lookup finds the device_id in gradings/calibrations, else uses the legacy model match
+  - Dashboard: the Devices list shows the model name and the short id (first 8 characters); the block dialog says other phones of the same model are not affected
+  - Tests: test_admin_powers.py has test_block_one_install_same_model (two users on the same model; blocking one install refuses its grade and calibration while the other install, a new install, the no-header fallback and a bad header still grade) and the updated legacy test. Both pass. flutter analyze is clean and flutter test passed (130, 2 new). Admin typecheck, lint, Vitest (74) and build pass
+  - Not completed: the full backend suite and run_parity.py. During the full run MongoDB Atlas started refusing TLS handshakes (TLSV1_ALERT_INTERNAL_ERROR, also on a plain ping), which usually means the current IP is not in the Atlas access list or the cluster is paused. Parity files were not touched
+  - Docs: docs/GemEye_API_Reference.md, backend/README.md
+- **Files changed:**
+  - `+` app/lib/services/device_id_service.dart
+  - `~` app/lib/main.dart, app/lib/services/api_client.dart, app/test/admin_powers_test.dart
+  - `~` backend/app/limits.py, main.py, routers.py, admin.py, admin_powers.py, backend/tests/test_admin_powers.py
+  - `~` admin/components/user-devices.tsx, admin/lib/types.ts
+  - `~` docs/GemEye_API_Reference.md, backend/README.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-145
+- **Reason:** Blocking by model name blocked every phone of that model.
+
+### EDIT-147 | 17 October 2026 | IST
+- **Topic:** Phase 10g - public certificate verify page, app announcements / reviewed grade / disabled account / maintenance, Firebase Hosting prep
+- **Summary:** The dashboard site now has the public QR verify page (`/v/?c={cert}-{token}` and `/v/{cert}-{token}`, no login). The app shows admin announcements on Home and in Notifications, the gemologist's reviewed grade, a full-screen "Account disabled" and a full-screen maintenance screen. Firebase Hosting files are ready (no deploy). The model path, gate defaults and parity are unchanged.
+- **What was done:**
+  - Backend: `/public/v/` CORS also allows the origin of the configured `verify_base_url` (also on 404/429 and preflight). `verify_base_url` accepts http only for localhost and private LAN IPs (phone tests on the same Wi-Fi). The public response adds `superseded_by_url` (only for a valid certificate of the same owner) and `review` `{gemologist_grade, reviewed_at}` (unusable reviews left out). Rate limit unchanged
+  - Dashboard: new `app/v/page.tsx` (mobile first, no sidebar, no Firebase: Providers moved to `app/admin/layout.tsx`) with Valid / Revoked / Superseded / Withdrawn / Not found / Cannot reach (Try again) states; Valid shows number, issue date, GEMCLOUD grade chip and description, photo, colour values, model version, "Reviewed by gemologist: Grade N", PDF link + SHA-256 with "Check file" (browser SHA-256; picks a downloaded file when the storage link refuses a browser read) and the certificate disclaimer. `app/not-found.tsx` sends `/v/{slug}` to `/v/?c={slug}`. `lib/verify.ts` helpers, grade descriptions in `lib/grades.ts`. App control has "Verify page base URL". `next.config.ts` allows LAN dev origins
+  - Firebase Hosting: `admin/firebase.json` (public `out`, rewrites `/admin/**` and `/v/**`, cache and security headers) and `admin/.firebaserc` (gemeye-app-2026); deploy steps "after AWS" in admin/README.md, plus how to set `http://<laptop-LAN-IP>:3000` for phone tests
+  - App: AnnouncementService (announcements from `/config`, dismissible Home banner with level colours and optional link, added once per account to the notification list via `NotificationService.add(id: "ann-<id>")`, dismissed ids in SharedPreferences). GradeResult `reviewGrade` / `reviewNotes` from `GET /gradings` `review` (unusable ignored), shown on the Result screen and the History tile. `ApiErrorCode.accountDisabled` for `account_disabled` / `ACCOUNT_DISABLED` (401/403) and Firebase `user-disabled` (also at sign-in) opens the full-screen AccountDisabledScreen (Email support, Sign out, no retry). MaintenanceGate in `MaterialApp.builder` covers the app with the admin message and Retry while `maintenance.enabled` (replaces the Home maintenance banner). `AppConstants.supportEmail`
+  - Tests and checks: backend tests/test_admin_writes.py adds test_public_verify_review, test_public_verify_cors_lan_origin, superseded_by_url checks and LAN URL bounds; full suite 175 passed. run_parity.py A-D PASS, unchanged (112/112 4.99e-13, 112/112 2.85e-06, clean-98 87.76%, 9/9); parity_report.md and parity_mismatches.csv restored from backup. flutter analyze clean, flutter test 142 passed (12 new in test/phase10g_test.dart). Dashboard lint, typecheck, Vitest 83 (9 new in tests/verify.test.ts plus verify URL bounds) and build pass
+  - Docs: docs/GemEye_API_Reference.md, backend/README.md, admin/README.md
+- **Files changed:**
+  - `~` backend/app/certificates.py, admin_write.py, main.py, schemas.py, backend/tests/test_admin_writes.py, backend/README.md
+  - `+` admin/app/v/page.tsx, admin/app/v/layout.tsx, admin/app/admin/layout.tsx, admin/app/not-found.tsx, admin/lib/verify.ts, admin/tests/verify.test.ts, admin/firebase.json, admin/.firebaserc
+  - `~` admin/app/layout.tsx, admin/app/admin/(dash)/app-control/page.tsx, admin/lib/config.ts, admin/lib/grades.ts, admin/next.config.ts, admin/tests/app-control.test.ts, admin/README.md
+  - `+` app/lib/models/announcement_model.dart, app/lib/services/announcement_service.dart, app/lib/screens/account_disabled_screen.dart, app/lib/screens/maintenance_screen.dart, app/lib/widgets/announcement_banner.dart, app/lib/widgets/full_screen_message.dart, app/lib/widgets/reviewed_grade_badge.dart, app/test/phase10g_test.dart
+  - `~` app/lib/main.dart, app/lib/config/constants.dart, app/lib/models/grade_result.dart, app/lib/screens/home_screen.dart, history_screen.dart, result_screen.dart, login_screen.dart, processing_screen.dart, app/lib/services/api_client.dart, auth_service.dart, notification_service.dart, remote_config_service.dart
+  - `~` docs/GemEye_API_Reference.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-139, EDIT-143, EDIT-144, EDIT-145, EDIT-146
+- **Reason:** Phase 10g of the admin dashboard plan.

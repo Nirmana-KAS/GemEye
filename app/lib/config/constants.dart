@@ -53,4 +53,7 @@ class AppConstants {
   static const String linkedInUrl = '';
   static const String githubUrl = 'https://github.com/Nirmana-KAS';
   static const String emailAddress = '';
+
+  /// Support contact shown to disabled accounts (Account disabled screen).
+  static const String supportEmail = 'gemeyeapp@gmail.com';
 }

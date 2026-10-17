@@ -23,6 +23,7 @@ import {
   configFormSchema,
   configPatch,
   configToForm,
+  DAILY_LIMIT_DEFAULT_BOUNDS,
   FEATURE_KEYS,
   FEATURE_LABELS,
   fmtConfigValue,
@@ -166,6 +167,25 @@ function ConfigForm({ config }: { config: AdminConfig }) {
         </Row>
       </Section>
 
+      <Section title="Daily grading limit" description="Per user and Asia/Colombo day. A user's own limit (User detail) wins over this default.">
+        <Row
+          label="Default limit"
+          hint={`Gradings per user per day. Empty = no limit. ${(config.bounds.daily_grading_limit_default ?? DAILY_LIMIT_DEFAULT_BOUNDS).min} - ${(config.bounds.daily_grading_limit_default ?? DAILY_LIMIT_DEFAULT_BOUNDS).max}.`}
+        >
+          <Input
+            type="number"
+            step="1"
+            placeholder="No limit"
+            className="w-40 font-mono"
+            aria-invalid={!!errors.daily_grading_limit_default}
+            {...form.register("daily_grading_limit_default", {
+              setValueAs: (v: unknown) => (v === "" || v == null ? null : Number(v)),
+            })}
+          />
+          <FieldError message={errors.daily_grading_limit_default?.message} />
+        </Row>
+      </Section>
+
       <Section title="Calibration">
         <Row
           label="Calibration validity (hours)"
@@ -189,6 +209,23 @@ function ConfigForm({ config }: { config: AdminConfig }) {
             {...form.register("update_message")}
           />
           <FieldError message={errors.update_message?.message} />
+        </Row>
+      </Section>
+
+      <Section
+        title="Certificate verification"
+        description="Base of the QR link in new certificates (existing certificates keep theirs)."
+      >
+        <Row
+          label="Verify page base URL"
+          hint="https in production. For a phone on the same Wi-Fi: http://<laptop-LAN-IP>:3000 (see admin/README.md)."
+        >
+          <Input
+            className="w-full max-w-md font-mono"
+            aria-invalid={!!errors.verify_base_url}
+            {...form.register("verify_base_url")}
+          />
+          <FieldError message={errors.verify_base_url?.message} />
         </Row>
       </Section>
 

@@ -124,7 +124,10 @@ class NotificationService {
       .where((n) => n.category == null || SettingsService.isEnabled(n.category!))
       .toList();
 
+  /// Adds a notification. [id] is for notifications that must exist once
+  /// (announcements: "ann-<id>"); one already in the list is not added again.
   static Future<void> add({
+    String? id,
     required AppNotificationType type,
     required String title,
     required String message,
@@ -132,8 +135,10 @@ class NotificationService {
     String? payload,
     NotificationCategory? category,
   }) async {
+    final items = await _cached();
+    if (id != null && items.any((n) => n.id == id)) return;
     final n = AppNotification(
-      id: const Uuid().v4(),
+      id: id ?? const Uuid().v4(),
       type: type,
       title: title,
       message: message,
@@ -142,7 +147,7 @@ class NotificationService {
       payload: payload,
       category: category,
     );
-    await _save((await _cached())..insert(0, n));
+    await _save(items..insert(0, n));
     await _queue({'op': 'add', 'item': n.toJson()});
   }
 

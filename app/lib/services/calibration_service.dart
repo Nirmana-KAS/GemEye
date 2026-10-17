@@ -480,6 +480,48 @@ class CalibrationService {
     );
   }
 
+  /// Asks the server whether support reset (invalidated) the current session
+  /// (GET /me/calibration-status). If so the session is marked expired here,
+  /// without a local "Recalibrate" notification (the server sends one), and
+  /// true is returned so the caller asks the user to recalibrate. Offline or
+  /// server errors leave the session as it is.
+  static Future<bool> checkServerReset({ApiClient? client}) async {
+    final s = await current();
+    if (s == null || !s.isValid) return false;
+    try {
+      final json = await (client ?? ApiClient.instance).getJson(
+          '/me/calibration-status',
+          query: {'session_id': s.id});
+      if (json['invalidated'] != true) return false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Calibration status not checked: $e');
+      return false;
+    }
+    await _expire(s);
+    return true;
+  }
+
+  /// Saves [s] with validUntil = now, in place in the history.
+  static Future<void> _expire(CalibrationSession s) async {
+    final expired = CalibrationSession.fromJson(
+        {...s.toJson(), 'validUntil': DateTime.now().toIso8601String()});
+    try {
+      final items = [
+        for (final h in await history()) h.id == s.id ? expired : h,
+      ];
+      await _storage.write(
+          key: _currentKey, value: jsonEncode(expired.toJson()));
+      await _storage.write(
+        key: _historyKey,
+        value: jsonEncode(items.map((h) => h.toJson()).toList()),
+      );
+      await _storage.write(key: _remindedKey, value: s.id);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Expired calibration not saved: $e');
+    }
+    session.value = expired;
+  }
+
   /// Sends one "Recalibrate" notification per expired session.
   static Future<void> remindIfExpired() async {
     try {

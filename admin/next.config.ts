@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
   basePath: "",
   images: { unoptimized: true },
+  // Dev only: a phone on the same Wi-Fi opens the verify page at http://<laptop-LAN-IP>:3000.
+  allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
   turbopack: {
     rules: {
       "*.css": {

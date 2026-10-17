@@ -100,6 +100,12 @@ class GradeResult {
     colourApproximate = colour['approximate'] as bool? ?? false;
   }
 
+  /// Gemologist review (`review` of `GET /gradings`): the true grade and the
+  /// notes when the API returns them to the owner. Null when not reviewed or
+  /// the review was marked unusable.
+  final int? reviewGrade;
+  final String? reviewNotes;
+
   /// Measured colour hex from the server (`colour.hex`).
   final String? colourHex;
   final String? modelVersion;
@@ -140,6 +146,8 @@ class GradeResult {
     this.colourHex,
     this.modelVersion,
     this.calibrationMode,
+    this.reviewGrade,
+    this.reviewNotes,
   })  : id = id ?? const Uuid().v4(),
         capturedAt = capturedAt ?? DateTime.now(),
         sessionId = sessionId ?? 'SESSION-${DateTime.now().millisecondsSinceEpoch}';
@@ -151,6 +159,8 @@ class GradeResult {
     required String capturedImagePath,
     String? sessionId,
     DateTime? capturedAt,
+    int? reviewGrade,
+    String? reviewNotes,
   }) {
     final colour = json['colour'] as Map<String, dynamic>;
     double num0(Object? v) => v == null ? 0 : (v as num).toDouble();
@@ -189,6 +199,8 @@ class GradeResult {
       colourHex: colour['hex'] as String?,
       modelVersion: json['model_version'] as String?,
       calibrationMode: json['calibration_mode'] as String?,
+      reviewGrade: reviewGrade,
+      reviewNotes: reviewNotes,
     );
   }
 
@@ -199,6 +211,7 @@ class GradeResult {
     String capturedImagePath = '',
   }) {
     final result = (item['result'] as Map).cast<String, dynamic>();
+    final review = parseReview(item['review']);
     return GradeResult.fromApi(
       {
         ...result,
@@ -209,6 +222,21 @@ class GradeResult {
       capturedImagePath: capturedImagePath,
       sessionId: item['calibration_session_id'] as String?,
       capturedAt: DateTime.parse(item['created_at'] as String).toLocal(),
+      reviewGrade: review?.grade,
+      reviewNotes: review?.notes,
+    );
+  }
+
+  /// The usable part of a `review` object: a grade 1-7 (an unusable review
+  /// has none) and the notes, if any.
+  static ({int grade, String? notes})? parseReview(Object? review) {
+    if (review is! Map || review['unusable'] == true) return null;
+    final g = review['gemologist_grade'];
+    if (g is! int || g < 1 || g > 7) return null;
+    final notes = review['notes'];
+    return (
+      grade: g,
+      notes: notes is String && notes.trim().isNotEmpty ? notes.trim() : null,
     );
   }
 
@@ -255,6 +283,8 @@ class GradeResult {
         'colourHex': colourHex,
         'modelVersion': modelVersion,
         'calibrationMode': calibrationMode,
+        'reviewGrade': reviewGrade,
+        'reviewNotes': reviewNotes,
       };
 
   factory GradeResult.fromJson(Map<String, dynamic> json) => GradeResult(
@@ -296,6 +326,8 @@ class GradeResult {
         colourHex: json['colourHex'] as String?,
         modelVersion: json['modelVersion'] as String?,
         calibrationMode: json['calibrationMode'] as String?,
+        reviewGrade: json['reviewGrade'] as int?,
+        reviewNotes: json['reviewNotes'] as String?,
       );
 
   /// Copy with a new stone ID (all other values unchanged).
@@ -334,6 +366,8 @@ class GradeResult {
         colourHex: colourHex,
         modelVersion: modelVersion,
         calibrationMode: calibrationMode,
+        reviewGrade: reviewGrade,
+        reviewNotes: reviewNotes,
       );
 
   /// Measured colour as sRGB [r, g, b] (0-255), from CIELAB (D65).

@@ -75,6 +75,11 @@ Endpoints marked 🌐 are public.
 - The user's calibration history, newest first (max 50).
 - **Response:** `CalibrationList`
 
+#### 🔒 `GET /me/calibration-status?session_id=`
+- Whether support reset (invalidated) the given session, or the latest one when `session_id` is left out.
+- **Response:** `{session_id, found, invalidated, invalidated_at}` (the admin's reason is not returned).
+- The app calls it on start, on resume and before grading; an invalidated session is marked expired and the user is asked to recalibrate.
+
 ---
 
 ### User profile
@@ -161,6 +166,8 @@ Server-created notifications (`source: "server"`): certificate revoked or supers
 - A wrong number or token returns the same 404, so certificates cannot be guessed.
 - Never shows the owner's email or user ID.
 - Rate limit: 30 requests per minute per IP.
+- CORS: the dashboard origins plus the origin of the configured `verify_base_url` (also on 404, 429 and preflight).
+- The web page is `/v/?c={slug}` (also `/v/{slug}`) on the dashboard site (Phase 10g).
 - **Response:** `PublicCertificate`
 
 ---
@@ -170,12 +177,13 @@ Server-created notifications (`source: "server"`): certificate revoked or supers
 | Code | Meaning |
 |---|---|
 | 400 | Bad input (wrong file type, invalid JSON) |
-| 401 | Not logged in / token invalid / account deleted (`account_deleted`) or disabled by an admin (`account_disabled`) |
-| 404 | Not found (also used for other users' data) |
+| 401 | Not logged in / token invalid / account deleted (`account_deleted`) or disabled by an admin (`account_disabled`; the app also accepts `ACCOUNT_DISABLED` with 403 and shows the full-screen "Account disabled. Contact support.") / signed out by an admin (`token_revoked`, "You were signed out. Please sign in again.") |
+| 403 | `DEVICE_BLOCKED` on `POST /grade` and `POST /calibrations` from a blocked device ("This device is blocked. Contact support.") |
+| 404 | Not found (also used for other users' data, and gradings an admin hid) |
 | 409 | Conflict (duplicate, PDF already uploaded, certificate not valid) |
 | 413 | File too large |
 | 422 | Request fields fail validation |
-| 429 | Too many requests |
+| 429 | Too many requests; `DAILY_LIMIT_REACHED` on `POST /grade` when the user's daily grading limit is used up (Asia/Colombo day) |
 | 503 | Database/storage unavailable or maintenance mode |
 
 ---
@@ -373,6 +381,8 @@ Server-created notifications (`source: "server"`): certificate revoked or supers
 | `owner`? | `CertificateOwner` | Only if allowed |
 | `revoked_reason`?, `revoked_at`? | | If revoked |
 | `superseded_by`? | string | Certificate number that replaced this one |
+| `superseded_by_url`? | string | Verify link of the replacement, only when it is a valid certificate of the same owner |
+| `review`? | object | `{gemologist_grade, reviewed_at}` when a gemologist reviewed the stone (unusable reviews are left out; no reviewer identity) |
 | `image_url`?, `pdf_url`? | string | Links (10 min) |
 | `pdf_sha256`? | string | Check the PDF has not been edited |
 | `disclaimer`* | string | Legal note |
@@ -457,7 +467,7 @@ Validation errors (400) on `/admin/*` also carry `fields: [{field, message}]` (d
 | `GET /admin/calibrations`, `/admin/feedback`, `/admin/certificates`, `/admin/audit-log` | 🛡️ | Filters and cursor paging (details below) |
 | `GET /admin/feedback` | 🛡️ | `from, to, rating, category, uid, status=open\|resolved` (no stored status = open); rows: `feedback_id, uid, user_email, created_at, rating, category, comment, app_version, status, status_note, status_at` |
 | `GET /admin/certificates` | 🛡️ | `q` (number prefix), `email` (owner email contains), `status=valid\|revoked\|superseded\|withdrawn` (superseded = revoked with `superseded_by`; revoked excludes those); rows add `user_email`, `superseded_by` |
-| `GET /admin/audit-log` | 🛡️ | `from, to, action, admin` (email contains, or a 64-hex uid_hash), `target` (an id any target field equals: uid, cert_no, announcement, feedback, grading_id, notification, broadcast); rows: `audit_id, action, uid_hash, role, target, before, after, at, admin_email` (from `admin_directory`, null if unknown) |
+| `GET /admin/audit-log` | 🛡️ | `from, to, action, admin` (email contains, or a 64-hex uid_hash), `target` (an id any target field equals: uid, cert_no, announcement, feedback, grading_id, notification, broadcast, calibration_id, device_id, note); rows: `audit_id, action, uid_hash, role, target, before, after, at, admin_email` (from `admin_directory`, null if unknown) |
 | `GET /admin/model/monitoring?days=7\|30\|90&model_version=` | 🛡️ | See "Model monitoring (Phase 10e)" below |
 
 ### Users (🛡️)
@@ -483,7 +493,8 @@ Validation errors (400) on `/admin/*` also carry `fields: [{field, message}]` (d
 | `update_message` | string <= 200, shown with the update prompt |
 | `maintenance` | `{enabled: bool, message: string <= 200}` (`/grade` returns 503 `maintenance` when enabled) |
 | `features` | `{repeatability_mode, gradcam, public_verification, session_mapping}` (booleans) |
-| `verify_base_url` | https only, default `https://gemeye-app-2026.web.app`; used for new certificates only |
+| `verify_base_url` | https, default `https://gemeye-app-2026.web.app`; http only for `localhost` or a private LAN IP (`10.x`, `172.16-31.x`, `192.168.x`, with port, no path) for phone tests on the same Wi-Fi; used for new certificates only, and its origin is allowed by CORS on `/public/v/` |
+| `daily_grading_limit_default` | integer 1 - 500, or `null` (default) = no limit. Applies to users without their own `daily_grading_limit` |
 | `gates` | (400 `invalid_gates` when the order rule fails) `blur_min_variance` 5-200, `no_stone_min_area` 0.002-0.05, `no_stone_min_contrast_de00` 1-15, `hue_min` 100-200, `hue_max` 230-320, `min_chroma` 0-5, `ood_warn` 5-60, `ood_reject` 10-80; `hue_min < hue_max`, `ood_warn < ood_reject`. Defaults = the original thresholds |
 
 - `POST /admin/config/reset-gates` - restores the default gates.
@@ -503,7 +514,7 @@ Validation errors (400) on `/admin/*` also carry `fields: [{field, message}]` (d
 
 | Route | Who | Notes |
 |---|---|---|
-| `GET /admin/review-queue` | 👁️ | `status=pending` (default: referred, not reviewed) \| `mine` (reviewed by me) \| `reviewed` (all reviewed). Filters `from`, `to`, `grade`, `model_version`; `limit`, `cursor`. Items have no user identity (no `uid`, email or phone) and add presigned `image_url` and `heatmap_url`, `grade`, `confidence`, `uncertainty`, `probabilities`, `second_grade`, `colour`, `delta_e00_to_typical`, `referral_threshold_used`, `referred_reasons` (`low_confidence`, `unusual_image`), and `review` `{gemologist_grade, reviewer_confidence, unusable, notes, agrees, reviewed_at, mine}` (null when pending) |
+| `GET /admin/review-queue` | 👁️ | `status=pending` (default: referred or sent by an admin, not reviewed) \| `mine` (reviewed by me) \| `reviewed` (all reviewed). Filters `from`, `to`, `grade`, `model_version`; `limit`, `cursor`. Items have no user identity (no `uid`, email or phone) and add presigned `image_url` and `heatmap_url`, `grade`, `confidence`, `uncertainty`, `probabilities`, `second_grade`, `colour`, `delta_e00_to_typical`, `referral_threshold_used`, `referred_reasons` (`low_confidence`, `unusual_image`, `referred`; `admin` when an admin sent it), and `review` `{gemologist_grade, reviewer_confidence, unusable, notes, agrees, reviewed_at, mine}` (null when pending) |
 | `POST /admin/reviews` | 👁️ | `{grading_id, gemologist_grade 1-7, reviewer_confidence?: "low"\|"medium"\|"high", unusable?: bool, notes <= 500}`. `unusable: true` (not a blue sapphire / unusable photo) has no grade and `agrees: null`; otherwise the grade is required. -> 201 `{agrees, ...}`; 409 `already_reviewed` |
 | `PUT /admin/reviews/{grading_id}` | 👁️ | Same body without `grading_id`. Admins correct any review; a reviewer edits only their own (403 `forbidden` otherwise). Audited |
 | `GET /admin/reviews/stats` | 🛡️ | `reviewed`, `agreed`, `agreement_rate`, `within_one_grade_rate`, `unusable`, `pending`, `per_grade`, `per_model_version`, `confusion_matrix` (rows = model, columns = gemologist). Unusable reviews are left out of agreement |
@@ -554,3 +565,45 @@ Admin revoke and supersede, and a role change, also create a server notification
 | `GET /admin/broadcasts` | `target=user\|all, limit, cursor` | Sent history: `id, target, uid, count, title, type, category, action, at, user_email, sent_by_email` |
 
 Stored `admin_broadcasts` document: `_id, target, uid, count, title, type, category, action, sent_by` (admin uid), `at`. Reviewers get 403 on all of these.
+
+### Admin powers (🛡️, Phase 10p)
+
+Admin only (reviewers and app users get 403 `forbidden`), validated (unknown fields 400), rate-limited (120/min) and audited with before/after. `reason` fields are 1-500 characters and must not be blank.
+
+**Users**
+
+| Route | Request | Notes |
+|---|---|---|
+| `POST /admin/users/{uid}/revoke-sessions` | - | Force sign-out: Firebase `revoke_refresh_tokens` plus a `revoked_sessions` marker, so every route (not only revocation-checked ones) answers older tokens with 401 `token_revoked`. Allowed on your own account (`self: true`). -> `{uid, revoked_at, self}`; 404 unknown. Audit `user_revoke_sessions` |
+| `PATCH /admin/users/{uid}/profile` | `{display_name? <= 100, phone? <= 30, company? <= 200}` | The app's profile limits; trimmed, empty = cleared; the email cannot be edited (400). The Firebase display name is updated too. -> `{uid, display_name, phone, company}`. Audit `user_profile_edit` |
+| `PUT /admin/users/{uid}/daily-limit` | `{daily_grading_limit: 1-500 or null}` | null = no own limit (the config default applies, if set). -> `{uid, daily_grading_limit, default, effective, today}`. Audit `user_daily_limit` |
+| `GET /admin/users/{uid}/notes` | `limit, cursor` | `{items: [{id, text, at, author_email}], next_cursor}`, newest first. Never returned by any `/me` route |
+| `POST /admin/users/{uid}/notes` | `{text 1-1000}` | 201 note. Audit `user_note_add` |
+| `DELETE /admin/users/{uid}/notes/{id}` | - | 204. Audit `user_note_delete` |
+| `GET /admin/users/{uid}/activity` | `limit (1-100), cursor` | Newest first, one cursor over: `signed_in` / `last_active` (Firebase), `account_created`, `grading`, `calibration`, `feedback`, `certificate`, `admin_action` (audit entries whose target is the user). Items: `{id, type, at, ref, summary, action?, admin_email?}` |
+
+`GET /admin/users/{uid}` adds `device_states: [{device_id, name, blocked, blocked_at?, blocked_reason?, blocked_by_email?}]` and `daily_limit: {user, default, effective, today}`.
+
+**Daily grading limit.** `POST /grade` counts the user's saved gradings (status ok, including ones deleted by the user or hidden by an admin) since midnight Asia/Colombo and returns 429 `{code: "DAILY_LIMIT_REACHED", message: "Daily grading limit reached. Try again tomorrow or contact support."}` when the effective limit (the user's own, else `daily_grading_limit_default`, else none) is reached. Rejected photos do not count.
+
+**Gradings**
+
+| Route | Request | Notes |
+|---|---|---|
+| `POST /admin/gradings/{id}/hide` | `{reason}` | The grading stays in the database but is left out of the owner's `GET /gradings`, `GET /gradings/{id}`, heatmap and certificate issue (404), so the app's History and stats drop it on refresh. 409 `already_hidden`. Audit `grading_hide` (target `{grading_id, uid}`) |
+| `POST /admin/gradings/{id}/restore` | `{reason?}` | 409 `not_hidden`. Audit `grading_restore` |
+| `DELETE /admin/gradings/{id}` | `{confirm_id, reason}` | Privacy deletion. `confirm_id` must equal the id (400 `confirm_mismatch`). Deletes the S3 photo, Grad-CAM and certificate files, the reviews and the stone's notifications (payload = grading id, stone id or certificate number), withdraws its certificates (public page "Withdrawn"; only number, date, status and reason are kept), removes the grading and clears grade values from its earlier review/regrade audit entries. -> `{grading_id, deleted, withdrawn}`. Audit `grading_delete_permanent` (target `{grading_id, uid_hash}`, no colour data) |
+| `POST /admin/gradings/{id}/send-to-review` | `{reason?}` (note for the reviewer) | Works for gradings that were not referred; the Review queue shows it with `referred_reasons` containing `admin`. 409 `already_in_queue` / `already_reviewed` / `not_gradable` |
+| `POST /admin/gradings/{id}/regrade` | - | Runs the current model on the stored photo (current gates and `session_mapping`, the grading's own referral threshold). Appended to `regrades` (last 20 kept): `{id, model_version, status, message, grade, grade_name, probabilities, confidence, uncertainty, referred, warnings, at, by_hash}`. The original `result` is never changed. -> the re-grade plus `by_email` and `original {grade, confidence, model_version}`. 409 `photo_missing`. Audit `grading_regrade` |
+| `POST /admin/gradings/bulk` | `{action: hide, restore, send_to_review or export, ids: 1-200 unique, reason?}` | `reason` required for `hide`. -> `{action, requested, done: [ids], skipped: [{id, reason}]}`, one audit entry per changed grading (target `bulk: true`). `export` returns CSV (`grading_id, stone_id, created_at, user_email, grade, grade_name, confidence, uncertainty, referred, model_version, device, app_version, hidden, warnings`; formula-like text is prefixed with `'`), audit `gradings_export` |
+
+`GET /admin/gradings` accepts `hidden=true|false` and rows add `hidden` and `review_requested`. `GET /admin/gradings/{id}` adds `hidden_info {reason, at, by_email}`, `review_request {reason, note, at}`, `regrades[]` (with `by_email`) and `certificate.superseded_by`.
+
+**Calibrations and devices**
+
+| Route | Request | Notes |
+|---|---|---|
+| `POST /admin/calibrations/{id}/invalidate` | `{reason}` | Sets `invalidated_at`; the user gets one notification ("Your calibration was reset by support. Please recalibrate before grading.", category calibration, opens Calibration). 409 `already_invalidated`. Audit `calibration_invalidate`. `GET /admin/calibrations` rows add `invalidated_at`, `invalidated_reason` |
+| `GET /admin/devices/blocked` | - | `{items: [{device_id, name, reason, blocked_at, blocked_by_email}]}` |
+| `POST /admin/devices/{device_id}/block` | `{reason}` | `device_id` = first 24 hex characters of SHA-256 of the app's per-install `X-Device-Id` header (a random UUID v4 created on first launch); app builds without the header fall back to SHA-256 of the trimmed phone model name. Gradings and calibrations store `device_id` next to `device` (model). `POST /grade` and `POST /calibrations` with that device_id then return 403 `DEVICE_BLOCKED`; other phones of the same model are not affected. The blocked document keeps `device_model`; `device_states` and the blocked list add `short_id` (first 8 characters). 404 unknown device, 409 `already_blocked`. Audit `device_block` |
+| `POST /admin/devices/{device_id}/unblock` | `{reason}` | 409 `not_blocked`. Audit `device_unblock` |

@@ -9,6 +9,7 @@ import '../services/calibration_service.dart';
 import '../services/connectivity_service.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_checkbox.dart';
+import '../widgets/calibration_reset_prompt.dart';
 import '../widgets/card_container.dart';
 import '../widgets/dashed_border.dart';
 import '../widgets/gem_app_bar.dart';
@@ -117,6 +118,9 @@ class _CaptureScreenState extends State<CaptureScreen>
   Future<void> _capture(ImageSource source) async {
     setState(() => _busySource = source);
     try {
+      // Support may have reset the calibration since it was checked last.
+      if (await CalibrationResetPrompt.check(context)) return;
+      if (!mounted) return;
       await PhotoCheckScreen.captureFrom(context, source,
           repeatability:
               _repeatability && RemoteConfigService.repeatabilityEnabled);

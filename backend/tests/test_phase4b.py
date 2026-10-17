@@ -342,7 +342,9 @@ def test_config_defaults(raw_client, app_state):
     app_state.db.invalidate_app_config()
     r = raw_client.get("/config")
     assert r.status_code == 200
-    public = {k: v for k, v in DEFAULT_APP_CONFIG.items() if k != "verify_base_url"}
+    # Server-side only: verify_base_url and (Phase 10p) daily_grading_limit_default.
+    public = {k: v for k, v in DEFAULT_APP_CONFIG.items()
+              if k not in ("verify_base_url", "daily_grading_limit_default")}
     assert r.json() == {**public, "blur_min_variance": gates.BLUR_MIN_VARIANCE, "announcements": []}
 
 

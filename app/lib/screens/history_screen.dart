@@ -9,6 +9,7 @@ import '../services/certificate_api_service.dart';
 import '../services/certificate_service.dart';
 import '../services/history_service.dart';
 import '../services/settings_service.dart';
+import '../widgets/reviewed_grade_badge.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_dialog.dart';
 import '../widgets/app_snack_bar.dart';
@@ -1156,6 +1157,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                               .copyWith(color: AppColors.textPrimary)),
                       const SizedBox(height: AppSpacing.xs),
                       Text(_meta(result), style: AppText.secondary),
+                      if (result.reviewGrade != null) ...[
+                        const SizedBox(height: AppSpacing.xs),
+                        ReviewedGradeBadge(
+                            grade: result.reviewGrade!, compact: true),
+                      ],
                       if (result.certificateNumber != null) ...[
                         const SizedBox(height: AppSpacing.sm),
                         _CertificatePill(number: result.certificateNumber!),

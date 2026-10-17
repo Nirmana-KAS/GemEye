@@ -24,6 +24,7 @@ from app.auth import uid_hash
 from app.config import get_settings
 from app.db import utcnow
 from app.errors import ApiError
+from app.limits import DAILY_LIMIT_BOUNDS
 from app.notifications import ADMIN_ACTIONS, create_notification
 from app.routers import NOT_FOUND, UNAVAILABLE, _utc, delete_account, get_db, get_storage
 from app.schemas import RevokeIn
@@ -34,6 +35,9 @@ router = APIRouter(prefix="/admin")
 SEND_OOB_URL = "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode"
 SEMVER = re.compile(r"^(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})\.(0|[1-9]\d{0,3})$")
 VERIFY_URL = re.compile(r"^https://[A-Za-z0-9]([A-Za-z0-9.-]{0,120}[A-Za-z0-9])?(:\d{2,5})?(/[A-Za-z0-9._~/-]{0,100})?$")
+# http only for local tests: localhost or a private LAN address (phone on the same Wi-Fi).
+VERIFY_URL_LOCAL = re.compile(r"^http://(localhost|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}"
+                              r"|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d{2,5})?$")
 CERT_NO = re.compile(r"^GE-\d{6}-\d{5}$")
 
 
@@ -234,6 +238,9 @@ class ConfigIn(BaseModel):
     features: Optional[FeaturesIn] = None
     verify_base_url: Optional[StrictStr] = None
     gates: Optional[GatesIn] = None
+    # null clears it (no default limit).
+    daily_grading_limit_default: Optional[StrictInt] = Field(None, ge=DAILY_LIMIT_BOUNDS[0],
+                                                             le=DAILY_LIMIT_BOUNDS[1])
 
     @field_validator("min_app_version")
     @classmethod
@@ -247,8 +254,8 @@ class ConfigIn(BaseModel):
     def _https(cls, v):
         if v is not None:
             v = v.strip().rstrip("/")
-            if len(v) > 200 or not VERIFY_URL.match(v):
-                raise ValueError("verify_base_url must be an https URL")
+            if len(v) > 200 or not (VERIFY_URL.match(v) or VERIFY_URL_LOCAL.match(v)):
+                raise ValueError("verify_base_url must be an https URL (http only for localhost or a LAN IP)")
         return v
 
 
@@ -256,12 +263,14 @@ def _config_view(db):
     cfg = db.get_app_config()
     return {**{k: cfg[k] for k in ("referral_threshold_default", "calibration_validity_hours",
                                    "min_app_version", "update_message", "maintenance", "features",
-                                   "verify_base_url")},
+                                   "verify_base_url", "daily_grading_limit_default")},
             "gates": gates.effective(cfg), "gate_defaults": gates.DEFAULTS,
             "gate_bounds": {k: {"min": lo, "max": hi} for k, (lo, hi) in gates.BOUNDS.items()},
             # The same limits ConfigIn enforces, for the dashboard form.
             "bounds": {"referral_threshold_default": {"min": REFERRAL_BOUNDS[0], "max": REFERRAL_BOUNDS[1]},
                        "calibration_validity_hours": {"min": VALIDITY_BOUNDS[0], "max": VALIDITY_BOUNDS[1]},
+                       "daily_grading_limit_default": {"min": DAILY_LIMIT_BOUNDS[0],
+                                                       "max": DAILY_LIMIT_BOUNDS[1]},
                        "message_max": MESSAGE_MAX}}
 
 
@@ -286,7 +295,7 @@ def put_config(body: ConfigIn, user=Depends(admin_only), db=Depends(get_db)):
             if k == "gates" and not gates.valid(v):
                 raise ApiError(400, "invalid_gates",
                                "Gate values are inconsistent (hue_min < hue_max and ood_warn < ood_reject).")
-        elif v is None:
+        elif v is None and k != "daily_grading_limit_default":
             continue
         update[k] = v
     if not update:
@@ -429,7 +438,15 @@ def _referred_reasons(d):
         out.append("low_confidence")
     if "unusual_image" in (r.get("warnings") or []):
         out.append("unusual_image")
-    return out or (["referred"] if r.get("referred") else [])
+    # Model reasons only for stones the model referred; "admin" when an admin sent it.
+    out = (out or ["referred"]) if r.get("referred") else []
+    if d.get("review_requested"):
+        out.append("admin")
+    return out
+
+
+# Waiting for a gemologist: referred by the model, or sent to review by an admin (Phase 10p).
+IN_QUEUE = {"$or": [{"result.referred": True}, {"review_requested": {"$exists": True}}]}
 
 
 def _queue_row(d, storage, review, me):
@@ -465,7 +482,7 @@ def review_queue(
     me = uid_hash(user["uid"])
     if status == "pending":
         reviewed = [r["grading_id"] for r in db.reviews.find({}, {"grading_id": 1})]
-        q = {"deleted": False, "status": "ok", "result.referred": True, "_id": {"$nin": reviewed}}
+        q = {"deleted": False, "status": "ok", **IN_QUEUE, "_id": {"$nin": reviewed}}
     else:
         rq = {"reviewer_uid_hash": me} if status == "mine" else {}
         q = {"deleted": False, "status": "ok",
@@ -537,7 +554,7 @@ def review_stats(user=Depends(admin_only), db=Depends(get_db)):
             cell[1] += 1 if same else 0
     n = len(rows)
     pending = db.gradings.count_documents({
-        "deleted": False, "status": "ok", "result.referred": True,
+        "deleted": False, "status": "ok", **IN_QUEUE,
         "_id": {"$nin": [r["grading_id"] for r in db.reviews.find({}, {"grading_id": 1})]}})
     return {"reviewed": n, "agreed": agreed, "agreement_rate": _rate(n, agreed),
             "unusable": db.reviews.count_documents({"unusable": True}),

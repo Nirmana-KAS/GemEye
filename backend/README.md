@@ -182,12 +182,16 @@ unavailable or maintenance, 500 generic. Error bodies are `{status: "error", det
    `secrets.compare_digest` (on SHA-256 digests). An unknown number, a wrong token
    or a malformed slug all give the same 404 body. Responses have
    `Cache-Control: no-store`; CORS is allowed for this route only, from
-   `https://gemeye-app-2026.web.app` and `http://localhost:3000`. The rate limit
+   `https://gemeye-app-2026.web.app`, `http://localhost:3000` and the origin of the
+   configured `verify_base_url` (e.g. `http://192.168.1.20:3000` for a phone on the
+   same Wi-Fi), also on 404/429 and preflight. The rate limit
    (slowapi, in memory, per process) keys on the client address; behind a proxy it
    must be configured to use the forwarded address.
 7. The response: `cert_no, status` (valid/revoked/withdrawn), `issued_at, snapshot,
-   owner` (only if allowed), `revoked_reason, revoked_at, image_url, pdf_url,
-   pdf_sha256, disclaimer`. It never contains the uid or email. Presigned URLs last
+   owner` (only if allowed), `revoked_reason, revoked_at, superseded_by,
+   superseded_by_url` (the replacement's verify link, only when it is a valid
+   certificate of the same owner), `review` (`{gemologist_grade, reviewed_at}`,
+   unusable reviews left out), `image_url, pdf_url, pdf_sha256, disclaimer`. It never contains the uid or email. Presigned URLs last
    10 minutes. The grading photo's S3 key contains the uid, so at issue time the
    photo is copied (server side) to `certificates/{cert_no}.jpg` and the public
    page links the copy.
@@ -233,10 +237,10 @@ Edit the document in MongoDB to change it; each process picks it up within 60 s.
 
 | Collection | Fields | Indexes |
 |------------|--------|---------|
-| `users` | `_id` (Firebase uid), `email, display_name, account_type, role` ("user", server-set), `country, phone, company{name, reg_no, industry, address, logo_key}, settings{show_name_on_certificates: false, referral_threshold: 0.60}, created_at, updated_at` | `_id` |
-| `gradings` | `_id, uid, stone_id, created_at, status: "ok", result` (grade response without debug), `image_key, calibration_session_id, patches` (6x3 or null), `request_id` (only if sent), `app_version, device, referral_threshold_used, deleted` (+ `deleted_at`) | `(uid, created_at desc)`, unique sparse `request_id` |
+| `users` | `_id` (Firebase uid), `email, display_name, account_type, role` ("user", server-set), `country, phone, company{name, reg_no, industry, address, logo_key}, settings{show_name_on_certificates: false, referral_threshold: 0.60}, created_at, updated_at`, `daily_grading_limit` (admin-set, 1-500 or null) | `_id` |
+| `gradings` | `_id, uid, stone_id, created_at, status: "ok", result` (grade response without debug), `image_key, calibration_session_id, patches` (6x3 or null), `request_id` (only if sent), `app_version, device, referral_threshold_used, deleted` (+ `deleted_at`); Phase 10p: `hidden` (+ `hidden_reason, hidden_at, hidden_by_hash`), `review_requested {reason: "admin", note, at, by_hash}`, `regrades[]` (last 20) | `(uid, created_at desc)`, unique sparse `request_id`, `(hidden, created_at desc)` |
 | `rejections` | `_id, uid, created_at, status, message, diagnostics, app_version, device` (no image, privacy decision option 1) | `created_at` |
-| `calibrations` | `_id, uid, session_id, created_at, valid_until, device, ccm, residual, quality, measured_patches` | `(uid, created_at desc)` |
+| `calibrations` | `_id, uid, session_id, created_at, valid_until, device, ccm, residual, quality, measured_patches` (+ `invalidated_at, invalidated_reason, invalidated_by_hash` when support reset it) | `(uid, created_at desc)` |
 | `counters` | `_id` (counter name: `stone`, `cert-YYYYMM`), `seq`; atomic `find_one_and_update($inc, upsert)` | `_id` |
 | `certificates` | `_id` (cert_no), `uid, grading_id, token, token_sha256, status` (valid/revoked/withdrawn), `issued_at, snapshot, owner, image_key, pdf_key, pdf_sha256, pdf_uploaded_at, revoked_reason, revoked_at` (+ `withdrawn_at`) | `(uid, issued_at desc)`, unique `grading_id` where `status: "valid"` |
 | `feedback` | `_id, uid, created_at, rating, category, comment, app_version` | `(uid, created_at desc)` |
@@ -246,6 +250,9 @@ Edit the document in MongoDB to change it; each process picks it up within 60 s.
 | `notifications` | `_id` (app or server uuid), `uid, type, category, title, message, action, payload, source` (app/server/admin), `created_at, read_at, cleared_at, restored_at, restored_by`; admin sends add `sent_by` (admin uid) and `broadcast_id` | `(uid, created_at desc)`, `(uid, cleared_at)`, `(created_at desc, _id desc)`, `(source, created_at desc)` |
 | `admin_broadcasts` | `_id, target` (user/all), `uid` (target user), `count, title, type, category, action, sent_by` (admin uid), `at` | `(at desc, _id desc)`, `(target, at desc)` |
 | `admin_directory` | `_id` (sha256 of a dashboard user's uid), `email, role, seen_at`; written on their first `/admin/*` call per process so the audit log can show who acted | `_id` |
+| `admin_notes` | `_id, uid, text` (<= 1000), `author_hash, at`; admin only, never in a `/me` route; deleted with the account | `(uid, at desc)` |
+| `blocked_devices` | `_id` (device_id: sha256 of the X-Device-Id install UUID, or of the model name for old builds; 24 hex), `device_model, reason, blocked_at, blocked_by_hash` | `_id` |
+| `revoked_sessions` | `_id` (sha256(uid)), `valid_after_s, at`: tokens with an older `auth_time` get 401 `token_revoked` | `_id` |
 
 S3 (private bucket, SSE-S3): `<prefix>gradings/{uid}/{grading_id}.jpg` (`.png`
 for PNG uploads). Only the original upload of a graded stone is stored.
@@ -379,7 +386,7 @@ fields are rejected (400). An admin cannot disable, delete or demote their own a
 | POST | `/admin/users/{uid}/role` | `{role: admin\|reviewer\|none}`; tokens revoked when a role is removed or changed |
 | POST | `/admin/users/{uid}/password-reset` | Firebase email template -> `{status: "sent"}`; if sending fails `{status: "link", link}` (admin only, never logged or audited) |
 | DELETE | `/admin/users/{uid}` | same logic as `DELETE /me` (data, S3, certificates withdrawn, tombstone, Firebase user) |
-| GET, PUT | `/admin/config` | partial update, strict bounds: `referral_threshold_default` 0.40-0.90, `calibration_validity_hours` 1-72, `min_app_version` semver, `maintenance {enabled, message<=200}`, `features {repeatability_mode, gradcam, public_verification, session_mapping}`, `verify_base_url` (https, new certificates only), `update_message<=200` (shown with the update prompt), `gates` (below). GET also returns `gate_defaults`, `gate_bounds` and `bounds` (the other limits, for the dashboard form). Inconsistent gates: 400 `invalid_gates` |
+| GET, PUT | `/admin/config` | partial update, strict bounds: `referral_threshold_default` 0.40-0.90, `calibration_validity_hours` 1-72, `min_app_version` semver, `maintenance {enabled, message<=200}`, `features {repeatability_mode, gradcam, public_verification, session_mapping}`, `verify_base_url` (https; http only for localhost or a private LAN IP, for phone tests; new certificates only), `update_message<=200` (shown with the update prompt), `gates` (below). GET also returns `gate_defaults`, `gate_bounds` and `bounds` (the other limits, for the dashboard form). Inconsistent gates: 400 `invalid_gates` |
 | POST | `/admin/config/reset-gates` | restores the default gates |
 | GET, POST | `/admin/announcements` | `{title<=80, message<=500, level info\|warning, starts_at?, ends_at, active, action?}` (`action` = app screen opened from the banner, default `none`); GET rows add `created_by_email` |
 | PUT, DELETE | `/admin/announcements/{id}` | PUT replaces the editable fields |
@@ -435,3 +442,30 @@ revoke / supersede and role changes. Tests: `tests/test_notifications.py`.
 Validation errors (400) on `/admin/*` also return `fields: [{field, message}]` (the field path,
 never the submitted value) so the dashboard can show them on the form field. Tests:
 `tests/test_admin_notifications.py`.
+
+## Admin powers (Phase 10p)
+
+`app/admin_powers.py` (routes) and `app/limits.py` (checks used by `/grade` and
+`/calibrations`). Admin only (reviewer 403), validated, rate-limited, audited with
+before/after. Full table: `docs/GemEye_API_Reference.md`, "Admin powers".
+
+| Area | Routes | Effect in the app |
+|---|---|---|
+| Force sign-out | `POST /admin/users/{uid}/revoke-sessions` (self allowed) | Every route answers older tokens with 401 `token_revoked`; the app signs out with "You were signed out. Please sign in again." |
+| Profile | `PATCH /admin/users/{uid}/profile` (name, phone, company; not email) | Same limits as the app's profile; Firebase display name updated too |
+| Notes | `GET/POST/DELETE /admin/users/{uid}/notes` | Never returned by `/me` routes |
+| Daily limit | `PUT /admin/users/{uid}/daily-limit`, config `daily_grading_limit_default` | `POST /grade` 429 `DAILY_LIMIT_REACHED` once the user's gradings since Colombo midnight reach the limit |
+| Activity | `GET /admin/users/{uid}/activity?cursor=` | - |
+| Hide / restore | `POST /admin/gradings/{id}/hide` (reason) and `/restore` | Hidden gradings 404 for the owner and drop out of History and stats |
+| Permanent delete | `DELETE /admin/gradings/{id}` `{confirm_id, reason}` | S3 photo, Grad-CAM and certificate files deleted, reviews and notifications deleted, certificate withdrawn, minimal audit |
+| Review | `POST /admin/gradings/{id}/send-to-review` | Review queue reason `admin` |
+| Re-grade | `POST /admin/gradings/{id}/regrade` | Current model on the stored photo -> `regrades[]`; the original result is never changed |
+| Bulk | `POST /admin/gradings/bulk {action, ids <= 200, reason}` | hide / restore / send_to_review / export (CSV) |
+| Calibration | `POST /admin/calibrations/{id}/invalidate` (reason), app `GET /me/calibration-status` | The app expires the session and asks to recalibrate; one notification |
+| Devices | `POST /admin/devices/{device_id}/block` / `unblock` (reason), `GET /admin/devices/blocked` | `POST /grade` and `POST /calibrations` from the device: 403 `DEVICE_BLOCKED` |
+
+Device ids (Phase 10p-fix) are a hash of the app's per-install `X-Device-Id` UUID, so a block
+applies to one install only; old app builds without the header fall back to a hash of the
+phone model name. Gradings and calibrations store `device_id` next to `device` (model). Tests:
+`tests/test_admin_powers.py` (S3 is mocked for the permanent delete; the re-grade test needs
+the dataset mount).

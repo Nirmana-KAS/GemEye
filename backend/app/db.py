@@ -26,6 +26,8 @@ DEFAULT_APP_CONFIG = {
     "gates": dict(gates.DEFAULTS),
     # Base of the verify links of NEW certificates (existing ones keep theirs).
     "verify_base_url": "https://gemeye-app-2026.web.app",
+    # Gradings per user per Asia/Colombo day when the user has no own limit (None = no limit).
+    "daily_grading_limit_default": None,
 }
 CONFIG_CACHE_SECONDS = 60
 DELETED_ACCOUNT_TTL_S = 2 * 3600    # ID tokens live at most 1 hour
@@ -56,6 +58,10 @@ class Database:
         self.notifications = self.db["notifications"]
         self.admin_broadcasts = self.db["admin_broadcasts"]
         self.admin_directory = self.db["admin_directory"]
+        # Phase 10p: admin notes on users, blocked devices, force sign-out markers.
+        self.admin_notes = self.db["admin_notes"]
+        self.blocked_devices = self.db["blocked_devices"]
+        self.revoked_sessions = self.db["revoked_sessions"]
         self._config, self._config_at = None, 0.0
         self._config_lock = threading.Lock()
 
@@ -107,7 +113,14 @@ class Database:
         self.notifications.create_index([("source", ASCENDING), ("created_at", DESCENDING)])
         self.admin_broadcasts.create_index([("at", DESCENDING), ("_id", DESCENDING)])
         self.admin_broadcasts.create_index([("target", ASCENDING), ("at", DESCENDING)])
-        # counters, app_config and certificates (cert_no) are looked up by _id.
+        # Phase 10p: notes per user, hidden filter, review requests, audit by target.
+        self.admin_notes.create_index([("uid", ASCENDING), ("at", DESCENDING)])
+        self.gradings.create_index([("hidden", ASCENDING), ("created_at", DESCENDING)])
+        self.gradings.create_index([("review_requested.at", ASCENDING)], sparse=True)
+        self.audit_log.create_index([("target.uid", ASCENDING), ("at", DESCENDING)])
+        self.audit_log.create_index([("target.grading_id", ASCENDING)])
+        # counters, app_config, certificates (cert_no), blocked_devices (device_id) and
+        # revoked_sessions (uid_hash) are looked up by _id.
 
     def seed_app_config(self):
         """Creates app_config/"global" with the defaults if it does not exist."""

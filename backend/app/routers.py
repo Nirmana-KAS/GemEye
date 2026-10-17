@@ -21,6 +21,7 @@ from app.assets import MODEL_LOCK
 from app.auth import active_user, active_user_strict, current_user, current_user_strict, uid_hash
 from app.db import utcnow
 from app.errors import ApiError
+from app.limits import DEVICE_HEADER, check_device, request_device_id
 from app.pipeline import gradcam
 from app.pipeline.colour import decode_image
 from app.schemas import (AppConfig, CalibrationIn, CalibrationItem, CalibrationList, FeedbackIn,
@@ -119,7 +120,8 @@ def delete_account(uid, db, storage):
         raise HTTPException(503, UNAVAILABLE)
     db.reviews.delete_many({"grading_id": {"$in": [g["_id"] for g in
                                                     db.gradings.find({"uid": uid}, {"_id": 1})]}})
-    for coll in (db.gradings, db.calibrations, db.rejections, db.feedback, db.notifications):
+    for coll in (db.gradings, db.calibrations, db.rejections, db.feedback, db.notifications,
+                 db.admin_notes):
         coll.delete_many({"uid": uid})
     now = utcnow()
     db.certificates.update_many({"uid": uid}, {
@@ -127,6 +129,7 @@ def delete_account(uid, db, storage):
         "$unset": {f: "" for f in PRIVATE_FIELDS}})
     db.users.delete_one({"_id": uid})
     db.disabled_accounts.delete_one({"_id": uid_hash(uid)})
+    db.revoked_sessions.delete_one({"_id": uid_hash(uid)})
     try:
         firebase_auth.delete_user(uid)
     except firebase_auth.UserNotFoundError:
@@ -149,6 +152,9 @@ def delete_me(user=Depends(current_user_strict), db=Depends(get_db), storage=Dep
 
 
 # ---- Gradings ----
+
+# Gradings an admin hid (Phase 10p) stay in the database but never reach the owner.
+VISIBLE = {"deleted": False, "hidden": {"$ne": True}}
 
 def review_info(db, ids):
     """{grading_id: {gemologist_grade, reviewed_at}} (no reviewer identity). Reviews marked
@@ -198,7 +204,7 @@ def list_gradings(
     to: Optional[datetime] = None,
     user=Depends(current_user), db=Depends(get_db), storage=Depends(get_storage),
 ):
-    q = {"uid": user["uid"], "deleted": False}
+    q = {"uid": user["uid"], **VISIBLE}
     if grade is not None:
         q["result.grade"] = grade
     if referred is not None:
@@ -221,7 +227,7 @@ def list_gradings(
 
 
 def _own_grading(db, uid, grading_id):
-    doc = db.gradings.find_one({"_id": grading_id, "uid": uid, "deleted": False})
+    doc = db.gradings.find_one({"_id": grading_id, "uid": uid, **VISIBLE})
     if doc is None:
         raise HTTPException(404, NOT_FOUND)
     return doc
@@ -348,10 +354,13 @@ def calibration_item(doc):
 
 
 @router.post("/calibrations", response_model=CalibrationItem, status_code=201)
-def post_calibration(body: CalibrationIn, user=Depends(active_user), db=Depends(get_db)):
+def post_calibration(body: CalibrationIn, request: Request, user=Depends(active_user),
+                     db=Depends(get_db)):
+    did = request_device_id(request.headers.get(DEVICE_HEADER), body.device)
+    check_device(db, did)
     db.ensure_user(user["uid"], user["email"])
     doc = {"_id": uuid.uuid4().hex, "uid": user["uid"], "created_at": utcnow(),
-           **body.model_dump()}
+           **body.model_dump(), "device_id": did}
     doc["valid_until"] = _utc(doc["valid_until"])
     try:
         db.calibrations.insert_one(doc)

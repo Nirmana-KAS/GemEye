@@ -191,6 +191,8 @@ BAD_CONFIGS = [
     {"maintenance": {"nope": 1}}, {"features": {"nope": True}}, {"features": {"gradcam": "true"}},
     {"verify_base_url": "http://x.example"}, {"verify_base_url": "https://x.example/?a=b"},
     {"verify_base_url": "javascript:alert(1)"}, {"verify_base_url": "https://"},
+    {"verify_base_url": "http://8.8.8.8:3000"}, {"verify_base_url": "http://192.168.1.5:3000/v"},
+    {"verify_base_url": "http://172.32.0.1:3000"},
     {"gates": {"nope": 1}}, {"gates": {"blur_min_variance": 4.9}},
     {"gates": {"blur_min_variance": 200.1}}, {"gates": {"no_stone_min_area": 0.001}},
     {"gates": {"no_stone_min_contrast_de00": 16}}, {"gates": {"hue_min": 99}},
@@ -284,6 +286,43 @@ def test_verify_base_url_only_for_new_certificates(admin_c, client, fx, app_stat
     finally:
         admin_c.put("/admin/config", json={"verify_base_url": "https://gemeye-app-2026.web.app"})
         db.certificates.delete_many({"uid": fx["own"]})
+
+
+def test_public_verify_review(raw_client, fx, app_state):
+    """The public page shows a gemologist grade (no reviewer identity), never an unusable review."""
+    db, gid, url = app_state.db, f"{MARK}-cg4", f"/public/v/{fx['certs'][4]}-tok4abc"
+    assert raw_client.get(url).json()["review"] is None
+    db.reviews.insert_one({"_id": MARK + "-rv4", "grading_id": gid, "gemologist_grade": None, "unusable": True,
+                           "reviewer_uid_hash": "h", "notes": "n", "created_at": datetime.now(timezone.utc)})
+    try:
+        assert raw_client.get(url).json()["review"] is None
+        db.reviews.update_one({"_id": MARK + "-rv4"}, {"$set": {"gemologist_grade": 3, "unusable": False}})
+        r = raw_client.get(url).json()["review"]
+        assert r["gemologist_grade"] == 3 and r["reviewed_at"] and set(r) == {"gemologist_grade", "reviewed_at"}
+    finally:
+        db.reviews.delete_one({"_id": MARK + "-rv4"})
+
+
+def test_public_verify_cors_lan_origin(admin_c, raw_client, fx):
+    """A LAN verify base (phone on the same Wi-Fi) is accepted and its origin gets CORS on
+    /public/v/ (also on 404 and preflight); other origins do not."""
+    lan, slug_ok = "http://192.168.1.50:3000", f"{fx['certs'][4]}-tok4abc"
+    acao = lambda r: r.headers.get("access-control-allow-origin")  # noqa: E731
+    assert acao(raw_client.get(f"/public/v/{slug_ok}", headers={"Origin": "http://localhost:3000"})) ==         "http://localhost:3000"
+    assert acao(raw_client.get(f"/public/v/{slug_ok}", headers={"Origin": lan})) is None
+    r = admin_c.put("/admin/config", json={"verify_base_url": lan + "/"})
+    assert r.status_code == 200 and r.json()["verify_base_url"] == lan
+    try:
+        ok = raw_client.get(f"/public/v/{slug_ok}", headers={"Origin": lan})
+        assert ok.status_code == 200 and acao(ok) == lan
+        bad = raw_client.get(f"/public/v/{fx['certs'][4]}-wrong", headers={"Origin": lan})
+        assert bad.status_code == 404 and acao(bad) == lan
+        pre = raw_client.options(f"/public/v/{slug_ok}", headers={"Origin": lan})
+        assert pre.status_code == 204 and acao(pre) == lan
+        assert acao(raw_client.get(f"/public/v/{slug_ok}", headers={"Origin": "http://192.168.1.51:3000"})) is None
+        assert admin_c.put("/admin/config", json={"verify_base_url": "http://localhost:3000"}).status_code == 200
+    finally:
+        admin_c.put("/admin/config", json={"verify_base_url": "https://gemeye-app-2026.web.app"})
 
 
 # ---- 3. Announcements ----
@@ -473,6 +512,14 @@ def test_certificate_revoke_and_supersede(admin_c, raw_client, fx, app_state):
     assert e["after"]["superseded_by"] == c[3]
     p = page(2).json()
     assert p["status"] == "revoked" and p["superseded_by"] == c[3] and p["revoked_reason"] == "Re-graded"
+    # Same owner and valid: the replacement's own verify link is public.
+    assert p["superseded_by_url"] == f"https://gemeye-app-2026.web.app/v/{c[3]}-tok3abc"
+    db.certificates.update_one({"_id": c[3]}, {"$set": {"uid": "someone-else"}})
+    try:
+        p = page(2).json()
+        assert p["superseded_by"] == c[3] and p["superseded_by_url"] is None
+    finally:
+        db.certificates.update_one({"_id": c[3]}, {"$set": {"uid": fx["uid"]}})
     assert page(3).json()["status"] == "valid"
     row = [x for x in admin_c.get(f"/admin/certificates?q={c[2]}").json()["items"]][0]
     assert row["superseded_by"] == c[3]

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Ban, Bell, CheckCircle2, KeyRound, ShieldCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Ban, Bell, CheckCircle2, ChevronDown, Gauge, KeyRound, LogOut, Pencil, ShieldCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/components/auth-provider";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { columnHelper, DataTable } from "@/components/data-table";
+import { EditProfileDialog } from "@/components/edit-profile-dialog";
 import { NativeSelect } from "@/components/filters";
 import { GradeChip, YesNo } from "@/components/grade-chip";
 import { SendNotificationForm } from "@/components/send-notification-form";
@@ -17,12 +18,24 @@ import { EmptyState, ErrorState, PageHeader } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { UserActivity } from "@/components/user-activity";
 import { RoleBadge, StatusBadge } from "@/components/user-badges";
+import { UserDevices } from "@/components/user-devices";
+import { UserNotes } from "@/components/user-notes";
 import { UserNotifications } from "@/components/user-notifications";
+import { DAILY_LIMIT_BOUNDS, parseDailyLimit } from "@/lib/admin-powers";
+import { revokeSessions, setDailyLimit } from "@/lib/api";
 import { fmtDateTime, fmtNum, fmtPct } from "@/lib/format";
 import type { CalibrationRow, GradingRow, PasswordResetResult, RoleSetting, UserDetail } from "@/lib/types";
 
@@ -43,7 +56,10 @@ const calibrationColumns = c.columns([
   c.accessor("residual", { header: "Residual", cell: (i) => <span className="font-mono">{fmtNum(i.getValue(), 3)}</span> }),
   c.accessor("quality", { header: "Quality", cell: (i) => <span className="capitalize">{String(i.getValue() ?? "-")}</span> }),
   c.accessor("valid_until", { header: "Valid until", cell: (i) => fmtDateTime(i.getValue()) }),
+  c.accessor("invalidated_at", { header: "Reset", cell: (i) => (i.getValue() ? `Reset ${fmtDateTime(i.getValue())}` : "-") }),
 ]);
+
+const TABS = ["records", "timeline", "notes", "notifications"] as const;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -65,15 +81,16 @@ function SelfGuard({ self, children }: { self: boolean; children: React.ReactEle
   );
 }
 
-type Dialogs = "disable" | "enable" | "role" | "reset" | "delete" | "notify" | null;
+type Dialogs = "disable" | "enable" | "role" | "reset" | "delete" | "notify" | "signout" | "profile" | "limit" | null;
 
 function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
-  const { api, user: me, role: myRole } = useAuth();
+  const { api, user: me, role: myRole, signOut } = useAuth();
   const router = useRouter();
   const qc = useQueryClient();
   const [dialog, setDialog] = useState<Dialogs>(null);
   const [newRole, setNewRole] = useState<RoleSetting>("none");
   const [resetLink, setResetLink] = useState<string | null>(null);
+  const [limitInput, setLimitInput] = useState("");
 
   const detail = useQuery({
     queryKey: ["admin-user", uid],
@@ -107,6 +124,7 @@ function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
       else toast.success("Password reset email sent.");
     },
   });
+  const limitParsed = parseDailyLimit(limitInput);
   const remove = useMutation({
     mutationFn: () => api(path, { method: "DELETE" }),
     onSuccess: () => {
@@ -196,6 +214,27 @@ function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
           <Button variant="outline" onClick={() => setDialog("reset")} disabled={!p.email}>
             <KeyRound /> Send password reset
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger render={<Button variant="outline" />}>
+              Admin actions <ChevronDown />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <DropdownMenuItem onClick={() => setDialog("signout")}>
+                <LogOut /> Force sign-out
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setDialog("profile")}>
+                <Pencil /> Edit profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  setLimitInput(d.daily_limit?.user == null ? "" : String(d.daily_limit.user));
+                  setDialog("limit");
+                }}
+              >
+                <Gauge /> Daily limit
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <SelfGuard self={self}>
             <Button variant="destructive" onClick={() => setDialog("delete")} disabled={self || !email}>
               <Trash2 /> Delete user
@@ -228,6 +267,11 @@ function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
                 {typeof d.settings.referral_threshold === "number" ? fmtNum(d.settings.referral_threshold) : "default"}
               </Field>
               <Field label="Name on certificates">{d.settings.show_name_on_certificates ? "Yes" : "No"}</Field>
+              <Field label="Daily grading limit">
+                {d.daily_limit
+                  ? `${d.daily_limit.effective ?? "No limit"}${d.daily_limit.user == null && d.daily_limit.default != null ? " (default)" : ""} - ${d.daily_limit.today} today`
+                  : "-"}
+              </Field>
             </div>
           </CardContent>
         </Card>
@@ -254,26 +298,20 @@ function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
             </div>
             <div className="mt-4">
               <div className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Devices</div>
-              {d.devices.length ? (
-                <ul className="space-y-1 text-sm">
-                  {d.devices.map((dev) => (
-                    <li key={dev}>{dev}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-muted-foreground">None recorded</p>
-              )}
+              <UserDevices uid={uid} devices={d.device_states ?? []} />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <Tabs defaultValue={tab === "notifications" && myRole === "admin" ? "notifications" : "activity"} className="mt-6">
+      <Tabs defaultValue={TABS.find((t) => t === tab && myRole === "admin") ?? "records"} className="mt-6">
         <TabsList>
-          <TabsTrigger value="activity">Gradings and calibrations</TabsTrigger>
+          <TabsTrigger value="records">Gradings and calibrations</TabsTrigger>
+          {myRole === "admin" && <TabsTrigger value="timeline">Activity</TabsTrigger>}
+          {myRole === "admin" && <TabsTrigger value="notes">Notes</TabsTrigger>}
           {myRole === "admin" && <TabsTrigger value="notifications">Notifications</TabsTrigger>}
         </TabsList>
-        <TabsContent value="activity">
+        <TabsContent value="records">
           <h2 className="mb-2 mt-2 font-semibold">Recent gradings</h2>
           {d.last_gradings.length ? (
             <DataTable
@@ -297,6 +335,16 @@ function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
             </Card>
           )}
         </TabsContent>
+        {myRole === "admin" && (
+          <TabsContent value="timeline" className="mt-2">
+            <UserActivity uid={uid} />
+          </TabsContent>
+        )}
+        {myRole === "admin" && (
+          <TabsContent value="notes" className="mt-2">
+            <UserNotes uid={uid} />
+          </TabsContent>
+        )}
         {myRole === "admin" && (
           <TabsContent value="notifications" className="mt-2">
             <UserNotifications uid={uid} />
@@ -367,6 +415,63 @@ function UserDetailView({ uid, tab }: { uid: string; tab: string | null }) {
         confirmText={email}
         onConfirm={() => remove.mutateAsync()}
       />
+      <ConfirmDialog
+        open={dialog === "signout"}
+        onOpenChange={(o) => setDialog(o ? "signout" : null)}
+        title={self ? "Sign yourself out everywhere?" : "Force sign-out on every device?"}
+        description={
+          self
+            ? "All your sessions end, including this dashboard. You will need to sign in again."
+            : 'The app signs the user out with "You were signed out. Please sign in again." They can sign in again at once.'
+        }
+        confirmLabel="Sign out"
+        destructive
+        confirmText={self ? "SIGN OUT" : undefined}
+        onConfirm={async () => {
+          const r = await revokeSessions(api, uid);
+          toast.success("Sessions revoked.");
+          if (r.self) await signOut();
+          else refresh();
+        }}
+      />
+      <EditProfileDialog
+        uid={uid}
+        email={p.email}
+        initial={{ display_name: p.display_name ?? "", phone: p.phone ?? "", company: p.company?.name ?? "" }}
+        open={dialog === "profile"}
+        onOpenChange={(o) => setDialog(o ? "profile" : null)}
+        onSaved={refresh}
+      />
+      <ConfirmDialog
+        open={dialog === "limit"}
+        onOpenChange={(o) => setDialog(o ? "limit" : null)}
+        title="Daily grading limit"
+        description={`Gradings per day (Asia/Colombo) for this user, ${DAILY_LIMIT_BOUNDS.min} - ${DAILY_LIMIT_BOUNDS.max}. Empty = no own limit${
+          d.daily_limit?.default != null ? ` (the default of ${d.daily_limit.default} applies)` : ""
+        }.`}
+        confirmLabel="Save limit"
+        confirmDisabled={!limitParsed.ok}
+        onConfirm={async () => {
+          if (!limitParsed.ok) return;
+          await setDailyLimit(api, uid, limitParsed.value);
+          toast.success("Daily limit saved.");
+          refresh();
+        }}
+      >
+        <div className="space-y-1.5">
+          <Label htmlFor="daily-limit">Gradings per day</Label>
+          <Input
+            id="daily-limit"
+            inputMode="numeric"
+            value={limitInput}
+            onChange={(e) => setLimitInput(e.target.value)}
+            placeholder="No limit"
+            className="w-40 font-mono"
+            aria-invalid={!limitParsed.ok}
+          />
+          {!limitParsed.ok && <p className="text-xs text-destructive">{limitParsed.message}</p>}
+        </div>
+      </ConfirmDialog>
       <ConfirmDialog
         open={resetLink !== null}
         onOpenChange={(o) => !o && setResetLink(null)}

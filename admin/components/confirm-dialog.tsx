@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { confirmMatches } from "@/lib/admin-powers";
 
 /** Confirmation dialog. With `confirmText`, the user must type it exactly to continue. */
 export function ConfirmDialog({
@@ -42,8 +43,7 @@ export function ConfirmDialog({
 }) {
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
-  const blocked =
-    !!confirmDisabled || (!!confirmText && typed.trim().toLowerCase() !== confirmText.trim().toLowerCase());
+  const blocked = !!confirmDisabled || (!!confirmText && !confirmMatches(typed, confirmText));
 
   function change(o: boolean) {
     if (busy) return;

@@ -7,14 +7,17 @@ import 'firebase_options.dart';
 import 'config/app_config.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
+import 'screens/maintenance_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/calibration_service.dart';
 import 'services/connectivity_service.dart';
+import 'services/device_id_service.dart';
 import 'services/notification_service.dart';
 import 'services/remote_config_service.dart';
 import 'services/settings_service.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
+import 'widgets/calibration_reset_prompt.dart';
 
 void main() async {
   WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
@@ -28,11 +31,13 @@ void main() async {
   ]);
   SystemChrome.setSystemUIOverlayStyle(AppSystemUi.darkIcons);
   await AppConfig.load();
+  await DeviceIdService.init();
   await SettingsService.init();
   await NotificationService.init();
   await CalibrationService.init();
   await ConnectivityService.init();
   ApiClient.sessionLostHandler = AuthService.handleDeadSession;
+  CalibrationResetPrompt.watchResume();
   unawaited(RemoteConfigService.refresh());
   FlutterNativeSplash.remove();
   runApp(const GemEyeApp());
@@ -49,6 +54,9 @@ class GemEyeApp extends StatelessWidget {
       theme: GemEyeTheme.lightTheme,
       navigatorKey: AppRoutes.navigatorKey,
       navigatorObservers: [AppRoutes.routeObserver],
+      // Remote config maintenance.enabled covers every screen.
+      builder: (context, child) =>
+          MaintenanceGate(child: child ?? const SizedBox.shrink()),
       home: const SplashScreen(),
     );
   }

@@ -1,7 +1,8 @@
 "use client";
 
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   Bar,
@@ -15,14 +16,20 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { toast } from "sonner";
 
 import { useApi } from "@/components/auth-provider";
 import { ChartCard, tooltipStyle, useChartPalette } from "@/components/chart-card";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { columnHelper, DataTable, Pager, useCursorPaging } from "@/components/data-table";
 import { FilterBar, FilterField, NativeSelect, useDebounced } from "@/components/filters";
+import { ReasonField } from "@/components/reason-field";
 import { PageHeader } from "@/components/states";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { fetchAllPages } from "@/lib/api";
+import { canConfirm } from "@/lib/admin-powers";
+import { fetchAllPages, invalidateCalibration } from "@/lib/api";
 import { dayBoundIso, fmtDateTime, fmtNum } from "@/lib/format";
 import type { CalibrationRow, Page } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -53,7 +60,7 @@ function isValid(until: string | null): boolean | null {
 }
 
 const col = columnHelper<CalibrationRow>();
-const columns = col.columns([
+const baseColumns = col.columns([
   col.accessor("created_at", { header: "Time", cell: (i) => <span className="whitespace-nowrap">{fmtDateTime(i.getValue())}</span> }),
   col.accessor("device", { header: "Device", cell: (i) => i.getValue() ?? "-" }),
   col.accessor("residual", { header: "Residual", cell: (i) => <span className="font-mono text-xs">{fmtNum(i.getValue(), 3)}</span> }),
@@ -76,6 +83,26 @@ const columns = col.columns([
   }),
 ]);
 
+/** Status (reset by support) and the Invalidate action. */
+function actionColumns(onInvalidate: (r: CalibrationRow) => void) {
+  return [
+    col.display({
+      id: "actions",
+      header: "Support",
+      cell: (i) =>
+        i.row.original.invalidated_at ? (
+          <span title={i.row.original.invalidated_reason ?? undefined}>
+            <Badge variant="outline">Reset {fmtDateTime(i.row.original.invalidated_at)}</Badge>
+          </span>
+        ) : (
+          <Button variant="ghost" size="xs" onClick={() => onInvalidate(i.row.original)}>
+            <RotateCcw /> Invalidate
+          </Button>
+        ),
+    }),
+  ];
+}
+
 export default function CalibrationsPage() {
   const api = useApi();
   const palette = useChartPalette();
@@ -86,6 +113,19 @@ export default function CalibrationsPage() {
   const [quality, setQuality] = useState("");
   const [deviceInput, setDeviceInput] = useState("");
   const device = useDebounced(deviceInput.trim());
+  const qc = useQueryClient();
+  const [target, setTarget] = useState<CalibrationRow | null>(null);
+  const [reason, setReason] = useState("");
+  const columns = useMemo(
+    () => [
+      ...baseColumns,
+      ...actionColumns((r) => {
+        setReason("");
+        setTarget(r);
+      }),
+    ],
+    [],
+  );
 
   const filters = useMemo(
     () => ({ from: dayBoundIso(from, false), to: dayBoundIso(to, true), quality: quality || undefined, device: device || undefined }),
@@ -217,6 +257,24 @@ export default function CalibrationsPage() {
         onNext={() => paging.next(list.data?.next_cursor)}
         busy={list.isFetching}
       />
+      <ConfirmDialog
+        open={target !== null}
+        onOpenChange={(o) => !o && setTarget(null)}
+        title="Invalidate this calibration?"
+        description="The app marks the session expired and asks the user to recalibrate. They get one notification: 'Your calibration was reset by support'."
+        confirmLabel="Invalidate"
+        destructive
+        confirmText={target?.session_id ?? "RESET"}
+        confirmDisabled={!canConfirm({ reasonRequired: true }, reason, "")}
+        onConfirm={async () => {
+          if (!target) return;
+          await invalidateCalibration(api, target.calibration_id, reason.trim());
+          toast.success("Calibration reset. The user was notified.");
+          void qc.invalidateQueries({ queryKey: ["admin-calibrations"] });
+        }}
+      >
+        <ReasonField value={reason} onChange={setReason} />
+      </ConfirmDialog>
     </>
   );
 }

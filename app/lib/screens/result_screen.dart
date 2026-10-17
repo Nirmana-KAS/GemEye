@@ -12,6 +12,7 @@ import '../services/api_client.dart';
 import '../services/certificate_service.dart';
 import '../services/grade_record_service.dart';
 import '../services/remote_config_service.dart';
+import '../widgets/reviewed_grade_badge.dart';
 import '../widgets/app_buttons.dart';
 import '../widgets/app_snack_bar.dart';
 import '../widgets/confidence_badge.dart';
@@ -204,6 +205,11 @@ class _ResultScreenState extends State<ResultScreen> {
                       'stones GemEye was trained on. Check the result '
                       'carefully.',
                 ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              if (_result.reviewGrade != null) ...[
+                ReviewedGradeBadge(
+                    grade: _result.reviewGrade!, notes: _result.reviewNotes),
                 const SizedBox(height: AppSpacing.lg),
               ],
               if (_borderline) ...[

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Ban, Copy, ExternalLink, FileText, Replace } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -8,67 +8,28 @@ import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 import { useApi } from "@/components/auth-provider";
+import { CertificateActionDialogs, type CertificateDialog } from "@/components/certificate-actions";
 import { CertStatus } from "@/components/cert-status";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { GradeChip, YesNo } from "@/components/grade-chip";
 import { ColourValuesView, Photo, Row } from "@/components/grading-parts";
 import { EmptyState, ErrorState, PageHeader } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fmtDateTime, fmtNum, fmtPct } from "@/lib/format";
 import type { CertificateDetail } from "@/lib/types";
 
-const CERT_NO = /^GE-\d{6}-\d{5}$/;
-const REASON_MAX = 500;
-
-function ReasonField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex justify-between">
-        <Label htmlFor="reason">Reason (required)</Label>
-        <span className="text-xs text-muted-foreground">
-          {value.length}/{REASON_MAX}
-        </span>
-      </div>
-      <textarea
-        id="reason"
-        rows={3}
-        maxLength={REASON_MAX}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-      />
-    </div>
-  );
-}
-
 function CertificateView({ certNo }: { certNo: string }) {
   const api = useApi();
   const qc = useQueryClient();
-  const [dialog, setDialog] = useState<"revoke" | "supersede" | null>(null);
-  const [reason, setReason] = useState("");
-  const [newNo, setNewNo] = useState("");
+  const [dialog, setDialog] = useState<CertificateDialog>(null);
   const path = `/admin/certificates/${encodeURIComponent(certNo)}`;
 
   const detail = useQuery({ queryKey: ["admin-certificate", certNo], queryFn: () => api<CertificateDetail>(path) });
-  const done = (msg: string) => {
-    toast.success(msg);
-    setReason("");
-    setNewNo("");
+  const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["admin-certificate", certNo] });
     void qc.invalidateQueries({ queryKey: ["admin-certificates"] });
   };
-  const revoke = useMutation({
-    mutationFn: () => api(`${path}/revoke`, { method: "POST", body: { reason: reason.trim() } }),
-    onSuccess: () => done("Certificate revoked. The owner was notified."),
-  });
-  const supersede = useMutation({
-    mutationFn: () => api(`${path}/supersede`, { method: "POST", body: { new_cert_no: newNo.trim().toUpperCase(), reason: reason.trim() } }),
-    onSuccess: () => done("Certificate superseded. The owner was notified."),
-  });
 
   const back = (
     <Link href="/admin/certificates/" className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
@@ -98,8 +59,6 @@ function CertificateView({ certNo }: { certNo: string }) {
   const c = detail.data;
   const s = c.snapshot;
   const valid = c.status === "valid";
-  const newNoClean = newNo.trim().toUpperCase();
-  const newNoOk = CERT_NO.test(newNoClean) && newNoClean !== c.cert_no;
 
   return (
     <>
@@ -242,45 +201,7 @@ function CertificateView({ certNo }: { certNo: string }) {
         </div>
       </div>
 
-      <ConfirmDialog
-        open={dialog === "revoke"}
-        onOpenChange={(o) => setDialog(o ? "revoke" : null)}
-        title="Revoke this certificate?"
-        description="The public page shows it as revoked and the owner gets a notification. This cannot be undone."
-        confirmLabel="Revoke"
-        destructive
-        confirmText={c.cert_no}
-        confirmDisabled={!reason.trim()}
-        onConfirm={() => revoke.mutateAsync()}
-      >
-        <ReasonField value={reason} onChange={setReason} />
-      </ConfirmDialog>
-      <ConfirmDialog
-        open={dialog === "supersede"}
-        onOpenChange={(o) => setDialog(o ? "supersede" : null)}
-        title="Supersede this certificate?"
-        description="It is revoked and the public page shows 'Replaced by' the new number, which must be a different valid certificate."
-        confirmLabel="Supersede"
-        destructive
-        confirmDisabled={!reason.trim() || !newNoOk}
-        onConfirm={() => supersede.mutateAsync()}
-      >
-        <div className="space-y-1.5">
-          <Label htmlFor="new-no">New certificate number</Label>
-          <Input
-            id="new-no"
-            value={newNo}
-            onChange={(e) => setNewNo(e.target.value)}
-            placeholder="GE-YYYYMM-NNNNN"
-            className="font-mono"
-            aria-invalid={!!newNo && !newNoOk}
-          />
-          {newNo && !newNoOk && (
-            <p className="text-xs text-destructive">{newNoClean === c.cert_no ? "Use a different certificate." : "Format: GE-YYYYMM-NNNNN"}</p>
-          )}
-        </div>
-        <ReasonField value={reason} onChange={setReason} />
-      </ConfirmDialog>
+      <CertificateActionDialogs certNo={c.cert_no} dialog={dialog} onDialogChange={setDialog} onDone={refresh} />
     </>
   );
 }
