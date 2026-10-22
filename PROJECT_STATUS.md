@@ -2883,3 +2883,29 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-139, EDIT-143, EDIT-144, EDIT-145, EDIT-146
 - **Reason:** Phase 10g of the admin dashboard plan.
+
+### EDIT-148 | 17 October 2026 | IST
+- **Topic:** Phase 10g phone test setup - LAN dashboard origin for the admin API
+- **Summary:** The admin API CORS list can now be extended with the optional `ADMIN_EXTRA_ORIGINS` env var (comma-separated), so the dashboard served at `http://<laptop-LAN-IP>:3000` can call `/admin/*`, `/health` and `/announcements` during a phone test on the same Wi-Fi. The S3 CORS rule was not applied (AWS CLI not installed).
+- **What was done:**
+  - Backend: `ADMIN_ORIGINS` in `app/admin.py` = the two fixed origins plus `ADMIN_EXTRA_ORIGINS`; `backend/.env` (git-ignored) sets it to `http://192.168.1.195:3000`; API rebuilt with `docker compose up -d --build`
+  - Dashboard: `admin/.env.local` (git-ignored) `NEXT_PUBLIC_API_BASE_URL=http://192.168.1.195:8000`, old file kept as `admin/.env.local.bak` (was `http://localhost:8000`); `npm run dev -- -H 0.0.0.0` started
+  - Checks: tests/test_admin.py + tests/test_admin_writes.py 53 passed; `GET http://192.168.1.195:8000/health` with the LAN origin returns `Access-Control-Allow-Origin: http://192.168.1.195:3000`
+- **Files changed:**
+  - `~` backend/app/admin.py
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-147
+- **Reason:** The phone test in admin/README.md needs the dashboard on the LAN IP, which the hardcoded admin CORS list blocked.
+
+### EDIT-149 | 18 October 2026 | IST
+- **Topic:** Android debug build fix after Windows reset (missing android-36 android.jar)
+- **Summary:** `flutter run` failed with "Could not determine the dependencies of task ':app:compileDebugJavaWithJavac' > Cannot query the value of this provider". The cause was an incomplete Android SDK platform: `platforms/android-36` (Flutter's default compileSdk 36) had no `android.jar`, so AGP's boot classpath provider was empty. No project files, versions or app behaviour changed.
+- **What was done:**
+  - Checked `flutter doctor -v` (no issues, JDK = Android Studio JBR), `app/android/app/google-services.json` present, `local.properties` sdk.dir and flutter.sdk valid, no leftover "sheha" paths in app/android or `~/.gradle/gradle.properties`
+  - `gradlew assembleDebug --stacktrace` (with JAVA_HOME set to Android Studio jbr) showed `MissingValueException` from a local file dependency on the compile classpath
+  - Removed the broken `platforms/android-36` folder and reinstalled `platforms;android-36` with sdkmanager
+  - Note: plain `.\gradlew` from a terminal uses a Java 8 on PATH because JAVA_HOME is not set; `flutter run` is unaffected (it uses the JBR)
+- **Files changed:**
+  - `~` PROJECT_STATUS.md (Android SDK on this PC repaired, outside the repo)
+- **Connected edits:** none
+- **Reason:** Restore the Android debug build on the reset PC.

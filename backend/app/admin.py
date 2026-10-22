@@ -6,6 +6,7 @@ admin writes (from Phase 10b) call audit()."""
 import base64
 import json
 import math
+import os
 import re
 import threading
 import time
@@ -25,7 +26,9 @@ from app.pipeline.inference import model_version
 from app.routers import NOT_FOUND, _utc, get_db, get_storage
 
 COLOMBO = ZoneInfo("Asia/Colombo")
-ADMIN_ORIGINS = ("http://localhost:3000", "https://gemeye-app-2026.web.app")
+# ADMIN_EXTRA_ORIGINS (comma-separated, optional): e.g. the LAN dashboard for a phone test.
+ADMIN_ORIGINS = ("http://localhost:3000", "https://gemeye-app-2026.web.app") + tuple(
+    o.strip() for o in os.environ.get("ADMIN_EXTRA_ORIGINS", "").split(",") if o.strip())
 RATE_LIMIT, RATE_WINDOW_S = 120, 60
 SECRET_KEYS = {"token", "token_sha256", "image_key", "pdf_key", "verify_url", "password",
                "password_hash", "passwordhash", "secret", "api_key", "access_token", "id_token"}
