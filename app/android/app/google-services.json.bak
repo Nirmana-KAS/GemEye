@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "707213168000",
+    "project_id": "gemeye-app-2026",
+    "storage_bucket": "gemeye-app-2026.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:707213168000:android:fa1eca1a8338c69410c565",
+        "android_client_info": {
+          "package_name": "com.gemeye.gemeye"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "707213168000-a3003t6albuq13mmu4e5o8tp3jheipk1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.gemeye.gemeye",
+            "certificate_hash": "f4ac6f2990a09ee59d4e042b10248e62eb43afc8"
+          }
+        },
+        {
+          "client_id": "707213168000-d6f8776ecf6kfqmgop3e3oo0irnp8aa5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAIJ8adi4kMqFWiljz3LP9YlQgNWWz4uds"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "707213168000-d6f8776ecf6kfqmgop3e3oo0irnp8aa5.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "707213168000-mi3q9a9l182pf56kvip8tomhednup5ks.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.gemeye.gemeye"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

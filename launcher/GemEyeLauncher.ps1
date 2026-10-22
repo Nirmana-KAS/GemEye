@@ -1,9 +1,11 @@
-# GemEye Demo Launcher: one window to start the backend and run the app on the phone.
-# Start it with "Start GemEye Demo.bat" in the GemEye folder.
+# GemEye Demo Launcher: one window to start the backend, the admin dashboard and the
+# app on the phone. Start it with "Start GemEye Demo.bat" in the GemEye folder.
 #
 # The phone reaches the server through the adb connection (adb reverse tcp:8000),
 # over USB or wireless debugging, so the PC IP, firewall and Wi-Fi isolation do
 # not matter. Without adb, set the PC address in the app: Settings > API base URL.
+# The dashboard (and the certificate verify page) runs on port 3000 on all network
+# interfaces, so the phone opens it at http://<PC IP>:3000 on the same Wi-Fi.
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -11,10 +13,16 @@ Add-Type -AssemblyName System.Drawing
 
 $Root = Split-Path -Parent $PSScriptRoot
 $Backend = Join-Path $Root "backend"
+$Admin = Join-Path $Root "admin"
+$AppDir = Join-Path $Root "app"
 $Apk = Join-Path $Root "app\build\gemeye.apk"
+$BuiltApk = Join-Path $Root "app\build\app\outputs\flutter-apk\app-release.apk"
+$GoogleServices = Join-Path $Root "app\android\app\google-services.json"
+$DebugKeystore = Join-Path $env:USERPROFILE ".android\debug.keystore"
 $StateFile = Join-Path $PSScriptRoot ".launcher_state.json"
 $Pkg = "com.gemeye.gemeye"
 $Port = 8000
+$DashPort = 3000
 
 # ---------- state ----------
 $State = @{ phoneIp = ""; installedHash = @{} }
@@ -34,6 +42,15 @@ if (-not $Adb) {
     if (Test-Path $cand) { $Adb = $cand }
 }
 
+# ---------- keytool path (Android Studio's bundled Java) ----------
+$Keytool = (Get-Command keytool -ErrorAction SilentlyContinue).Source
+if (-not $Keytool) {
+    foreach ($cand in @("C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe",
+                        "C:\Program Files\Android\Android Studio\jre\bin\keytool.exe")) {
+        if (Test-Path $cand) { $Keytool = $cand; break }
+    }
+}
+
 # ---------- UI ----------
 $Blue = [System.Drawing.ColorTranslator]::FromHtml("#1B3A8C")
 $Green = [System.Drawing.ColorTranslator]::FromHtml("#10B981")
@@ -44,7 +61,7 @@ $TextDark = [System.Drawing.ColorTranslator]::FromHtml("#1A1D2E")
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "GemEye Demo Launcher"
-$form.Size = New-Object System.Drawing.Size(560, 640)
+$form.Size = New-Object System.Drawing.Size(560, 760)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = [System.Drawing.Color]::White
 $form.FormBorderStyle = "FixedSingle"
@@ -61,7 +78,7 @@ $form.Controls.Add($title)
 
 $Rows = [ordered]@{}
 $y = 52
-foreach ($name in @("Docker", "Backend", "Database", "Phone", "Tunnel", "App")) {
+foreach ($name in @("Docker", "Backend", "Database", "Dashboard", "Google key", "Phone", "Tunnel", "App")) {
     $dot = New-Object System.Windows.Forms.Label
     $dot.Text = [char]0x25CF
     $dot.Font = New-Object System.Drawing.Font("Segoe UI", 13)
@@ -115,13 +132,16 @@ $btnConnect = New-Btn "Connect Phone" 16 $y 168 $false
 $btnPair = New-Btn "Pair (no cable)" 188 $y 168 $false
 $btnOpen = New-Btn "Open App" 360 $y 168 $false
 $y += 44
-$btnInstall = New-Btn "Reinstall App" 16 $y 168 $false
-$btnDocs = New-Btn "API Docs" 188 $y 168 $false
-$btnLog = New-Btn "Server Log" 360 $y 168 $false
+$btnBuild = New-Btn "Build App" 16 $y 168 $false
+$btnInstall = New-Btn "Reinstall App" 188 $y 168 $false
+$btnDash = New-Btn "Dashboard" 360 $y 168 $false
 $y += 44
-$btnCheck = New-Btn "Check Status" 16 $y 168 $false
-$btnDb = New-Btn "Fix Database" 188 $y 168 $false
-$btnStop = New-Btn "Stop All" 360 $y 168 $false
+$btnDocs = New-Btn "API Docs" 16 $y 168 $false
+$btnLog = New-Btn "Server Log" 188 $y 168 $false
+$btnCheck = New-Btn "Check Status" 360 $y 168 $false
+$y += 44
+$btnDb = New-Btn "Fix Database" 16 $y 168 $false
+$btnStop = New-Btn "Stop All" 188 $y 340 $false
 $y += 48
 
 $log = New-Object System.Windows.Forms.TextBox
@@ -131,10 +151,11 @@ $log.ScrollBars = "Vertical"
 $log.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#F7F8FC")
 $log.Font = New-Object System.Drawing.Font("Consolas", 9)
 $log.Location = New-Object System.Drawing.Point(16, $y)
-$log.Size = New-Object System.Drawing.Size(512, (590 - $y))
+$log.Size = New-Object System.Drawing.Size(512, (710 - $y))
 $form.Controls.Add($log)
 
-$AllButtons = @($btnGo, $btnConnect, $btnPair, $btnOpen, $btnInstall, $btnDocs, $btnLog, $btnCheck, $btnDb, $btnStop)
+$AllButtons = @($btnGo, $btnConnect, $btnPair, $btnOpen, $btnBuild, $btnInstall, $btnDash, $btnDocs, $btnLog,
+                $btnCheck, $btnDb, $btnStop)
 
 # ---------- helpers ----------
 function Log($msg) {
@@ -151,11 +172,13 @@ function Set-Row($name, $level, $text) {
     $Rows[$name].val.Text = $text
     [System.Windows.Forms.Application]::DoEvents()
 }
-function Run($exe, [string[]]$argList, [int]$timeoutSec = 60) {
+function Run($exe, [string[]]$argList, [int]$timeoutSec = 60, [string]$dir = "") {
     # Runs a program without freezing the window; returns @{code; out}.
+    # $dir sets the working directory (Push-Location does not reach .NET processes).
     $psi = New-Object System.Diagnostics.ProcessStartInfo
     $psi.FileName = $exe
     $psi.Arguments = ($argList | ForEach-Object { if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ } }) -join ' '
+    if ($dir) { $psi.WorkingDirectory = $dir }
     $psi.UseShellExecute = $false
     $psi.RedirectStandardOutput = $true
     $psi.RedirectStandardError = $true
@@ -207,9 +230,7 @@ function Ensure-Backend {
     if ((Http-Code "http://localhost:$Port/health" 3) -ne 200) {
         Set-Row "Backend" "warn" "Starting (models load in ~30 s)..."
         Log "docker compose up -d"
-        Push-Location $Backend
-        $r = Run "docker" @("compose", "up", "-d") 300
-        Pop-Location
+        $r = Run "docker" @("compose", "up", "-d") 300 $Backend
         if ($r.code -ne 0) { Log $r.out; Set-Row "Backend" "fail" "docker compose failed (see log)"; return $false }
     }
     for ($i = 0; $i -lt 30; $i++) {
@@ -234,6 +255,72 @@ function Check-Database {
     if (-not $pub) { Set-Row "Database" "fail" "No internet on the PC."; return $false }
     Set-Row "Database" "fail" "Blocked. Press 'Fix Database' (add IP $pub in Atlas)."
     return $false
+}
+
+function Dash-Up { return (Http-Code "http://localhost:$DashPort/admin/login/" 30) -eq 200 }
+
+function Ensure-Dashboard {
+    if (Dash-Up) { Set-Row "Dashboard" "ok" "Running (http://$(PcIp):$DashPort/admin)"; return $true }
+    if (-not (Test-Path (Join-Path $Admin "node_modules"))) {
+        Set-Row "Dashboard" "fail" "Run 'npm install' in the admin folder once."; return $false
+    }
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        Set-Row "Dashboard" "fail" "Node.js (npm) not found. Install Node.js LTS."; return $false
+    }
+    Set-Row "Dashboard" "warn" "Starting (first page takes ~1 min)..."
+    Log "npm run dev -- -H 0.0.0.0 (admin, minimised window)"
+    # Own window so the dashboard keeps running after the launcher closes; -H 0.0.0.0 lets the phone open it.
+    $cmd = "`$host.UI.RawUI.WindowTitle = 'GemEye Dashboard'; Set-Location '$Admin'; npm run dev -- -H 0.0.0.0"
+    Start-Process powershell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd -WindowStyle Minimized
+    for ($i = 0; $i -lt 30; $i++) {
+        Wait 4
+        if (Dash-Up) { Set-Row "Dashboard" "ok" "Running (http://$(PcIp):$DashPort/admin)"; return $true }
+    }
+    Set-Row "Dashboard" "fail" "Not responding. Open the 'GemEye Dashboard' window to see why."
+    return $false
+}
+
+function Stop-Dashboard {
+    $pids = Get-NetTCPConnection -LocalPort $DashPort -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($p in $pids) { try { Stop-Process -Id $p -Force -ErrorAction Stop; Log "Dashboard stopped (PID $p)" } catch {} }
+}
+
+function Check-GoogleKey {
+    # Google sign-in fails with error 10 when this PC's debug key is not registered in Firebase.
+    if (-not (Test-Path $DebugKeystore)) {
+        Set-Row "Google key" "fail" "No debug.keystore. Copy it from E:\GemEye_Backup\home\.android first."; return $false
+    }
+    if (-not $Keytool) { Set-Row "Google key" "warn" "keytool not found (install Android Studio). Not checked."; return $true }
+    $r = Run $Keytool @("-list", "-v", "-keystore", $DebugKeystore, "-alias", "androiddebugkey",
+                        "-storepass", "android", "-keypass", "android") 20
+    $m = [regex]::Match($r.out, 'SHA1:\s*([0-9A-F:]{59})')
+    if (-not $m.Success) { Set-Row "Google key" "warn" "Could not read the debug key."; return $true }
+    $sha1 = $m.Groups[1].Value
+    $hash = ($sha1 -replace ':', '').ToLower()
+    if ((Test-Path $GoogleServices) -and ((Get-Content $GoogleServices -Raw) -match $hash)) {
+        Set-Row "Google key" "ok" "This PC's key is in google-services.json"; return $true
+    }
+    Log "Debug key SHA-1 $sha1 is not in google-services.json"
+    Log "Add it in Firebase (Project settings > Your apps > Add fingerprint), download google-services.json, then Build App."
+    Set-Row "Google key" "fail" "Key not in Firebase: Google sign-in will fail (error 10). See log."
+    return $false
+}
+
+function Build-App {
+    if (-not (Get-Command flutter -ErrorAction SilentlyContinue)) { Set-Row "App" "fail" "flutter not found on PATH."; return $false }
+    Set-Row "App" "warn" "Building the app (5-10 min, keep this window open)..."
+    Log "flutter build apk --release"
+    $r = Run "cmd.exe" @("/c", "flutter", "build", "apk", "--release") 1800 $AppDir
+    if ($r.code -ne 0 -or -not (Test-Path $BuiltApk)) {
+        ($r.out -split "`n" | Select-Object -Last 15) | ForEach-Object { Log $_.TrimEnd() }
+        Set-Row "App" "fail" "Build failed (see log)."
+        return $false
+    }
+    Copy-Item $BuiltApk $Apk -Force
+    Log "Built app\build\gemeye.apk"
+    Set-Row "App" "ok" "Built"
+    return $true
 }
 
 function Get-Devices {
@@ -310,7 +397,10 @@ function Ensure-Tunnel($serial) {
 }
 
 function Ensure-App($serial, [bool]$force) {
-    if (-not (Test-Path $Apk)) { Set-Row "App" "fail" "app\build\gemeye.apk missing (see docs\RUN_ON_PHONE.md)"; return $false }
+    if (-not (Test-Path $Apk)) {
+        $ans = [System.Windows.Forms.MessageBox]::Show("app\build\gemeye.apk is missing. Build it now? (5-10 min)", "GemEye", "YesNo", "Question")
+        if ($ans -ne "Yes" -or -not (Build-App)) { Set-Row "App" "fail" "app\build\gemeye.apk missing. Press 'Build App'."; return $false }
+    }
     $hash = (Get-FileHash $Apk -Algorithm SHA256).Hash
     $installed = (AdbRun @("-s", $serial, "shell", "pm path $Pkg") 15).out -match "package:"
     $key = ($serial -replace ':\d+$', '')
@@ -339,7 +429,7 @@ function Open-App($serial) {
 
 function Update-Info {
     $net = Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1
-    $info.Text = "PC IP: $(PcIp)   Network: $($net.Name)   Direct mode: type http://$(PcIp):$Port in app Settings"
+    $info.Text = "PC IP: $(PcIp)   Network: $($net.Name) ($($net.NetworkCategory))   Dashboard: http://$(PcIp):$DashPort/admin"
 }
 
 # ---------- actions ----------
@@ -351,6 +441,8 @@ $btnGo.Add_Click({
         if (-not (Ensure-Docker)) { return }
         if (-not (Ensure-Backend)) { return }
         Check-Database | Out-Null
+        Ensure-Dashboard | Out-Null
+        Check-GoogleKey | Out-Null
         $s = Connect-Phone
         if (-not $s) { return }
         if (-not (Ensure-Tunnel $s)) { return }
@@ -410,6 +502,21 @@ $btnInstall.Add_Click({
     try { $s = Current-Serial; if ($s) { Ensure-App $s $true | Out-Null } else { Set-Row "Phone" "fail" "No phone. Press 'Connect Phone'." } } finally { Busy $false }
 })
 
+$btnBuild.Add_Click({
+    Busy $true
+    try {
+        Check-GoogleKey | Out-Null
+        if (-not (Build-App)) { return }
+        $s = Current-Serial
+        if ($s) { if (Ensure-App $s $true) { Open-App $s } } else { Log "No phone connected; press 'Reinstall App' after 'Connect Phone'." }
+    } finally { Busy $false }
+})
+
+$btnDash.Add_Click({
+    Busy $true
+    try { if (Ensure-Dashboard) { Start-Process "http://localhost:$DashPort/admin" } } finally { Busy $false }
+})
+
 $btnDocs.Add_Click({ Start-Process "http://localhost:$Port/docs" })
 
 $btnLog.Add_Click({ Start-Process powershell -ArgumentList "-NoExit", "-Command", "docker logs -f --tail 40 gemeye-api" })
@@ -422,6 +529,8 @@ $btnCheck.Add_Click({
         if ($r.code -eq 0) { Set-Row "Docker" "ok" "Running" } else { Set-Row "Docker" "fail" "Not running" }
         try { $h = Invoke-RestMethod "http://localhost:$Port/health" -TimeoutSec 3; Set-Row "Backend" "ok" "Healthy, model $($h.model_version)" } catch { Set-Row "Backend" "fail" "Not running" }
         if ((Http-Code "http://localhost:$Port/config" 10) -eq 200) { Set-Row "Database" "ok" "Connected" } else { Set-Row "Database" "fail" "Not connected" }
+        if (Dash-Up) { Set-Row "Dashboard" "ok" "Running (http://$(PcIp):$DashPort/admin)" } else { Set-Row "Dashboard" "fail" "Not running" }
+        Check-GoogleKey | Out-Null
         $s = Current-Serial
         if ($s) { Set-Row "Phone" "ok" $s; Ensure-Tunnel $s | Out-Null } else { Set-Row "Phone" "fail" "Not connected"; Set-Row "Tunnel" "idle" "-" }
     } finally { Busy $false }
@@ -431,7 +540,9 @@ $btnDb.Add_Click({
     $pub = try { Invoke-RestMethod "https://api.ipify.org" -TimeoutSec 5 } catch { "" }
     if (-not $pub) { [System.Windows.Forms.MessageBox]::Show("The PC has no internet connection.", "Database") | Out-Null; return }
     Set-Clipboard -Value $pub
-    [System.Windows.Forms.MessageBox]::Show("Your public IP $pub is copied.`n`nIn MongoDB Atlas: Security > Network Access > Add IP Address > paste > Confirm.`nWait until it shows Active, then press START EVERYTHING.", "Fix Database") | Out-Null
+    # The home connection changes its public IP often, so offer the /16 range as well.
+    $range = ($pub -replace '\.\d+\.\d+$', '.0.0') + "/16"
+    [System.Windows.Forms.MessageBox]::Show("Your public IP $pub is copied.`n`nIn MongoDB Atlas: Security > Network Access > Add IP Address > paste > Confirm.`nWait until it shows Active, then press START EVERYTHING.`n`nIf the IP keeps changing, add the range $range instead (dev only).", "Fix Database") | Out-Null
     Start-Process "https://cloud.mongodb.com/"
 })
 
@@ -441,7 +552,8 @@ $btnStop.Add_Click({
         Log "Stopping"
         $s = Current-Serial
         if ($s) { AdbRun @("-s", $s, "reverse", "--remove-all") 10 | Out-Null }
-        Push-Location $Backend; Run "docker" @("compose", "down") 120 | Out-Null; Pop-Location
+        Stop-Dashboard
+        Run "docker" @("compose", "down") 120 $Backend | Out-Null
         foreach ($k in @($Rows.Keys)) { Set-Row $k "idle" "-" }
         Log "Stopped"
     } finally { Busy $false }

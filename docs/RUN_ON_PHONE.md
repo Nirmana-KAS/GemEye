@@ -35,18 +35,22 @@ Double-click **`Start GemEye Demo.bat`** in the GemEye folder.
 
 | Button | What it does |
 |---|---|
-| **START EVERYTHING** | Docker > backend > database > phone > tunnel > install app (only if changed) > open app |
+| **START EVERYTHING** | Docker > backend > database > dashboard > Google key check > phone > tunnel > install app (only if changed; offers to build it if `gemeye.apk` is missing) > open app |
 | **Connect Phone** | USB plugged: switches the phone to Wi-Fi (unplug after). Nothing plugged: tries the last phone IP, then wireless debugging discovery |
 | **Pair (no cable)** | Asks for the pairing IP:port and 6-digit code from the phone, then connects |
 | **Open App** | Restarts GemEye on the phone (and re-checks the tunnel) |
+| **Build App** | `flutter build apk --release` (5-10 min), copies it to `app\build\gemeye.apk`, installs and opens it. Use after a new `google-services.json` or code change |
 | **Reinstall App** | Installs `app\build\gemeye.apk` again |
+| **Dashboard** | Starts the admin dashboard if needed (`npm run dev -- -H 0.0.0.0` in a minimised "GemEye Dashboard" window) and opens http://localhost:3000/admin |
 | **API Docs** | Opens http://localhost:8000/docs |
 | **Server Log** | Live backend log in a new window |
 | **Check Status** | Refreshes all lights |
-| **Fix Database** | Copies your public IP and opens MongoDB Atlas (Network Access > Add IP Address > paste) |
-| **Stop All** | Removes the tunnel and stops the backend |
+| **Fix Database** | Copies your public IP and opens MongoDB Atlas (Network Access > Add IP Address > paste). Also shows the /16 range to add if the IP keeps changing |
+| **Stop All** | Removes the tunnel, stops the dashboard and stops the backend |
 
-The bottom line shows the PC IP for the "API base URL" backup.
+The **Google key** light checks that this PC's `debug.keystore` SHA-1 is in `app\android\app\google-services.json`. Red means "Continue with Google" will fail with error 10: add the SHA-1 in Firebase, download the new `google-services.json`, then press **Build App**.
+
+The bottom line shows the PC IP, the network type (Private is needed for the phone to open the dashboard) and the dashboard address for the phone (`http://<PC IP>:3000/admin`).
 
 ---
 

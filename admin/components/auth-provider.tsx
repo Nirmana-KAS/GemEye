@@ -150,5 +150,12 @@ export function signInErrorMessage(e: unknown): string {
   if (code === "auth/too-many-requests") return "Too many attempts. Please try again later.";
   if (code === "auth/user-disabled") return "This account is disabled.";
   if (code === "auth/network-request-failed") return "Network error. Check your connection.";
+  if (code === "auth/popup-blocked") return "The sign-in popup was blocked. Allow popups for this site and try again.";
+  if (code === "auth/unauthorized-domain")
+    return "This address is not an authorised sign-in domain. Open the dashboard from an authorised address.";
+  if (code === "auth/operation-not-allowed") return "This sign-in method is turned off for the dashboard.";
+  if (code === "auth/web-storage-unsupported") return "Allow cookies and site data for this site, then try again.";
+  // Dev only: the raw code is the only way to diagnose an unmapped failure.
+  if (process.env.NODE_ENV !== "production") console.warn("Sign-in failed:", code || e);
   return "Sign-in failed. Please try again.";
 }

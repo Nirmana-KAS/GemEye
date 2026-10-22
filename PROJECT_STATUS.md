@@ -2909,3 +2909,34 @@
   - `~` PROJECT_STATUS.md (Android SDK on this PC repaired, outside the repo)
 - **Connected edits:** none
 - **Reason:** Restore the Android debug build on the reset PC.
+
+### EDIT-150 | 22 October 2026 | IST
+- **Topic:** Demo launcher: admin dashboard, Google key check and Build App
+- **Summary:** `Start GemEye Demo.bat` (launcher/GemEyeLauncher.ps1) now also starts the admin dashboard on port 3000 for the phone, checks that this PC's debug key is in `google-services.json` (Google sign-in error 10 after the reset), and can build `app\build\gemeye.apk`. No app, backend or dashboard code changed.
+- **What was done:**
+  - New status lights **Dashboard** (starts `npm run dev -- -H 0.0.0.0` in a minimised "GemEye Dashboard" window if http://localhost:3000/admin/login/ is down) and **Google key** (keytool SHA-1 of `%USERPROFILE%\.android\debug.keystore` looked up in `app/android/app/google-services.json`; missing keystore points to the E:\GemEye_Backup copy)
+  - New buttons **Build App** (`flutter build apk --release`, copied to `app\build\gemeye.apk`, then installed and opened) and **Dashboard** (start if needed, open http://localhost:3000/admin); START EVERYTHING offers to build when `gemeye.apk` is missing
+  - Stop All also stops the dashboard (process listening on port 3000); Check Status refreshes the new lights
+  - Fix Database also suggests the public IP's /16 range, since the home connection changes its IP often
+  - `Run` takes a working directory, so `docker compose up/down` run in `backend/` (Push-Location did not reach the child process)
+  - Info line shows the network type (Private/Public) and the phone dashboard address
+  - docs/RUN_ON_PHONE.md: launcher button table and light notes updated
+- **Files changed:**
+  - `~` launcher/GemEyeLauncher.ps1
+  - `~` docs/RUN_ON_PHONE.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-149
+- **Reason:** One-click start for the 10g phone test setup after the Windows reset (dashboard on the LAN, new debug key, rebuilt APK).
+
+### EDIT-151 | 22 October 2026 | IST
+- **Topic:** Admin Google sign-in on the LAN address: diagnosis and clearer errors
+- **Summary:** Checked why http://192.168.1.195:3000/admin/login shows "Sign-in failed. Please try again." after Continue with Google. The backend is never reached, so the failure is a Firebase error code that the dashboard did not map. Common popup codes now have their own messages, and in dev the raw code is logged to the browser console.
+- **What was done:**
+  - Verified: `admin/.env.local` API base is http://192.168.1.195:8000 and all 6 Firebase web keys are set; backend CORS preflight returns `Access-Control-Allow-Origin: http://192.168.1.195:3000`; Firebase authorised domains include 192.168.1.195; the API key has no referrer restriction; no COOP header on the page; no `/admin` requests or 401/403 in `gemeye-api` logs
+  - Headless Chrome probe: the popup opens, the Firebase iframe loads and Google's sign-in page appears, so the failure happens after the Google account step
+  - `signInErrorMessage` maps `auth/popup-blocked`, `auth/unauthorized-domain`, `auth/operation-not-allowed`, `auth/web-storage-unsupported`; any other code is logged with `console.warn` in dev only (users still see the friendly message)
+- **Files changed:**
+  - `~` admin/components/auth-provider.tsx
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-150
+- **Reason:** The generic message hid the real Firebase error code on the LAN dashboard address.
