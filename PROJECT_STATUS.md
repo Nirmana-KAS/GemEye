@@ -2940,3 +2940,51 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-150
 - **Reason:** The generic message hid the real Firebase error code on the LAN dashboard address.
+
+### EDIT-152 | 23 October 2026 | IST
+- **Topic:** Admin dashboard: Next.js 16.4.0 to 16.4.2 security patch
+- **Summary:** Upgraded `next` and `eslint-config-next` to exactly 16.4.2 in `admin/`. No other packages changed and no code changes were needed.
+- **What was done:**
+  - `npm install --save-exact next@16.4.2 eslint-config-next@16.4.2`; lockfile changes limited to `next`, `@next/env`, `@next/eslint-plugin-next`, `@next/swc-*` and `eslint-config-next`
+  - `npm run lint`, `npm run typecheck` and `npm run build` all pass (21 static routes)
+  - Restarted the dev server with `npm run dev -- -H 0.0.0.0` (Next.js 16.4.2, Turbopack); http://localhost:3000/admin/login returns 308 to `/admin/login/` (`trailingSlash: true`), which returns 200
+- **Files changed:**
+  - `~` admin/package.json
+  - `~` admin/package-lock.json
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-151
+- **Reason:** Apply the Next.js 16.4.2 security patch to the admin dashboard.
+
+### EDIT-153 | 23 October 2026 | IST
+- **Topic:** Post 10g phone test cleanup and admin "Server offline" fix
+- **Summary:** Pointed the dashboard back at http://localhost:8000, cleared the LAN CORS origin, reset `verify_base_url` to production and deleted the 2026-10-22 "Test announcement" in the Atlas dev database, then restarted the API and dashboard.
+- **What was done:**
+  - Restored `admin/.env.local` from `admin/.env.local.bak` (`NEXT_PUBLIC_API_BASE_URL=http://localhost:8000`) and deleted the `.bak`; this was the cause of "Server offline" (dashboard was still calling the LAN IP)
+  - Cleared the `ADMIN_EXTRA_ORIGINS` value in `backend/.env` (setting kept in `app/admin.py`)
+  - Ran a one-off script in the `gemeye-api` container calling `admin_write.put_config` and `admin_write.delete_announcement` directly (pydantic-validated, audited with actor uid "script"): `verify_base_url` http://192.168.1.195:3000 to https://gemeye-app-2026.web.app; deleted announcement `e9a843c483674df2bcb22e63d87ada26` (the only "Test announcement" created 2026-10-22)
+  - `docker compose up -d` (container recreated for the new env); restarted the "GemEye Dashboard" window minimised with `npm run dev -- -H 0.0.0.0`
+  - Verified: `/health` returns `status: ok`, http://localhost:3000/admin/login/ returns 200, and the CORS preflight from http://localhost:3000 is allowed
+- **Files changed:**
+  - `~` admin/.env.local (git-ignored)
+  - `-` admin/.env.local.bak (git-ignored)
+  - `~` backend/.env (git-ignored)
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-152
+- **Reason:** Undo the temporary 10g phone test settings and get the local admin dashboard talking to the local API again.
+
+### EDIT-154 | 23 October 2026 | IST
+- **Topic:** Second post 10g phone test cleanup
+- **Summary:** Repeated the EDIT-153 cleanup after a further phone test: dashboard back on http://localhost:8000, LAN CORS origin cleared, `verify_base_url` set to production and the new "Test announcement" deleted in the Atlas dev database, then the API and dashboard restarted.
+- **What was done:**
+  - Set `NEXT_PUBLIC_API_BASE_URL=http://localhost:8000` in `admin/.env.local` (only that key changed) and deleted `admin/.env.local.bak`
+  - Cleared the `ADMIN_EXTRA_ORIGINS` value in `backend/.env` (setting kept in `app/admin.py`); `docker compose up -d` recreated `gemeye-api`
+  - Ran a one-off script in the container calling `admin_write.put_config` and `admin_write.delete_announcement` (pydantic-validated, audited with actor uid "script"): `verify_base_url` set to https://gemeye-app-2026.web.app; deleted 1 announcement titled "Test announcement" (0 remain); script removed from the container afterwards
+  - Closed the "GemEye Dashboard" window and relaunched it minimised with `npm run dev -- -H 0.0.0.0`
+  - Verified: `/health` returns `status: ok` and http://localhost:3000/admin/login/ returns 200
+- **Files changed:**
+  - `~` admin/.env.local (git-ignored)
+  - `-` admin/.env.local.bak (git-ignored)
+  - `~` backend/.env (git-ignored)
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-152, EDIT-153
+- **Reason:** Undo the temporary 10g phone test settings again and return the local admin dashboard to the local API.
