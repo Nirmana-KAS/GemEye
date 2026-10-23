@@ -101,3 +101,6 @@ admin/.next/
 admin/out/
 admin/next-env.d.ts
 admin/*.tsbuildinfo
+
+# admin screenshot session
+admin/scripts/.auth.json

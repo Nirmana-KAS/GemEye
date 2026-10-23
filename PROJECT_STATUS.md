@@ -2988,3 +2988,41 @@
   - `~` PROJECT_STATUS.md
 - **Connected edits:** EDIT-152, EDIT-153
 - **Reason:** Undo the temporary 10g phone test settings again and return the local admin dashboard to the local API.
+
+### EDIT-155 | 23 October 2026 | IST
+- **Topic:** Phase 10h end-to-end checklist and screenshot tooling
+- **Summary:** Added a manual E2E test checklist, a Playwright script that captures dashboard screenshots for the thesis, and the list of phone screenshots to take by hand. No app, backend or model behaviour changed.
+- **What was done:**
+  - Wrote `docs/GemEye_E2E_Test_Checklist.md` (test setup plus 11 areas, 100+ numbered rows with Pass/Fail and notes)
+  - Wrote `admin/scripts/screenshots.ts` (headed login once, session saved to git-ignored `admin/scripts/.auth.json`, 1440x900 full-page captures of every dashboard page, a user detail, a grading detail and the review panel, email blur, optional `--valid` / `--revoked` verify pages; falls back to installed Edge if Playwright Chromium is missing)
+  - Added `@playwright/test` as an admin dev dependency and the `screenshots` npm script (runs with Node's native TypeScript support); documented in `admin/README.md`
+  - Wrote `docs/screenshots/app/README.md` (phone screenshot list mapped to checklist IDs)
+  - `npm run lint` and `npm run typecheck` in admin/ pass
+- **Files changed:**
+  - `+` docs/GemEye_E2E_Test_Checklist.md
+  - `+` docs/screenshots/app/README.md
+  - `+` admin/scripts/screenshots.ts
+  - `~` admin/package.json
+  - `~` admin/package-lock.json
+  - `~` admin/README.md
+  - `~` .gitignore
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-151, EDIT-154
+- **Reason:** Give the supervisor a repeatable test plan and produce thesis screenshots.
+
+### EDIT-156 | 23 October 2026 | IST
+- **Topic:** Screenshot script attaches to real Chrome
+- **Summary:** Google refuses sign-in inside Playwright's Chromium, so the screenshot script now attaches to an installed Google Chrome over CDP and waits for a manual sign-in.
+- **What was done:**
+  - `admin/scripts/screenshots.ts` uses `chromium.connectOverCDP("http://localhost:9222")` and the first page of the default context; removed the headed launch, Edge fallback and `.auth.json` storageState code
+  - Script prints "Sign in in the Chrome window, then press Enter here" and waits for Enter before capturing
+  - Added `admin/scripts/start-chrome-for-screenshots.bat` (Chrome with `--remote-debugging-port=9222`, separate profile in `%LOCALAPPDATA%\GemEyeShots`, opens the admin login page)
+  - Updated the screenshot how-to in `admin/README.md`
+  - `npm run lint` and `npm run typecheck` in admin/ pass
+- **Files changed:**
+  - `+` admin/scripts/start-chrome-for-screenshots.bat
+  - `~` admin/scripts/screenshots.ts
+  - `~` admin/README.md
+  - `~` PROJECT_STATUS.md
+- **Connected edits:** EDIT-155
+- **Reason:** Allow Google sign-in for the thesis dashboard screenshots.

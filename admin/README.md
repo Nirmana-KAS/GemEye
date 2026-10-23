@@ -114,3 +114,9 @@ After the API is deployed on AWS:
 4. `npm i -g firebase-tools` and `firebase login` (gemeyeapp@gmail.com), once
 5. `cd admin && npm run build` (static export to `out/`)
 6. `firebase deploy --only hosting` -> https://gemeye-app-2026.web.app/admin/ and `/v/...`
+
+## Screenshots for the thesis
+
+Google blocks sign-in inside Playwright's own Chromium, so the script attaches to a real Chrome instead. With the API and `npm run dev` running, start `scripts\start-chrome-for-screenshots.bat` (opens Google Chrome on the login page with remote debugging on port 9222 and a separate profile in `%LOCALAPPDATA%\GemEyeShots`, so your normal Chrome is untouched). Then run `npm run screenshots`, sign in as an admin in that Chrome window and press Enter in the terminal. The script then saves 1440x900 full-page PNGs of every dashboard page, plus a user detail, a grading detail and the review panel, to `docs/screenshots/dashboard/` as `01-overview.png`, `02-users.png`, and so on. Email addresses are blurred before each capture.
+
+Optional: `npm run screenshots -- --valid <code> --revoked <code>` also captures the public verify page `/v/?c=<code>` for a valid and a revoked certificate.
